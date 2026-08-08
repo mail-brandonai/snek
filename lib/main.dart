@@ -116,10 +116,7 @@ class SlitherGame extends FlameGame {
   @override
   void render(ui.Canvas canvas) {
     super.render(canvas);
-    canvas.drawColor(
-      const Color(0xff080d18),
-      ui.BlendMode.srcOver,
-    );
+    canvas.drawColor(const Color(0xff080d18), ui.BlendMode.srcOver);
     if (size.x == 0 || size.y == 0) return;
 
     canvas.save();
@@ -153,7 +150,10 @@ class SlitherGame extends FlameGame {
     final radius = simulation.config.arenaRadius;
     for (var x = -radius; x <= radius; x += spacing) {
       for (var y = -radius; y <= radius; y += spacing) {
-        final centre = Offset(x + ((y ~/ spacing).isOdd ? spacing / 2 : 0), y);
+        final centre = Offset(
+          x + ((y ~/ spacing).isOdd ? spacing / 2 : 0),
+          y,
+        );
         final path = ui.Path();
         for (var index = 0; index < 6; index++) {
           final angle = index * 3.141592653589793 / 3;
@@ -260,7 +260,10 @@ class _Hud extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 9,
+              ),
               child: Text(
                 'SCORE  ${state.score}   LENGTH  ${state.length}',
                 style: const TextStyle(fontSize: 12, letterSpacing: 1.2),
