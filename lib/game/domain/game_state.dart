@@ -5,7 +5,7 @@ enum SnakeKind { player, bot }
 enum GameOverReason { boundary, bodyCollision }
 
 class FoodPellet {
-  FoodPellet({required this.position, this.value = 1});
+  const FoodPellet({required this.position, this.value = 1});
 
   final Vec2 position;
   final int value;

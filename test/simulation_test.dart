@@ -124,6 +124,36 @@ void main() {
       expect(restartedBot.head, firstRespawnPosition);
     });
 
+    test('bot population grows one snake at a time and stops at its cap', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 1,
+        maxBotCount: 3,
+        botPopulationInterval: 0.5,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 0,
+      );
+      final simulation = GameSimulation(config: config, seed: 31);
+
+      expect(simulation.totalBotCount, 1);
+      expect(simulation.livingBotCount, 1);
+
+      simulation.update(0.49, Vec2.zero);
+      expect(simulation.totalBotCount, 1);
+
+      simulation.update(0.02, Vec2.zero);
+      expect(simulation.totalBotCount, 2);
+      expect(simulation.livingBotCount, 2);
+
+      simulation.update(1.0, Vec2.zero);
+      expect(simulation.totalBotCount, 3);
+      expect(simulation.livingBotCount, 3);
+
+      simulation.update(2.0, Vec2.zero);
+      expect(simulation.totalBotCount, 3);
+    });
+
     test('pellet maintenance refills gradually below the density threshold',
         () {
       const config = SimulationConfig(
@@ -181,6 +211,54 @@ void main() {
       simulation.update(1 / 60, Vec2.zero);
 
       expect(bot.heading.x, lessThan(1));
+    });
+
+    test('nearby bots steer toward an intercept point ahead of the player', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 2000,
+          botCount: 1,
+          initialPellets: 0,
+          playerSpeed: 100,
+          botSpeed: 0,
+          botTurnRate: 20,
+          botPressureRadius: 800,
+          botPressureWeight: 4,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 300);
+      bot.heading = const Vec2(0, 1);
+      simulation.player.heading = const Vec2(1, 0);
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(bot.heading.x, greaterThan(0));
+      expect(bot.heading.y, lessThan(1));
+    });
+
+    test('bots prioritize nearby dropped mass as a reaction opportunity', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 2000,
+          botCount: 1,
+          initialPellets: 0,
+          botSpeed: 0,
+          botTurnRate: 20,
+          botDroppedMassWeight: 6,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 300);
+      bot.heading = const Vec2(0, 1);
+      simulation.droppedMass.add(
+        const FoodPellet(position: Vec2(0, 0), value: 2),
+      );
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(bot.heading.y, lessThan(1));
+      expect(bot.heading.y, greaterThan(-1));
     });
 
     test('collecting a pellet increases score and length', () {

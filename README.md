@@ -25,7 +25,7 @@ Networking, accounts, monetisation, progression, production art, and multiplayer
 
 The deterministic simulation under `lib/game/domain` is deliberately separated from Flame rendering. Unit tests cover reset state, movement consequences, collection, growth, defeat, dropped mass, and restart behaviour. Rendering, input feel, pacing, readability, and device performance are exploratory manual feedback items.
 
-GitHub Actions runs formatting, static analysis, the Flutter unit suite, and a release Web build on pull requests targeting `main`. Superseded runs for the same pull request are cancelled. Successful runs publish the runnable Web build as an Actions artifact. Changes should be merged to `main` through a passing pull request; `main` itself is not used as the CI trigger. A trusted follow-up workflow automatically merges a ready, non-stale pull request after the exact `Flutter checks` run passes, while branch protection and required reviews remain authoritative.
+GitHub Actions runs formatting, static analysis, the Flutter unit suite, and a release Web build on pull requests targeting `main`. Superseded runs for the same pull request are cancelled. Successful runs publish the runnable Web build as an Actions artifact. Changes should be merged to `main` through a passing pull request; `main` itself is not used as the CI trigger.
 
 ## Local setup
 
@@ -60,3 +60,14 @@ bodies when space permits. Natural pellets refill gradually only after the arena
 falls below its density threshold, so collection creates a changing food field
 instead of an immediate full refill. The HUD reports survival time, live rank,
 and a final score, length, time, and rank summary after defeat.
+
+## V1.2 competitive bot pressure
+
+The arena begins with a small bot population and adds one new rival at a time
+after a fixed interval until the configured population cap is reached. Defeated
+bots still respawn through their existing cooldown, so the population remains
+alive while the arena becomes progressively more congested. Bots now use a
+bounded intercept target ahead of the player when nearby, avoid living bodies,
+and give dropped mass stronger priority than ordinary pellets. This creates
+increasing competitive pressure while preserving readable, deterministic
+movement and the player's size-versus-maneuverability tradeoff.

@@ -20,10 +20,16 @@ class SimulationConfig {
     this.pelletRefillThreshold = 0.65,
     this.pelletRefillRate = 10,
     this.botCount = 3,
+    this.maxBotCount = 8,
     this.initialLength = 12,
     this.botRespawnDelay = 3,
     this.botRespawnSafeDistance = 520,
     this.botRespawnAttempts = 32,
+    this.botPopulationInterval = 18,
+    this.botPressureRadius = 720,
+    this.botPressureWeight = 1.6,
+    this.botInterceptLeadTime = 1.2,
+    this.botDroppedMassWeight = 2.3,
   });
 
   final double arenaRadius;
@@ -41,10 +47,16 @@ class SimulationConfig {
   final double pelletRefillThreshold;
   final double pelletRefillRate;
   final int botCount;
+  final int maxBotCount;
   final int initialLength;
   final double botRespawnDelay;
   final double botRespawnSafeDistance;
   final int botRespawnAttempts;
+  final double botPopulationInterval;
+  final double botPressureRadius;
+  final double botPressureWeight;
+  final double botInterceptLeadTime;
+  final double botDroppedMassWeight;
 }
 
 class GameSimulation {
@@ -64,6 +76,7 @@ class GameSimulation {
   final Map<String, double> _botRespawnTimers = {};
   double elapsed = 0;
   double _pelletRefillAccumulator = 0;
+  double _botPopulationAccumulator = 0;
   int score = 0;
   bool gameOver = false;
   GameOverReason? gameOverReason;
@@ -75,6 +88,13 @@ class GameSimulation {
   int get playerRank {
     return _rankForLength(player.length);
   }
+
+  int get livingBotCount => snakes.where((snake) {
+        return snake.kind == SnakeKind.bot && snake.alive;
+      }).length;
+
+  int get totalBotCount =>
+      snakes.where((snake) => snake.kind == SnakeKind.bot).length;
 
   List<LeaderboardEntry> get leaderboard {
     final living = snakes.where((snake) => snake.alive).toList()
@@ -118,6 +138,7 @@ class GameSimulation {
     _botRespawnTimers.clear();
     elapsed = 0;
     _pelletRefillAccumulator = 0;
+    _botPopulationAccumulator = 0;
     score = 0;
     gameOver = false;
     gameOverReason = null;
@@ -135,21 +156,12 @@ class GameSimulation {
       ),
     );
 
-    for (var index = 0; index < config.botCount; index++) {
-      snakes.add(
-        SnakeState(
-          id: 'bot-$index',
-          kind: SnakeKind.bot,
-          position: _randomPosition(
-            minRadius: math.min(300, config.botSpawnRadius * 0.55).toDouble(),
-            maxRadius: config.botSpawnRadius,
-          ),
-          colorIndex: index + 1,
-          speed: config.botSpeed,
-          initialLength: config.initialLength + index * 2,
-          segmentSpacing: config.segmentSpacing,
-        ),
-      );
+    final initialBotCount = math.min(
+      config.botCount,
+      math.max(0, config.maxBotCount),
+    );
+    for (var index = 0; index < initialBotCount; index++) {
+      snakes.add(_createBot(index));
     }
 
     _spawnPellets(config.initialPellets);
@@ -176,6 +188,7 @@ class GameSimulation {
       }
       _resolveCollisions();
       _advanceBotRespawns(step);
+      _advanceBotPopulation(step);
       _maintainPelletDensity(step);
       remaining -= step;
     }
@@ -205,7 +218,15 @@ class GameSimulation {
       final boundary = _boundaryAvoidance(bot);
       final threat = _nearbyThreat(bot);
       final interest = _nearestFood(bot);
-      final intent = (wander + boundary + threat + interest).normalized();
+      final droppedMassInterest = _nearestDroppedMass(bot);
+      final pressure = _playerPressure(bot);
+      final intent = (wander +
+              boundary +
+              threat +
+              interest +
+              droppedMassInterest +
+              pressure)
+          .normalized();
       final desired = intent.length == 0 ? bot.heading.angle : intent.angle;
       final current = bot.heading.angle;
       final delta = _shortestAngle(desired - current);
@@ -257,6 +278,41 @@ class GameSimulation {
     }
     if (nearest == null) return Vec2.zero;
     return (nearest.position - snake.head).normalized() * 1.5;
+  }
+
+  Vec2 _nearestDroppedMass(SnakeState snake) {
+    FoodPellet? nearest;
+    var nearestDistance = config.botSenseRadius;
+    for (final pellet in droppedMass) {
+      final distance = snake.head.distanceTo(pellet.position);
+      if (distance < nearestDistance) {
+        nearest = pellet;
+        nearestDistance = distance;
+      }
+    }
+    if (nearest == null) return Vec2.zero;
+    return (nearest.position - snake.head).normalized() *
+        config.botDroppedMassWeight;
+  }
+
+  Vec2 _playerPressure(SnakeState bot) {
+    if (!player.alive) return Vec2.zero;
+
+    final distance = bot.head.distanceTo(player.head);
+    if (distance > config.botPressureRadius) return Vec2.zero;
+
+    final leadDistance = player.speed * config.botInterceptLeadTime;
+    final interceptPoint = player.head + player.heading * leadDistance;
+    final direction = interceptPoint - bot.head;
+    if (direction.length == 0) return Vec2.zero;
+
+    final proximity =
+        ((config.botPressureRadius - distance) / config.botPressureRadius)
+            .clamp(0.0, 1.0)
+            .toDouble();
+    final sizeFactor = bot.length >= player.length ? 1.25 : 0.8;
+    return direction.normalized() *
+        (config.botPressureWeight * (0.65 + proximity * 0.35) * sizeFactor);
   }
 
   void _moveSnake(SnakeState snake, double dt) {
@@ -469,6 +525,47 @@ class GameSimulation {
       }
       _botRespawnTimers.remove(id);
     }
+  }
+
+  void _advanceBotPopulation(double dt) {
+    if (config.botCount <= 0 ||
+        config.maxBotCount <= totalBotCount ||
+        config.botPopulationInterval <= 0) {
+      return;
+    }
+
+    _botPopulationAccumulator += dt;
+    while (_botPopulationAccumulator >= config.botPopulationInterval &&
+        totalBotCount < config.maxBotCount) {
+      _botPopulationAccumulator -= config.botPopulationInterval;
+      _spawnAdditionalBot(totalBotCount);
+    }
+  }
+
+  void _spawnAdditionalBot(int index) {
+    final bot = _createBot(index, safeSpawn: true);
+    snakes.add(bot);
+  }
+
+  SnakeState _createBot(int index, {bool safeSpawn = false}) {
+    final bot = SnakeState(
+      id: 'bot-$index',
+      kind: SnakeKind.bot,
+      position: Vec2.zero,
+      colorIndex: index + 1,
+      speed: config.botSpeed,
+      initialLength: config.initialLength + index * 2,
+      segmentSpacing: config.segmentSpacing,
+    );
+
+    final position = safeSpawn
+        ? _findBotSpawnPosition(bot)
+        : _randomPosition(
+            minRadius: math.min(300, config.botSpawnRadius * 0.55).toDouble(),
+            maxRadius: config.botSpawnRadius,
+          );
+    bot.resetAt(position);
+    return bot;
   }
 
   Vec2 _findBotSpawnPosition(SnakeState bot) {
