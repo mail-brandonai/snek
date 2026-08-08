@@ -11,7 +11,7 @@ void main() {
     expect(
       find.text(
         'MOVE POINTER / DRAG TO STEER\n'
-        'DOUBLE-CLICK HOLD OR SPACE TO SPRINT',
+        'CLICK AND HOLD OR SPACE TO SPRINT',
       ),
       findsOneWidget,
     );
