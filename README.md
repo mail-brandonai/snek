@@ -43,7 +43,7 @@ The `flutter create` command only adds platform scaffolding to an otherwise plat
 ## Manual controls
 
 - Move the mouse pointer from the player, or drag on a touch screen, to steer.
-- Double-click and hold the second click, or hold Space, to sprint. Sprinting is faster but sheds a small amount of length as dropped mass.
+- Click and hold, or hold Space, to sprint. Moving the mouse while holding does not cancel sprinting. Sprinting is faster but sheds a small amount of length as dropped mass.
 - The snake continues on its current heading when the pointer is centred.
 - The player may overlap its own body; only other-snake body collisions defeat the run.
 - Collect cyan pellets to grow and increase score; orange dropped mass is created when a snake is defeated.
