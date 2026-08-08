@@ -79,7 +79,7 @@ class GameSimulation {
 
     var remaining = dt;
     while (remaining > 0 && !gameOver) {
-      final step = math.min(remaining, 0.05);
+      final step = math.min(remaining, 0.05).toDouble();
       elapsed += step;
       _steerPlayer(steering, step);
       _steerBots(step);
