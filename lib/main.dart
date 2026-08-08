@@ -24,7 +24,6 @@ class SlitherApp extends StatefulWidget {
 class _SlitherAppState extends State<SlitherApp> {
   late final SlitherGame game;
   late final FocusNode _focusNode;
-  DateTime? _lastPointerDown;
 
   @override
   void initState() {
@@ -41,12 +40,9 @@ class _SlitherAppState extends State<SlitherApp> {
   }
 
   void _handlePointerDown(PointerDownEvent event) {
+    _focusNode.requestFocus();
     game.setPointer(event.localPosition);
-    final now = DateTime.now();
-    final isDoubleClick = _lastPointerDown != null &&
-        now.difference(_lastPointerDown!).inMilliseconds <= 350;
-    game.setPointerSprint(isDoubleClick);
-    _lastPointerDown = now;
+    game.setPointerSprint(true);
   }
 
   @override
@@ -68,7 +64,12 @@ class _SlitherAppState extends State<SlitherApp> {
                 },
                 onKeyEvent: (node, event) {
                   if (event.logicalKey == LogicalKeyboardKey.space) {
-                    game.setKeyboardSprint(event is KeyDownEvent);
+                    final isPressed =
+                        event is KeyDownEvent || event is KeyRepeatEvent;
+                    final isReleased = event is KeyUpEvent;
+                    if (isPressed || isReleased) {
+                      game.setKeyboardSprint(isPressed);
+                    }
                     return KeyEventResult.handled;
                   }
                   return KeyEventResult.ignored;
@@ -415,7 +416,7 @@ class _ControlHint extends StatelessWidget {
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         child: Text(
-          'MOVE POINTER / DRAG TO STEER\nDOUBLE-CLICK HOLD OR SPACE TO SPRINT',
+          'MOVE POINTER / DRAG TO STEER\nCLICK AND HOLD OR SPACE TO SPRINT',
           style: TextStyle(fontSize: 10, letterSpacing: 1.05),
         ),
       ),
