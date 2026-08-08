@@ -24,6 +24,12 @@ void main() {
       expect(simulation.player.kind, SnakeKind.player);
       expect(simulation.pellets.length, 10);
       expect(simulation.gameOver, isFalse);
+      for (final bot in simulation.snakes.skip(1)) {
+        expect(
+          bot.head.length,
+          lessThanOrEqualTo(simulation.config.botSpawnRadius),
+        );
+      }
     });
 
     test('player rank reflects longer living snakes', () {
@@ -111,7 +117,7 @@ void main() {
         ),
       );
       final bot = simulation.snakes[1];
-      bot.body[1] = simulation.player.head;
+      bot.body[2] = simulation.player.head;
 
       simulation.update(1 / 60, Vec2.zero);
 
@@ -144,7 +150,7 @@ void main() {
       },
     );
 
-    test('self collision ends the player run with a distinct reason', () {
+    test('the player can overlap its own body without ending the run', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(
           botCount: 0,
@@ -156,9 +162,55 @@ void main() {
 
       simulation.update(1 / 60, Vec2.zero);
 
-      expect(simulation.gameOver, isTrue);
-      expect(simulation.gameOverReason, GameOverReason.selfCollision);
-      expect(simulation.droppedMass, isNotEmpty);
+      expect(simulation.gameOver, isFalse);
+      expect(simulation.gameOverReason, isNull);
+      expect(simulation.player.alive, isTrue);
+    });
+
+    test('body segments follow the head at stable spacing', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 180,
+        ),
+      );
+      final initialTail = simulation.player.body.last;
+
+      simulation.update(1 / 30, const Vec2(1, 0));
+
+      expect(simulation.player.body.last, isNot(initialTail));
+      for (var index = 1; index < simulation.player.body.length; index++) {
+        expect(
+          simulation.player.body[index - 1].distanceTo(
+                simulation.player.body[index],
+              ),
+          closeTo(simulation.config.segmentSpacing, 0.0001),
+        );
+      }
+    });
+
+    test('sprint increases speed and sheds mass while held', () {
+      const config = SimulationConfig(
+        botCount: 0,
+        initialPellets: 0,
+        playerSpeed: 100,
+        sprintMultiplier: 2,
+        sprintDrainInterval: 0.2,
+      );
+      final normal = GameSimulation(config: config);
+      final sprinting = GameSimulation(config: config);
+      final normalLength = normal.player.length;
+      final sprintLength = sprinting.player.length;
+
+      normal.update(0.5, const Vec2(1, 0));
+      sprinting.update(0.5, const Vec2(1, 0), sprinting: true);
+
+      expect(sprinting.player.head.x, greaterThan(normal.player.head.x));
+      expect(sprinting.player.length, lessThan(sprintLength));
+      expect(sprinting.player.length, greaterThanOrEqualTo(4));
+      expect(sprinting.droppedMass, isNotEmpty);
+      expect(normal.player.length, normalLength);
     });
 
     test('the player can collect dropped mass', () {
