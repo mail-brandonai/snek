@@ -22,6 +22,10 @@ void main() {
 
       expect(simulation.snakes.length, 3);
       expect(simulation.player.kind, SnakeKind.player);
+      expect(
+        simulation.player.length,
+        simulation.config.minimumSprintLength,
+      );
       expect(simulation.pellets.length, 10);
       expect(simulation.gameOver, isFalse);
       for (final bot in simulation.snakes.skip(1)) {
@@ -138,7 +142,7 @@ void main() {
           ),
         );
         final bot = simulation.snakes[1];
-        simulation.player.body[8] = bot.head;
+        simulation.player.body[3] = bot.head;
 
         simulation.update(1 / 60, Vec2.zero);
 
@@ -158,7 +162,7 @@ void main() {
           playerSpeed: 0,
         ),
       );
-      simulation.player.body[8] = simulation.player.head;
+      simulation.player.body[3] = simulation.player.head;
 
       simulation.update(1 / 60, Vec2.zero);
 
@@ -200,9 +204,9 @@ void main() {
       );
 
       simulation.update(1 / 30, const Vec2(1, 0));
-      final beforeTurn = simulation.player.body[4];
+      final beforeTurn = simulation.player.body[3];
       simulation.update(1 / 30, const Vec2(0, 1));
-      final afterTurn = simulation.player.body[4];
+      final afterTurn = simulation.player.body[3];
 
       expect(afterTurn, isNot(beforeTurn));
       for (var index = 1; index < simulation.player.body.length; index++) {
@@ -225,6 +229,8 @@ void main() {
       );
       final normal = GameSimulation(config: config);
       final sprinting = GameSimulation(config: config);
+      normal.player.grow(4);
+      sprinting.player.grow(4);
       final normalLength = normal.player.length;
       final sprintLength = sprinting.player.length;
 
@@ -233,9 +239,47 @@ void main() {
 
       expect(sprinting.player.head.x, greaterThan(normal.player.head.x));
       expect(sprinting.player.length, lessThan(sprintLength));
-      expect(sprinting.player.length, greaterThanOrEqualTo(4));
+      expect(
+        sprinting.player.length,
+        greaterThanOrEqualTo(config.minimumSprintLength),
+      );
       expect(sprinting.droppedMass, isNotEmpty);
       expect(normal.player.length, normalLength);
+    });
+
+    test('sprint cannot activate when the player has no mass to shed', () {
+      const config = SimulationConfig(
+        botCount: 0,
+        initialPellets: 0,
+        playerSpeed: 100,
+        sprintMultiplier: 2,
+      );
+      final simulation = GameSimulation(config: config);
+
+      simulation.update(0.1, const Vec2(1, 0), sprinting: true);
+
+      expect(simulation.player.length, config.minimumSprintLength);
+      expect(simulation.player.sprinting, isFalse);
+      expect(simulation.player.head.x, closeTo(10, 0.0001));
+      expect(simulation.droppedMass, isEmpty);
+    });
+
+    test('sprint disengages immediately after reaching minimum length', () {
+      const config = SimulationConfig(
+        botCount: 0,
+        initialPellets: 0,
+        playerSpeed: 100,
+        sprintMultiplier: 2,
+        sprintDrainInterval: 0.2,
+      );
+      final simulation = GameSimulation(config: config);
+      simulation.player.grow(1);
+
+      simulation.update(0.2, const Vec2(1, 0), sprinting: true);
+
+      expect(simulation.player.length, config.minimumSprintLength);
+      expect(simulation.player.sprinting, isFalse);
+      expect(simulation.droppedMass, hasLength(1));
     });
 
     test('the player can collect dropped mass', () {
