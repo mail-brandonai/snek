@@ -241,8 +241,7 @@ class GameSimulation {
         (item) => item.id != snake.id && item.alive,
       )) {
         for (final segment in other.body.skip(2)) {
-          if (snake.head.distanceTo(segment) <
-              snake.radius + other.radius) {
+          if (snake.head.distanceTo(segment) < snake.radius + other.radius) {
             _defeat(snake, GameOverReason.bodyCollision);
             break;
           }
