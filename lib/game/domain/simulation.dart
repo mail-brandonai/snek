@@ -228,6 +228,7 @@ class GameSimulation {
     final growsThisStep = snake.growth > 0;
     if (hasMoved) {
       snake.body.insert(0, nextHead);
+      snake.movementTrail.insert(0, nextHead);
       if (!growsThisStep) snake.body.removeLast();
       if (growsThisStep) snake.growth--;
       _reflowBody(snake);
@@ -243,18 +244,65 @@ class GameSimulation {
   }
 
   void _reflowBody(SnakeState snake) {
+    final maximumDistance =
+        ((snake.body.length - 1) * snake.segmentSpacing).toDouble();
+    _trimMovementTrail(
+      snake,
+      maximumDistance + snake.segmentSpacing * 2,
+    );
+
     for (var index = 1; index < snake.body.length; index++) {
-      final previous = snake.body[index - 1];
-      var direction = snake.body[index] - previous;
-      if (direction.length == 0) {
-        direction = index == 1
-            ? snake.heading * -1
-            : snake.body[index - 1] - snake.body[index - 2];
-      }
-      final normalized =
-          direction.length == 0 ? snake.heading * -1 : direction.normalized();
-      snake.body[index] = previous + normalized * snake.segmentSpacing;
+      snake.body[index] = _sampleMovementTrail(
+        snake,
+        index * snake.segmentSpacing,
+      );
     }
+  }
+
+  void _trimMovementTrail(SnakeState snake, double maximumDistance) {
+    if (snake.movementTrail.length < 3) return;
+
+    var distance = 0.0;
+    for (var index = 0; index < snake.movementTrail.length - 1; index++) {
+      distance += snake.movementTrail[index].distanceTo(
+        snake.movementTrail[index + 1],
+      );
+      if (distance > maximumDistance) {
+        final removeFrom = index + 2;
+        if (removeFrom < snake.movementTrail.length) {
+          snake.movementTrail.removeRange(
+            removeFrom,
+            snake.movementTrail.length,
+          );
+        }
+        return;
+      }
+    }
+  }
+
+  Vec2 _sampleMovementTrail(SnakeState snake, double distance) {
+    var travelled = 0.0;
+    final trail = snake.movementTrail;
+    for (var index = 0; index < trail.length - 1; index++) {
+      final start = trail[index];
+      final end = trail[index + 1];
+      final segmentLength = start.distanceTo(end);
+      if (segmentLength == 0) continue;
+      if (travelled + segmentLength >= distance) {
+        final fraction = (distance - travelled) / segmentLength;
+        return start + (end - start) * fraction;
+      }
+      travelled += segmentLength;
+    }
+
+    final last = trail.last;
+    if (trail.length < 2) return last;
+
+    final tailDirection = last - trail[trail.length - 2];
+    final normalized = tailDirection.length == 0
+        ? snake.heading * -1
+        : tailDirection.normalized();
+    return last + normalized * (distance - travelled);
   }
 
   void _drainSprint(SnakeState snake, double dt) {
