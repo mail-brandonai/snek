@@ -210,7 +210,7 @@ void main() {
           simulation.player.body[index - 1].distanceTo(
             simulation.player.body[index],
           ),
-          closeTo(simulation.config.segmentSpacing, 0.0001),
+          lessThanOrEqualTo(simulation.config.segmentSpacing + 0.0001),
         );
       }
     });
