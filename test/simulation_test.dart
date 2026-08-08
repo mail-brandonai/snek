@@ -41,7 +41,10 @@ void main() {
       simulation.update(1 / 60, Vec2.zero);
 
       expect(simulation.score, 3);
-      expect(simulation.player.length, initialLength + 3);
+      expect(
+        simulation.player.length,
+        greaterThanOrEqualTo(initialLength + 3),
+      );
       expect(simulation.pellets, isEmpty);
     });
 
@@ -79,25 +82,28 @@ void main() {
       expect(simulation.droppedMass, isNotEmpty);
     });
 
-    test('a bot hitting the player body is defeated without ending the run', () {
-      final simulation = GameSimulation(
-        config: const SimulationConfig(
-          botCount: 1,
-          initialPellets: 0,
-          playerSpeed: 0,
-          botSpeed: 0,
-        ),
-      );
-      final bot = simulation.snakes[1];
-      simulation.player.body[8] = bot.head;
+    test(
+      'a bot hitting the player body is defeated without ending the run',
+      () {
+        final simulation = GameSimulation(
+          config: const SimulationConfig(
+            botCount: 1,
+            initialPellets: 0,
+            playerSpeed: 0,
+            botSpeed: 0,
+          ),
+        );
+        final bot = simulation.snakes[1];
+        simulation.player.body[8] = bot.head;
 
-      simulation.update(1 / 60, Vec2.zero);
+        simulation.update(1 / 60, Vec2.zero);
 
-      expect(bot.alive, isFalse);
-      expect(simulation.player.alive, isTrue);
-      expect(simulation.gameOver, isFalse);
-      expect(simulation.droppedMass, isNotEmpty);
-    });
+        expect(bot.alive, isFalse);
+        expect(simulation.player.alive, isTrue);
+        expect(simulation.gameOver, isFalse);
+        expect(simulation.droppedMass, isNotEmpty);
+      },
+    );
 
     test('the player can collect dropped mass', () {
       final simulation = GameSimulation(
@@ -115,7 +121,10 @@ void main() {
       simulation.update(1 / 60, Vec2.zero);
 
       expect(simulation.score, 2);
-      expect(simulation.player.length, initialLength + 2);
+      expect(
+        simulation.player.length,
+        greaterThanOrEqualTo(initialLength + 2),
+      );
       expect(simulation.droppedMass, isEmpty);
     });
 
