@@ -72,11 +72,13 @@ class GameHud {
   const GameHud({
     required this.score,
     required this.length,
+    required this.rank,
     required this.gameOver,
   });
 
   final int score;
   final int length;
+  final int rank;
   final bool gameOver;
 }
 
@@ -84,7 +86,7 @@ class SlitherGame extends FlameGame {
   SlitherGame({SimulationConfig config = const SimulationConfig()})
       : simulation = GameSimulation(config: config),
         hud = ValueNotifier(
-          const GameHud(score: 0, length: 0, gameOver: false),
+          const GameHud(score: 0, length: 0, rank: 1, gameOver: false),
         );
 
   final GameSimulation simulation;
@@ -137,6 +139,7 @@ class SlitherGame extends FlameGame {
     hud.value = GameHud(
       score: simulation.score,
       length: simulation.player.length,
+      rank: simulation.playerRank,
       gameOver: simulation.gameOver,
     );
   }
@@ -265,7 +268,7 @@ class _Hud extends StatelessWidget {
                 vertical: 9,
               ),
               child: Text(
-                'SCORE  ${state.score}   LENGTH  ${state.length}',
+                'SCORE  ${state.score}   LENGTH  ${state.length}   RANK  ${state.rank}',
                 style: const TextStyle(fontSize: 12, letterSpacing: 1.2),
               ),
             ),
