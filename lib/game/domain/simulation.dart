@@ -170,6 +170,7 @@ class GameSimulation {
 
       for (final snake in snakes.where((item) => item.alive)) {
         _moveSnake(snake, step);
+        if (!snake.alive) continue;
         _collectPellets(snake);
         _collectDroppedMass(snake);
       }
@@ -471,10 +472,12 @@ class GameSimulation {
   }
 
   Vec2 _findBotSpawnPosition(SnakeState bot) {
-    final spawnRadius = math.max(
-      0.0,
-      config.arenaRadius - config.botBoundaryBuffer,
-    ).toDouble();
+    final spawnRadius = math
+        .max(
+          0.0,
+          config.arenaRadius - config.botBoundaryBuffer,
+        )
+        .toDouble();
     Vec2? bestPosition;
     var bestClearance = -double.infinity;
 
@@ -511,9 +514,7 @@ class GameSimulation {
   int _rankForLength(int length) {
     final longerSnakes = snakes.where(
       (snake) =>
-          snake.alive &&
-          snake.kind == SnakeKind.bot &&
-          snake.length > length,
+          snake.alive && snake.kind == SnakeKind.bot && snake.length > length,
     );
     return longerSnakes.length + 1;
   }

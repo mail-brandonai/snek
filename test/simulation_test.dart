@@ -56,14 +56,15 @@ void main() {
       expect(simulation.playerRank, 1);
     });
 
-    test('leaderboard returns the five longest living snakes in rank order', () {
+    test('leaderboard returns the five longest living snakes in rank order',
+        () {
       final simulation = GameSimulation(
         config: const SimulationConfig(
           botCount: 6,
           initialPellets: 0,
         ),
       );
-      simulation.player.grow(20);
+      simulation.player.grow(40);
       for (var index = 0; index < 6; index++) {
         simulation.snakes[index + 1].grow(index * 3);
       }
@@ -74,7 +75,7 @@ void main() {
       expect(leaderboard.map((entry) => entry.rank), [1, 2, 3, 4, 5]);
       expect(
         leaderboard.map((entry) => entry.length.toDouble()).toList(),
-        orderedDescending,
+        <double>[44, 37, 32, 27, 22],
       );
       expect(leaderboard.first.isPlayer, isTrue);
       expect(leaderboard.where((entry) => entry.isPlayer), hasLength(1));
@@ -123,7 +124,8 @@ void main() {
       expect(restartedBot.head, firstRespawnPosition);
     });
 
-    test('pellet maintenance refills gradually below the density threshold', () {
+    test('pellet maintenance refills gradually below the density threshold',
+        () {
       const config = SimulationConfig(
         botCount: 0,
         initialPellets: 10,
@@ -157,7 +159,8 @@ void main() {
 
       expect(simulation.finalStats, isNotNull);
       expect(simulation.finalStats!.score, simulation.score);
-      expect(simulation.finalStats!.length, simulation.config.minimumSprintLength);
+      expect(
+          simulation.finalStats!.length, simulation.config.minimumSprintLength);
       expect(simulation.finalStats!.survivalSeconds, greaterThan(0));
       expect(simulation.finalStats!.rank, 1);
     });
