@@ -25,8 +25,7 @@ class GameSimulation {
   GameSimulation({
     SimulationConfig config = const SimulationConfig(),
     int seed = 7,
-  })
-      : config = config,
+  })  : config = config,
         _random = math.Random(seed) {
     reset();
   }
