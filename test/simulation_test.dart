@@ -190,6 +190,31 @@ void main() {
       }
     });
 
+    test('body follows the travelled head path through a turn', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 180,
+        ),
+      );
+
+      simulation.update(1 / 30, const Vec2(1, 0));
+      final beforeTurn = simulation.player.body[4];
+      simulation.update(1 / 30, const Vec2(0, 1));
+      final afterTurn = simulation.player.body[4];
+
+      expect(afterTurn, isNot(beforeTurn));
+      for (var index = 1; index < simulation.player.body.length; index++) {
+        expect(
+          simulation.player.body[index - 1].distanceTo(
+            simulation.player.body[index],
+          ),
+          closeTo(simulation.config.segmentSpacing, 0.0001),
+        );
+      }
+    });
+
     test('sprint increases speed and sheds mass while held', () {
       const config = SimulationConfig(
         botCount: 0,
