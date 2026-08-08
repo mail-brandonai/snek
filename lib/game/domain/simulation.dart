@@ -160,8 +160,7 @@ class GameSimulation {
     final threshold = config.arenaRadius - config.botBoundaryBuffer;
     if (distance <= threshold || distance == 0) return Vec2.zero;
 
-    final double urgency =
-        ((distance - threshold) / config.botBoundaryBuffer)
+    final double urgency = ((distance - threshold) / config.botBoundaryBuffer)
         .clamp(0.0, 1.0)
         .toDouble();
     return snake.head.normalized() * (-urgency * 3);
