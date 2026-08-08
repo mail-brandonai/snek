@@ -70,6 +70,9 @@ class GameSimulation {
     return longerSnakes.length + 1;
   }
 
+  bool get canSprint =>
+      !gameOver && player.alive && player.length > config.minimumSprintLength;
+
   void reset() {
     _random = math.Random(seed);
     snakes.clear();
@@ -87,7 +90,7 @@ class GameSimulation {
         position: Vec2.zero,
         colorIndex: 0,
         speed: config.playerSpeed,
-        initialLength: config.initialLength,
+        initialLength: config.minimumSprintLength,
         segmentSpacing: config.segmentSpacing,
       ),
     );
@@ -115,8 +118,8 @@ class GameSimulation {
   void update(double dt, Vec2 steering, {bool sprinting = false}) {
     if (gameOver || dt <= 0) return;
 
-    player.sprinting = sprinting;
-    if (!sprinting) player.sprintDrainAccumulator = 0;
+    player.sprinting = sprinting && canSprint;
+    if (!player.sprinting) player.sprintDrainAccumulator = 0;
 
     var remaining = dt;
     while (remaining > 0 && !gameOver) {
@@ -313,10 +316,16 @@ class GameSimulation {
         minimumLength: config.minimumSprintLength,
       );
       if (position == null) {
+        snake.sprinting = false;
         snake.sprintDrainAccumulator = 0;
         return;
       }
       droppedMass.add(FoodPellet(position: position, value: 1));
+      if (snake.length <= config.minimumSprintLength) {
+        snake.sprinting = false;
+        snake.sprintDrainAccumulator = 0;
+        return;
+      }
     }
   }
 
