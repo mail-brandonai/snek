@@ -143,7 +143,8 @@ class SlitherGame extends FlameGame {
   bool _keyboardSprint = false;
   double _hudTimer = 0;
 
-  bool get sprinting => _pointerSprint || _keyboardSprint;
+  bool get sprinting =>
+      simulation.canSprint && (_pointerSprint || _keyboardSprint);
 
   void setPointer(Offset point) {
     final centre = Offset(size.x / 2, size.y / 2);
