@@ -22,7 +22,10 @@ class SimulationConfig {
 }
 
 class GameSimulation {
-  GameSimulation({SimulationConfig config = const SimulationConfig(), int seed = 7})
+  GameSimulation({
+    SimulationConfig config = const SimulationConfig(),
+    int seed = 7,
+  })
       : config = config,
         _random = math.Random(seed) {
     reset();
@@ -37,7 +40,8 @@ class GameSimulation {
   int score = 0;
   bool gameOver = false;
 
-  SnakeState get player => snakes.firstWhere((snake) => snake.kind == SnakeKind.player);
+  SnakeState get player =>
+      snakes.firstWhere((snake) => snake.kind == SnakeKind.player);
 
   void reset() {
     snakes.clear();
@@ -101,11 +105,15 @@ class GameSimulation {
     final current = player.heading.angle;
     final delta = _shortestAngle(target - current);
     final maxTurn = 6.0 * dt;
-    player.heading = Vec2.fromAngle(current + (delta.clamp(-maxTurn, maxTurn) as double));
+    player.heading = Vec2.fromAngle(
+      current + (delta.clamp(-maxTurn, maxTurn) as double),
+    );
   }
 
   void _steerBots(double dt) {
-    for (final bot in snakes.where((snake) => snake.kind == SnakeKind.bot && snake.alive)) {
+    for (final bot in snakes.where(
+      (snake) => snake.kind == SnakeKind.bot && snake.alive,
+    )) {
       final target = Vec2(
         math.cos(elapsed * 0.35 + bot.colorIndex),
         math.sin(elapsed * 0.27 + bot.colorIndex * 1.7),
@@ -113,7 +121,9 @@ class GameSimulation {
       final desired = target.angle;
       final current = bot.heading.angle;
       final delta = _shortestAngle(desired - current);
-      bot.heading = Vec2.fromAngle(current + (delta.clamp(-2.2 * dt, 2.2 * dt) as double));
+      bot.heading = Vec2.fromAngle(
+        current + (delta.clamp(-2.2 * dt, 2.2 * dt) as double),
+      );
     }
   }
 
@@ -148,9 +158,12 @@ class GameSimulation {
     final playerSnake = player;
     if (!playerSnake.alive) return;
 
-    for (final other in snakes.where((snake) => snake.id != playerSnake.id && snake.alive)) {
+    for (final other in snakes.where(
+      (snake) => snake.id != playerSnake.id && snake.alive,
+    )) {
       for (final segment in other.body.skip(2)) {
-        if (playerSnake.head.distanceTo(segment) < playerSnake.radius + other.radius) {
+        if (playerSnake.head.distanceTo(segment) <
+            playerSnake.radius + other.radius) {
           _defeat(playerSnake);
           return;
         }
@@ -180,7 +193,8 @@ class GameSimulation {
   }
 
   Vec2 _randomPosition({double minRadius = 0}) {
-    final radius = minRadius + _random.nextDouble() * (config.arenaRadius - minRadius);
+    final radius =
+        minRadius + _random.nextDouble() * (config.arenaRadius - minRadius);
     final angle = _random.nextDouble() * math.pi * 2;
     return Vec2(math.cos(angle) * radius, math.sin(angle) * radius);
   }

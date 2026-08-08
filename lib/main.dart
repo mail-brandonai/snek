@@ -48,7 +48,8 @@ class _SlitherAppState extends State<SlitherApp> {
               MouseRegion(
                 onHover: (event) => game.setPointer(event.localPosition),
                 child: Listener(
-                  onPointerMove: (event) => game.setPointer(event.localPosition),
+                  onPointerMove: (event) =>
+                      game.setPointer(event.localPosition),
                   child: GameWidget(game: game),
                 ),
               ),
@@ -68,7 +69,11 @@ class _SlitherAppState extends State<SlitherApp> {
 }
 
 class GameHud {
-  const GameHud({required this.score, required this.length, required this.gameOver});
+  const GameHud({
+    required this.score,
+    required this.length,
+    required this.gameOver,
+  });
 
   final int score;
   final int length;
@@ -78,7 +83,9 @@ class GameHud {
 class SlitherGame extends FlameGame {
   SlitherGame({SimulationConfig config = const SimulationConfig()})
       : simulation = GameSimulation(config: config),
-        hud = ValueNotifier(const GameHud(score: 0, length: 0, gameOver: false));
+        hud = ValueNotifier(
+          const GameHud(score: 0, length: 0, gameOver: false),
+        );
 
   final GameSimulation simulation;
   final ValueNotifier<GameHud> hud;
@@ -111,7 +118,10 @@ class SlitherGame extends FlameGame {
     if (size.x == 0 || size.y == 0) return;
 
     canvas.save();
-    canvas.translate(size.x / 2 - simulation.player.head.x, size.y / 2 - simulation.player.head.y);
+    canvas.translate(
+      size.x / 2 - simulation.player.head.x,
+      size.y / 2 - simulation.player.head.y,
+    );
     _drawArena(canvas);
     _drawPellets(canvas, simulation.pellets, dropped: false);
     _drawPellets(canvas, simulation.droppedMass, dropped: true);
@@ -142,7 +152,10 @@ class SlitherGame extends FlameGame {
         final path = ui.Path();
         for (var index = 0; index < 6; index++) {
           final angle = index * 3.141592653589793 / 3;
-          final point = Offset(centre.dx + 44 * math.cos(angle), centre.dy + 44 * math.sin(angle));
+          final point = Offset(
+            centre.dx + 44 * math.cos(angle),
+            centre.dy + 44 * math.sin(angle),
+          );
           if (index == 0) {
             path.moveTo(point.dx, point.dy);
           } else {
@@ -156,14 +169,28 @@ class SlitherGame extends FlameGame {
     canvas.drawCircle(Offset.zero, radius, gridPaint);
   }
 
-  void _drawPellets(ui.Canvas canvas, List<FoodPellet> items, {required bool dropped}) {
+  void _drawPellets(
+    ui.Canvas canvas,
+    List<FoodPellet> items, {
+    required bool dropped,
+  }) {
     for (final pellet in items) {
-      final colour = dropped ? const Color(0xffffb43b) : const Color(0xff54e8d1);
-      final paint = ui.Paint()..color = colour.withOpacity(dropped ? 0.95 : 0.8);
-      canvas.drawCircle(Offset(pellet.position.x, pellet.position.y), dropped ? 8 : 4, paint);
+      final colour =
+          dropped ? const Color(0xffffb43b) : const Color(0xff54e8d1);
+      final paint = ui.Paint()
+        ..color = colour.withOpacity(dropped ? 0.95 : 0.8);
+      canvas.drawCircle(
+        Offset(pellet.position.x, pellet.position.y),
+        dropped ? 8 : 4,
+        paint,
+      );
       if (dropped) {
         final glow = ui.Paint()..color = colour.withOpacity(0.13);
-        canvas.drawCircle(Offset(pellet.position.x, pellet.position.y), 18, glow);
+        canvas.drawCircle(
+          Offset(pellet.position.x, pellet.position.y),
+          18,
+          glow,
+        );
       }
     }
   }
@@ -181,8 +208,13 @@ class SlitherGame extends FlameGame {
       ..style = ui.PaintingStyle.fill;
     for (var index = snake.body.length - 1; index >= 0; index--) {
       final segment = snake.body[index];
-      final taper = (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0) as double;
-      canvas.drawCircle(Offset(segment.x, segment.y), snake.radius * taper, bodyPaint);
+      final taper =
+          (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0) as double;
+      canvas.drawCircle(
+        Offset(segment.x, segment.y),
+        snake.radius * taper,
+        bodyPaint,
+      );
     }
     final head = snake.head;
     canvas.drawCircle(Offset(head.x, head.y), snake.radius + 2, bodyPaint);
@@ -192,7 +224,14 @@ class SlitherGame extends FlameGame {
     for (final side in [-1.0, 1.0]) {
       final eye = head + snake.heading * 5 + perpendicular * (side * 5);
       canvas.drawCircle(Offset(eye.x, eye.y), 3.5, eyePaint);
-      canvas.drawCircle(Offset(eye.x + snake.heading.x * 1.5, eye.y + snake.heading.y * 1.5), 1.8, pupilPaint);
+      canvas.drawCircle(
+        Offset(
+          eye.x + snake.heading.x * 1.5,
+          eye.y + snake.heading.y * 1.5,
+        ),
+        1.8,
+        pupilPaint,
+      );
     }
   }
 }
@@ -217,7 +256,10 @@ class _Hud extends StatelessWidget {
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              child: Text('SCORE  ${state.score}   LENGTH  ${state.length}', style: const TextStyle(fontSize: 12, letterSpacing: 1.2)),
+              child: Text(
+                'SCORE  ${state.score}   LENGTH  ${state.length}',
+                style: const TextStyle(fontSize: 12, letterSpacing: 1.2),
+              ),
             ),
           ),
         ),
@@ -230,11 +272,23 @@ class _Hud extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('OUT OF BOUNDS', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'OUT OF BOUNDS',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    Text('Score ${state.score}', style: const TextStyle(color: Colors.white70)),
+                    Text(
+                      'Score ${state.score}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
                     const SizedBox(height: 16),
-                    FilledButton(onPressed: onRestart, child: const Text('PLAY AGAIN')),
+                    FilledButton(
+                      onPressed: onRestart,
+                      child: const Text('PLAY AGAIN'),
+                    ),
                   ],
                 ),
               ),

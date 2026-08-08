@@ -27,10 +27,16 @@ void main() {
 
     test('collecting a pellet increases score and length', () {
       final simulation = GameSimulation(
-        config: const SimulationConfig(botCount: 0, initialPellets: 0, playerSpeed: 0),
+        config: const SimulationConfig(
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 0,
+        ),
       );
       final initialLength = simulation.player.length;
-      simulation.pellets.add(FoodPellet(position: simulation.player.head, value: 3));
+      simulation.pellets.add(
+        FoodPellet(position: simulation.player.head, value: 3),
+      );
 
       simulation.update(1 / 60, Vec2.zero);
 
@@ -75,7 +81,12 @@ void main() {
 
     test('restart restores a playable state', () {
       final simulation = GameSimulation(
-        config: const SimulationConfig(botCount: 0, initialPellets: 0, arenaRadius: 20, playerSpeed: 1000),
+        config: const SimulationConfig(
+          botCount: 0,
+          initialPellets: 0,
+          arenaRadius: 20,
+          playerSpeed: 1000,
+        ),
       );
       simulation.update(1, Vec2(1, 0));
       simulation.restart();
