@@ -50,24 +50,28 @@ class GameSimulation {
     score = 0;
     gameOver = false;
 
-    snakes.add(SnakeState(
-      id: 'player',
-      kind: SnakeKind.player,
-      position: Vec2.zero,
-      colorIndex: 0,
-      speed: config.playerSpeed,
-      initialLength: config.initialLength,
-    ));
+    snakes.add(
+      SnakeState(
+        id: 'player',
+        kind: SnakeKind.player,
+        position: Vec2.zero,
+        colorIndex: 0,
+        speed: config.playerSpeed,
+        initialLength: config.initialLength,
+      ),
+    );
 
     for (var index = 0; index < config.botCount; index++) {
-      snakes.add(SnakeState(
-        id: 'bot-$index',
-        kind: SnakeKind.bot,
-        position: _randomPosition(minRadius: 300),
-        colorIndex: index + 1,
-        speed: config.botSpeed,
-        initialLength: config.initialLength + index * 2,
-      ));
+      snakes.add(
+        SnakeState(
+          id: 'bot-$index',
+          kind: SnakeKind.bot,
+          position: _randomPosition(minRadius: 300),
+          colorIndex: index + 1,
+          speed: config.botSpeed,
+          initialLength: config.initialLength + index * 2,
+        ),
+      );
     }
 
     _spawnPellets(config.initialPellets);
