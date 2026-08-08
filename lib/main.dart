@@ -75,6 +75,7 @@ class GameHud {
     required this.length,
     required this.rank,
     required this.gameOver,
+    required this.gameOverReason,
     required this.minimap,
   });
 
@@ -82,6 +83,7 @@ class GameHud {
   final int length;
   final int rank;
   final bool gameOver;
+  final GameOverReason? gameOverReason;
   final List<MinimapMarker> minimap;
 }
 
@@ -94,6 +96,7 @@ class SlitherGame extends FlameGame {
             length: 0,
             rank: 1,
             gameOver: false,
+            gameOverReason: null,
             minimap: <MinimapMarker>[],
           ),
         );
@@ -150,6 +153,7 @@ class SlitherGame extends FlameGame {
       length: simulation.player.length,
       rank: simulation.playerRank,
       gameOver: simulation.gameOver,
+      gameOverReason: simulation.gameOverReason,
       minimap: MinimapModel.markers(
         snakes: simulation.snakes,
         arenaRadius: simulation.config.arenaRadius,
@@ -263,6 +267,18 @@ class _Hud extends StatelessWidget {
   final GameHud state;
   final VoidCallback onRestart;
 
+  String get _gameOverTitle {
+    switch (state.gameOverReason) {
+      case GameOverReason.bodyCollision:
+        return 'BODY COLLISION';
+      case GameOverReason.selfCollision:
+        return 'SELF COLLISION';
+      case GameOverReason.boundary:
+      case null:
+        return 'OUT OF BOUNDS';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -301,8 +317,8 @@ class _Hud extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'OUT OF BOUNDS',
+                    Text(
+                      _gameOverTitle,
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
