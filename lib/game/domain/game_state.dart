@@ -2,6 +2,8 @@ import 'vec2.dart';
 
 enum SnakeKind { player, bot }
 
+enum GameOverReason { boundary, bodyCollision, selfCollision }
+
 class FoodPellet {
   FoodPellet({required this.position, this.value = 1});
 
