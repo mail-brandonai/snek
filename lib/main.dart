@@ -319,7 +319,7 @@ class _Hud extends StatelessWidget {
                   children: [
                     Text(
                       _gameOverTitle,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
