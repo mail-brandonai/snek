@@ -11,7 +11,8 @@ V1 is an offline single-player vertical slice intended to establish the game fee
 - three deterministic-style roaming bots;
 - scrolling arena with a dark hex-grid presentation;
 - head-to-body collision and arena-boundary defeat;
-- dropped mass after any defeat, with distinct boundary/body/self-collision feedback;
+- dropped mass after defeat, with distinct boundary/body-collision feedback;
+- optional sprinting that trades length for significantly higher movement speed;
 - minimal score/length HUD and restart flow;
 - live arena minimap showing the player and living bots;
 - deterministic bot boundary avoidance, food interest, and nearby-body avoidance;
@@ -42,7 +43,9 @@ The `flutter create` command only adds platform scaffolding to an otherwise plat
 ## Manual controls
 
 - Move the mouse pointer from the player, or drag on a touch screen, to steer.
+- Double-click and hold the second click, or hold Space, to sprint. Sprinting is faster but sheds a small amount of length as dropped mass.
 - The snake continues on its current heading when the pointer is centred.
+- The player may overlap its own body; only other-snake body collisions defeat the run.
 - Collect cyan pellets to grow and increase score; orange dropped mass is created when a snake is defeated.
 - The minimap marks the player with a ring and living bots with smaller dots.
 - After defeat, read the collision reason and choose `PLAY AGAIN` to reset the seeded opening state.
