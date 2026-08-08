@@ -287,8 +287,12 @@ class GameSimulation {
   }
 
   static double _shortestAngle(double angle) {
-    while (angle > math.pi) angle -= math.pi * 2;
-    while (angle < -math.pi) angle += math.pi * 2;
+    while (angle > math.pi) {
+      angle -= math.pi * 2;
+    }
+    while (angle < -math.pi) {
+      angle += math.pi * 2;
+    }
     return angle;
   }
 }
