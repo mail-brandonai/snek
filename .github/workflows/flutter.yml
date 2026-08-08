@@ -28,13 +28,6 @@ jobs:
       - name: Prepare CI logs
         run: mkdir -p ci-logs
 
-      - name: Capture formatter patch
-        if: always()
-        run: |
-          dart format lib test
-          git diff -- lib test > ci-logs/formatter.patch
-          git checkout -- lib test
-
       - name: Check formatting
         id: format
         continue-on-error: true
