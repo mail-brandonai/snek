@@ -11,6 +11,11 @@ class SimulationConfig {
     this.botTurnRate = 2.2,
     this.botSenseRadius = 320,
     this.botBoundaryBuffer = 360,
+    this.botSpawnRadius = 440,
+    this.segmentSpacing = 12,
+    this.sprintMultiplier = 2.4,
+    this.sprintDrainInterval = 0.25,
+    this.minimumSprintLength = 4,
     this.initialPellets = 260,
     this.botCount = 3,
     this.initialLength = 12,
@@ -22,6 +27,11 @@ class SimulationConfig {
   final double botTurnRate;
   final double botSenseRadius;
   final double botBoundaryBuffer;
+  final double botSpawnRadius;
+  final double segmentSpacing;
+  final double sprintMultiplier;
+  final double sprintDrainInterval;
+  final int minimumSprintLength;
   final int initialPellets;
   final int botCount;
   final int initialLength;
@@ -78,6 +88,7 @@ class GameSimulation {
         colorIndex: 0,
         speed: config.playerSpeed,
         initialLength: config.initialLength,
+        segmentSpacing: config.segmentSpacing,
       ),
     );
 
@@ -86,10 +97,14 @@ class GameSimulation {
         SnakeState(
           id: 'bot-$index',
           kind: SnakeKind.bot,
-          position: _randomPosition(minRadius: 300),
+          position: _randomPosition(
+            minRadius: math.min(300, config.botSpawnRadius * 0.55).toDouble(),
+            maxRadius: config.botSpawnRadius,
+          ),
           colorIndex: index + 1,
           speed: config.botSpeed,
           initialLength: config.initialLength + index * 2,
+          segmentSpacing: config.segmentSpacing,
         ),
       );
     }
@@ -97,8 +112,11 @@ class GameSimulation {
     _spawnPellets(config.initialPellets);
   }
 
-  void update(double dt, Vec2 steering) {
+  void update(double dt, Vec2 steering, {bool sprinting = false}) {
     if (gameOver || dt <= 0) return;
+
+    player.sprinting = sprinting;
+    if (!sprinting) player.sprintDrainAccumulator = 0;
 
     var remaining = dt;
     while (remaining > 0 && !gameOver) {
@@ -200,19 +218,59 @@ class GameSimulation {
   }
 
   void _moveSnake(SnakeState snake, double dt) {
-    final nextHead = snake.head + snake.heading * (snake.speed * dt);
-    snake.body.insert(0, nextHead);
-
-    final desiredSegments = snake.length;
-    while (snake.body.length > desiredSegments) {
-      snake.body.removeLast();
+    final currentHead = snake.head;
+    final movementMultiplier =
+        snake.kind == SnakeKind.player && snake.sprinting
+            ? config.sprintMultiplier
+            : 1.0;
+    final nextHead =
+        snake.head + snake.heading * (snake.speed * movementMultiplier * dt);
+    final hasMoved = nextHead.distanceTo(currentHead) > 0;
+    final growsThisStep = snake.growth > 0;
+    if (hasMoved) {
+      snake.body.insert(0, nextHead);
+      if (!growsThisStep) snake.body.removeLast();
+      if (growsThisStep) snake.growth--;
+      _reflowBody(snake);
     }
-    if (snake.growth > 0) {
-      snake.growth--;
+
+    if (snake.kind == SnakeKind.player && snake.sprinting) {
+      _drainSprint(snake, dt);
     }
 
     if (nextHead.length > config.arenaRadius - snake.radius) {
       _defeat(snake, GameOverReason.boundary);
+    }
+  }
+
+  void _reflowBody(SnakeState snake) {
+    for (var index = 1; index < snake.body.length; index++) {
+      final previous = snake.body[index - 1];
+      var direction = snake.body[index] - previous;
+      if (direction.length == 0) {
+        direction = index == 1
+            ? snake.heading * -1
+            : snake.body[index - 1] - snake.body[index - 2];
+      }
+      final normalized = direction.length == 0
+          ? snake.heading * -1
+          : direction.normalized();
+      snake.body[index] = previous + normalized * snake.segmentSpacing;
+    }
+  }
+
+  void _drainSprint(SnakeState snake, double dt) {
+    snake.sprintDrainAccumulator += dt;
+    while (snake.sprintDrainAccumulator >= config.sprintDrainInterval) {
+      snake.sprintDrainAccumulator -= config.sprintDrainInterval;
+      final position = snake.shedMass(
+        minimumLength: config.minimumSprintLength,
+      );
+      if (position == null) {
+        snake.sprintDrainAccumulator = 0;
+        return;
+      }
+      droppedMass.add(FoodPellet(position: position, value: 1));
     }
   }
 
@@ -249,15 +307,6 @@ class GameSimulation {
         if (!snake.alive) break;
       }
     }
-
-    for (final snake in snakes.where((item) => item.alive)) {
-      for (final segment in snake.body.skip(8)) {
-        if (snake.head.distanceTo(segment) < snake.radius * 1.7) {
-          _defeat(snake, GameOverReason.selfCollision);
-          break;
-        }
-      }
-    }
   }
 
   void _defeat(SnakeState snake, GameOverReason reason) {
@@ -278,9 +327,14 @@ class GameSimulation {
     }
   }
 
-  Vec2 _randomPosition({double minRadius = 0}) {
+  Vec2 _randomPosition({double minRadius = 0, double? maxRadius}) {
+    final upperRadius = math.min(
+      config.arenaRadius,
+      maxRadius ?? config.arenaRadius,
+    ).toDouble();
+    final lowerRadius = math.min(minRadius, upperRadius).toDouble();
     final radius =
-        minRadius + _random.nextDouble() * (config.arenaRadius - minRadius);
+        lowerRadius + _random.nextDouble() * (upperRadius - lowerRadius);
     final angle = _random.nextDouble() * math.pi * 2;
     return Vec2(math.cos(angle) * radius, math.sin(angle) * radius);
   }
