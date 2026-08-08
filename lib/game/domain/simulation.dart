@@ -219,10 +219,9 @@ class GameSimulation {
 
   void _moveSnake(SnakeState snake, double dt) {
     final currentHead = snake.head;
-    final movementMultiplier =
-        snake.kind == SnakeKind.player && snake.sprinting
-            ? config.sprintMultiplier
-            : 1.0;
+    final movementMultiplier = snake.kind == SnakeKind.player && snake.sprinting
+        ? config.sprintMultiplier
+        : 1.0;
     final nextHead =
         snake.head + snake.heading * (snake.speed * movementMultiplier * dt);
     final hasMoved = nextHead.distanceTo(currentHead) > 0;
@@ -252,9 +251,8 @@ class GameSimulation {
             ? snake.heading * -1
             : snake.body[index - 1] - snake.body[index - 2];
       }
-      final normalized = direction.length == 0
-          ? snake.heading * -1
-          : direction.normalized();
+      final normalized =
+          direction.length == 0 ? snake.heading * -1 : direction.normalized();
       snake.body[index] = previous + normalized * snake.segmentSpacing;
     }
   }
@@ -328,10 +326,12 @@ class GameSimulation {
   }
 
   Vec2 _randomPosition({double minRadius = 0, double? maxRadius}) {
-    final upperRadius = math.min(
-      config.arenaRadius,
-      maxRadius ?? config.arenaRadius,
-    ).toDouble();
+    final upperRadius = math
+        .min(
+          config.arenaRadius,
+          maxRadius ?? config.arenaRadius,
+        )
+        .toDouble();
     final lowerRadius = math.min(minRadius, upperRadius).toDouble();
     final radius =
         lowerRadius + _random.nextDouble() * (upperRadius - lowerRadius);
