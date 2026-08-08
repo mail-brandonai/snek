@@ -25,11 +25,51 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Prepare CI logs
+        run: mkdir -p ci-logs
+
       - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        id: format
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          dart format --output=none --set-exit-if-changed lib test 2>&1 | tee ci-logs/format.log
 
       - name: Analyze
-        run: flutter analyze
+        id: analyze
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter analyze 2>&1 | tee ci-logs/analyze.log
 
       - name: Unit tests
-        run: flutter test --coverage
+        id: test
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter test --coverage 2>&1 | tee ci-logs/test.log
+
+      - name: Summarize CI results
+        if: always()
+        run: |
+          {
+            echo "Flutter CI summary"
+            echo "run_id=${{ github.run_id }}"
+            echo "commit=${{ github.sha }}"
+            echo "format=${{ steps.format.outcome }}"
+            echo "analyze=${{ steps.analyze.outcome }}"
+            echo "test=${{ steps.test.outcome }}"
+          } | tee ci-logs/summary.txt
+
+          test "${{ steps.format.outcome }}" = success
+          test "${{ steps.analyze.outcome }}" = success
+          test "${{ steps.test.outcome }}" = success
+
+      - name: Upload CI logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs-${{ github.run_id }}
+          path: ci-logs/
+          if-no-files-found: error
+          retention-days: 14
