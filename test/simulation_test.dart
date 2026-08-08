@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:slither/game/domain/game_state.dart';
+import 'package:slither/game/domain/minimap.dart';
 import 'package:slither/game/domain/simulation.dart';
 import 'package:slither/game/domain/vec2.dart';
 
@@ -39,6 +40,24 @@ void main() {
 
       bot.alive = false;
       expect(simulation.playerRank, 1);
+    });
+
+    test('bots turn away from the arena boundary', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 500,
+          botCount: 1,
+          initialPellets: 0,
+          botSpeed: 0,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(480, 0);
+      bot.heading = const Vec2(1, 0);
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(bot.heading.x, lessThan(1));
     });
 
     test('collecting a pellet increases score and length', () {
@@ -180,6 +199,34 @@ void main() {
       expect(simulation.gameOver, isFalse);
       expect(simulation.player.alive, isTrue);
       expect(simulation.score, 0);
+    });
+  });
+
+  group('MinimapModel', () {
+    test('projects arena coordinates into clamped unit coordinates', () {
+      expect(
+        MinimapModel.project(const Vec2(0, 0), 100),
+        const Vec2(0.5, 0.5),
+      );
+      expect(
+        MinimapModel.project(const Vec2(250, -250), 100),
+        const Vec2(1, 0),
+      );
+    });
+
+    test('includes living snakes and excludes defeated snakes', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(botCount: 1, initialPellets: 0),
+      );
+      simulation.snakes[1].alive = false;
+
+      final markers = MinimapModel.markers(
+        snakes: simulation.snakes,
+        arenaRadius: simulation.config.arenaRadius,
+      );
+
+      expect(markers.map((marker) => marker.id), ['player']);
+      expect(markers.single.isPlayer, isTrue);
     });
   });
 }
