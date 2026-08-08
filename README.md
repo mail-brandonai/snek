@@ -13,6 +13,8 @@ V1 is an offline single-player vertical slice intended to establish the game fee
 - head-to-body collision and arena-boundary defeat;
 - dropped mass after defeat;
 - minimal score/length HUD and restart flow;
+- live arena minimap showing the player and living bots;
+- deterministic bot boundary avoidance, food interest, and nearby-body avoidance;
 - original placeholder colour variants.
 
 Networking, accounts, monetisation, progression, production art, and multiplayer authority are outside V1.
