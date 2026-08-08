@@ -97,6 +97,8 @@ void main() {
 
       expect(simulation.gameOver, isTrue);
       expect(simulation.player.alive, isFalse);
+      expect(simulation.gameOverReason, GameOverReason.boundary);
+      expect(simulation.droppedMass, isNotEmpty);
     });
 
     test('hitting another snake body ends the player run and drops mass', () {
@@ -114,6 +116,7 @@ void main() {
       simulation.update(1 / 60, Vec2.zero);
 
       expect(simulation.gameOver, isTrue);
+      expect(simulation.gameOverReason, GameOverReason.bodyCollision);
       expect(simulation.droppedMass, isNotEmpty);
     });
 
@@ -136,9 +139,27 @@ void main() {
         expect(bot.alive, isFalse);
         expect(simulation.player.alive, isTrue);
         expect(simulation.gameOver, isFalse);
+        expect(simulation.gameOverReason, isNull);
         expect(simulation.droppedMass, isNotEmpty);
       },
     );
+
+    test('self collision ends the player run with a distinct reason', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 0,
+        ),
+      );
+      simulation.player.body[8] = simulation.player.head;
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(simulation.gameOver, isTrue);
+      expect(simulation.gameOverReason, GameOverReason.selfCollision);
+      expect(simulation.droppedMass, isNotEmpty);
+    });
 
     test('the player can collect dropped mass', () {
       final simulation = GameSimulation(
@@ -197,6 +218,7 @@ void main() {
       simulation.restart();
 
       expect(simulation.gameOver, isFalse);
+      expect(simulation.gameOverReason, isNull);
       expect(simulation.player.alive, isTrue);
       expect(simulation.score, 0);
     });
