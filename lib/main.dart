@@ -5,6 +5,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
 import 'game/domain/game_state.dart';
+import 'game/domain/minimap.dart';
 import 'game/domain/simulation.dart';
 import 'game/domain/vec2.dart';
 
@@ -74,19 +75,27 @@ class GameHud {
     required this.length,
     required this.rank,
     required this.gameOver,
+    required this.minimap,
   });
 
   final int score;
   final int length;
   final int rank;
   final bool gameOver;
+  final List<MinimapMarker> minimap;
 }
 
 class SlitherGame extends FlameGame {
   SlitherGame({SimulationConfig config = const SimulationConfig()})
       : simulation = GameSimulation(config: config),
         hud = ValueNotifier(
-          const GameHud(score: 0, length: 0, rank: 1, gameOver: false),
+          const GameHud(
+            score: 0,
+            length: 0,
+            rank: 1,
+            gameOver: false,
+            minimap: <MinimapMarker>[],
+          ),
         );
 
   final GameSimulation simulation;
@@ -141,6 +150,10 @@ class SlitherGame extends FlameGame {
       length: simulation.player.length,
       rank: simulation.playerRank,
       gameOver: simulation.gameOver,
+      minimap: MinimapModel.markers(
+        snakes: simulation.snakes,
+        arenaRadius: simulation.config.arenaRadius,
+      ),
     );
   }
 
@@ -186,14 +199,14 @@ class SlitherGame extends FlameGame {
       final colour =
           dropped ? const Color(0xffffb43b) : const Color(0xff54e8d1);
       final paint = ui.Paint()
-        ..color = colour.withOpacity(dropped ? 0.95 : 0.8);
+        ..color = colour.withValues(alpha: dropped ? 0.95 : 0.8);
       canvas.drawCircle(
         Offset(pellet.position.x, pellet.position.y),
         dropped ? 8 : 4,
         paint,
       );
       if (dropped) {
-        final glow = ui.Paint()..color = colour.withOpacity(0.13);
+        final glow = ui.Paint()..color = colour.withValues(alpha: 0.13);
         canvas.drawCircle(
           Offset(pellet.position.x, pellet.position.y),
           18,
@@ -216,8 +229,8 @@ class SlitherGame extends FlameGame {
       ..style = ui.PaintingStyle.fill;
     for (var index = snake.body.length - 1; index >= 0; index--) {
       final segment = snake.body[index];
-      final taper =
-          (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0);
+      final double taper =
+          (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0).toDouble();
       canvas.drawCircle(
         Offset(segment.x, segment.y),
         snake.radius * taper,
@@ -254,6 +267,11 @@ class _Hud extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: _Minimap(markers: state.minimap),
+        ),
         Positioned(
           top: 16,
           left: 16,
@@ -308,4 +326,84 @@ class _Hud extends StatelessWidget {
       ],
     );
   }
+}
+
+class _Minimap extends StatelessWidget {
+  const _Minimap({required this.markers});
+
+  final List<MinimapMarker> markers;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 142,
+      height: 142,
+      child: CustomPaint(painter: _MinimapPainter(markers)),
+    );
+  }
+}
+
+class _MinimapPainter extends CustomPainter {
+  const _MinimapPainter(this.markers);
+
+  final List<MinimapMarker> markers;
+
+  @override
+  void paint(ui.Canvas canvas, ui.Size size) {
+    final rect = ui.Rect.fromLTWH(0, 0, size.width, size.height);
+    final panelPaint = ui.Paint()..color = const Color(0xcc0b1323);
+    canvas.drawRRect(
+      ui.RRect.fromRectAndRadius(rect, const ui.Radius.circular(12)),
+      panelPaint,
+    );
+
+    final borderPaint = ui.Paint()
+      ..color = const Color(0xff31415f)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawRRect(
+      ui.RRect.fromRectAndRadius(
+        rect.deflate(1),
+        const ui.Radius.circular(11),
+      ),
+      borderPaint,
+    );
+
+    final arenaPaint = ui.Paint()
+      ..color = const Color(0xff172238)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawCircle(
+      Offset(size.width / 2, size.height / 2),
+      size.width * 0.37,
+      arenaPaint,
+    );
+
+    final colours = [
+      const Color(0xffffa72f),
+      const Color(0xff55d7ff),
+      const Color(0xffd875ff),
+      const Color(0xff79e36c),
+    ];
+    for (final marker in markers) {
+      final position = Offset(
+        marker.x * size.width,
+        marker.y * size.height,
+      );
+      final colour = colours[marker.colorIndex % colours.length];
+      final paint = ui.Paint()..color = colour;
+      canvas.drawCircle(position, marker.isPlayer ? 5 : 3, paint);
+      if (marker.isPlayer) {
+        final ring = ui.Paint()
+          ..color = colour.withValues(alpha: 0.35)
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = 1;
+        canvas.drawCircle(position, 9, ring);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MinimapPainter oldDelegate) =>
+      oldDelegate.markers != markers;
 }
