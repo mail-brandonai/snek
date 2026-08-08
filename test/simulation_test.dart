@@ -26,6 +26,10 @@ void main() {
         simulation.player.length,
         simulation.config.minimumSprintLength,
       );
+      expect(
+        simulation.player.body.length,
+        simulation.config.minimumSprintLength,
+      );
       expect(simulation.pellets.length, 10);
       expect(simulation.gameOver, isFalse);
       for (final bot in simulation.snakes.skip(1)) {
