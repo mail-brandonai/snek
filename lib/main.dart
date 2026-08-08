@@ -49,6 +49,8 @@ class _SlitherAppState extends State<SlitherApp> {
               MouseRegion(
                 onHover: (event) => game.setPointer(event.localPosition),
                 child: Listener(
+                  onPointerDown: (event) =>
+                      game.setPointer(event.localPosition),
                   onPointerMove: (event) =>
                       game.setPointer(event.localPosition),
                   child: GameWidget(game: game),
@@ -288,6 +290,11 @@ class _Hud extends StatelessWidget {
           bottom: 16,
           child: _Minimap(markers: state.minimap),
         ),
+        const Positioned(
+          left: 16,
+          bottom: 16,
+          child: _ControlHint(),
+        ),
         Positioned(
           top: 16,
           left: 16,
@@ -324,6 +331,11 @@ class _Hud extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'The run has ended',
+                      style: TextStyle(color: Colors.white60),
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Score ${state.score}',
@@ -340,6 +352,27 @@ class _Hud extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ControlHint extends StatelessWidget {
+  const _ControlHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xcc0b1323),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        child: Text(
+          'MOVE POINTER / DRAG TO STEER',
+          style: TextStyle(fontSize: 10, letterSpacing: 1.05),
+        ),
+      ),
     );
   }
 }

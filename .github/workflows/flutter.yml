@@ -49,6 +49,20 @@ jobs:
           set -o pipefail
           flutter test --coverage 2>&1 | tee ci-logs/test.log
 
+      - name: Prepare web platform
+        id: web_platform
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter create --platforms=web . 2>&1 | tee ci-logs/web-platform.log
+
+      - name: Build web release
+        id: build_web
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter build web --release 2>&1 | tee ci-logs/build-web.log
+
       - name: Summarize CI results
         if: always()
         run: |
@@ -59,11 +73,15 @@ jobs:
             echo "format=${{ steps.format.outcome }}"
             echo "analyze=${{ steps.analyze.outcome }}"
             echo "test=${{ steps.test.outcome }}"
+            echo "web_platform=${{ steps.web_platform.outcome }}"
+            echo "build_web=${{ steps.build_web.outcome }}"
           } | tee ci-logs/summary.txt
 
           test "${{ steps.format.outcome }}" = success
           test "${{ steps.analyze.outcome }}" = success
           test "${{ steps.test.outcome }}" = success
+          test "${{ steps.web_platform.outcome }}" = success
+          test "${{ steps.build_web.outcome }}" = success
 
       - name: Upload CI logs
         if: always()
@@ -71,5 +89,14 @@ jobs:
         with:
           name: ci-logs-${{ github.run_id }}
           path: ci-logs/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload web build
+        if: steps.build_web.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: slither-web-${{ github.run_id }}
+          path: build/web/
           if-no-files-found: error
           retention-days: 14
