@@ -25,6 +25,22 @@ void main() {
       expect(simulation.gameOver, isFalse);
     });
 
+    test('player rank reflects longer living snakes', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          botCount: 1,
+          initialPellets: 0,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      bot.grow(10);
+
+      expect(simulation.playerRank, 2);
+
+      bot.alive = false;
+      expect(simulation.playerRank, 1);
+    });
+
     test('collecting a pellet increases score and length', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(
