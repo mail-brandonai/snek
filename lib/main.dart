@@ -114,7 +114,10 @@ class SlitherGame extends FlameGame {
 
   @override
   void render(ui.Canvas canvas) {
-    canvas.drawColor(const Color(0xff080d18));
+    canvas.drawColor(
+      const Color(0xff080d18),
+      ui.BlendMode.srcOver,
+    );
     if (size.x == 0 || size.y == 0) return;
 
     canvas.save();
