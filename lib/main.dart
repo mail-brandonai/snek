@@ -104,6 +104,7 @@ class SlitherGame extends FlameGame {
 
   @override
   void update(double dt) {
+    super.update(dt);
     simulation.update(dt, steering);
     _hudTimer += dt;
     if (_hudTimer >= 0.1) {
@@ -114,6 +115,7 @@ class SlitherGame extends FlameGame {
 
   @override
   void render(ui.Canvas canvas) {
+    super.render(canvas);
     canvas.drawColor(
       const Color(0xff080d18),
       ui.BlendMode.srcOver,
@@ -212,7 +214,7 @@ class SlitherGame extends FlameGame {
     for (var index = snake.body.length - 1; index >= 0; index--) {
       final segment = snake.body[index];
       final taper =
-          (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0) as double;
+          (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0);
       canvas.drawCircle(
         Offset(segment.x, segment.y),
         snake.radius * taper,
