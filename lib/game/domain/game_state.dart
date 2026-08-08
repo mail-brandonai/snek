@@ -25,7 +25,9 @@ class SnakeState {
         body = List<Vec2>.generate(
           initialLength,
           (index) => position - Vec2(index * segmentSpacing, 0),
-        );
+        ) {
+    movementTrail.addAll(body);
+  }
 
   final String id;
   final SnakeKind kind;
@@ -34,6 +36,7 @@ class SnakeState {
   final double radius;
   final double segmentSpacing;
   final List<Vec2> body;
+  final List<Vec2> movementTrail = [];
   Vec2 heading;
   int growth = 0;
   double sprintDrainAccumulator = 0;
