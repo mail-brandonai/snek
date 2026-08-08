@@ -11,6 +11,38 @@ class FoodPellet {
   final int value;
 }
 
+class LeaderboardEntry {
+  const LeaderboardEntry({
+    required this.id,
+    required this.kind,
+    required this.colorIndex,
+    required this.length,
+    required this.rank,
+  });
+
+  final String id;
+  final SnakeKind kind;
+  final int colorIndex;
+  final int length;
+  final int rank;
+
+  bool get isPlayer => kind == SnakeKind.player;
+}
+
+class RunStats {
+  const RunStats({
+    required this.score,
+    required this.length,
+    required this.survivalSeconds,
+    required this.rank,
+  });
+
+  final int score;
+  final int length;
+  final double survivalSeconds;
+  final int rank;
+}
+
 class SnakeState {
   SnakeState({
     required this.id,
@@ -22,6 +54,7 @@ class SnakeState {
     this.segmentSpacing = 12,
     int initialLength = 12,
   })  : heading = const Vec2(1, 0),
+        spawnLength = initialLength,
         body = List<Vec2>.generate(
           initialLength,
           (index) => position - Vec2(index * segmentSpacing, 0),
@@ -35,6 +68,7 @@ class SnakeState {
   final double speed;
   final double radius;
   final double segmentSpacing;
+  final int spawnLength;
   final List<Vec2> body;
   final List<Vec2> movementTrail = [];
   Vec2 heading;
@@ -48,6 +82,25 @@ class SnakeState {
 
   void grow([int amount = 1]) {
     growth += amount;
+  }
+
+  void resetAt(Vec2 position) {
+    body
+      ..clear()
+      ..addAll(
+        List<Vec2>.generate(
+          spawnLength,
+          (index) => position - Vec2(index * segmentSpacing, 0),
+        ),
+      );
+    movementTrail
+      ..clear()
+      ..addAll(body);
+    heading = const Vec2(1, 0);
+    growth = 0;
+    sprintDrainAccumulator = 0;
+    sprinting = false;
+    alive = true;
   }
 
   Vec2? shedMass({required int minimumLength}) {

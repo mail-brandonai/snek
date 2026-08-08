@@ -143,18 +143,24 @@ class GameHud {
     required this.score,
     required this.length,
     required this.rank,
+    required this.survivalSeconds,
     required this.sprinting,
     required this.gameOver,
     required this.gameOverReason,
+    required this.finalStats,
+    required this.leaderboard,
     required this.minimap,
   });
 
   final int score;
   final int length;
   final int rank;
+  final double survivalSeconds;
   final bool sprinting;
   final bool gameOver;
   final GameOverReason? gameOverReason;
+  final RunStats? finalStats;
+  final List<LeaderboardEntry> leaderboard;
   final List<MinimapMarker> minimap;
 }
 
@@ -166,9 +172,12 @@ class SlitherGame extends FlameGame {
             score: 0,
             length: 0,
             rank: 1,
+            survivalSeconds: 0,
             sprinting: false,
             gameOver: false,
             gameOverReason: null,
+            finalStats: null,
+            leaderboard: <LeaderboardEntry>[],
             minimap: <MinimapMarker>[],
           ),
         );
@@ -239,9 +248,12 @@ class SlitherGame extends FlameGame {
       score: simulation.score,
       length: simulation.player.length,
       rank: simulation.playerRank,
+      survivalSeconds: simulation.elapsed,
       sprinting: simulation.player.sprinting,
       gameOver: simulation.gameOver,
       gameOverReason: simulation.gameOverReason,
+      finalStats: simulation.finalStats,
+      leaderboard: simulation.leaderboard,
       minimap: MinimapModel.markers(
         snakes: simulation.snakes,
         arenaRadius: simulation.config.arenaRadius,
@@ -373,6 +385,14 @@ class _Hud extends StatelessWidget {
     return Stack(
       children: [
         Positioned(
+          top: 16,
+          right: 16,
+          child: _LeaderboardPanel(
+            entries: state.leaderboard,
+            playerRank: state.rank,
+          ),
+        ),
+        Positioned(
           right: 16,
           bottom: 16,
           child: _Minimap(markers: state.minimap),
@@ -396,7 +416,8 @@ class _Hud extends StatelessWidget {
                 vertical: 9,
               ),
               child: Text(
-                'SCORE  ${state.score}   LENGTH  ${state.length}   RANK  ${state.rank}'
+                'SCORE  ${state.score}   LENGTH  ${state.length}'
+                '   RANK  ${state.rank}   TIME  ${_formatDuration(state.survivalSeconds)}'
                 '${state.sprinting ? '   SPRINT' : ''}',
                 style: const TextStyle(fontSize: 12, letterSpacing: 1.2),
               ),
@@ -429,6 +450,13 @@ class _Hud extends StatelessWidget {
                       'Score ${state.score}',
                       style: const TextStyle(color: Colors.white70),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Length ${state.finalStats?.length ?? state.length}  ·  '
+                      'Time ${_formatDuration(state.finalStats?.survivalSeconds ?? state.survivalSeconds)}  ·  '
+                      'Rank ${state.finalStats?.rank ?? state.rank}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
                     const SizedBox(height: 16),
                     FilledButton(
                       onPressed: onRestart,
@@ -440,6 +468,77 @@ class _Hud extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+String _formatDuration(double seconds) {
+  final totalSeconds = seconds.floor();
+  final minutes = totalSeconds ~/ 60;
+  final remainder = totalSeconds % 60;
+  return '${minutes.toString().padLeft(2, '0')}:${remainder.toString().padLeft(2, '0')}';
+}
+
+class _LeaderboardPanel extends StatelessWidget {
+  const _LeaderboardPanel({required this.entries, required this.playerRank});
+
+  final List<LeaderboardEntry> entries;
+  final int playerRank;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xcc0b1323),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'LEADERBOARD',
+              style: TextStyle(fontSize: 10, letterSpacing: 1.2),
+            ),
+            const SizedBox(height: 5),
+            for (final entry in entries) _LeaderboardRow(entry: entry),
+            if (entries.every((entry) => !entry.isPlayer)) ...[
+              const Divider(height: 8, color: Colors.white24),
+              Text(
+                'YOU  #$playerRank',
+                style: const TextStyle(
+                  color: Color(0xffffc766),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LeaderboardRow extends StatelessWidget {
+  const _LeaderboardRow({required this.entry});
+
+  final LeaderboardEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Text(
+        '${entry.rank}. ${entry.isPlayer ? 'YOU' : entry.id.toUpperCase()}  ${entry.length}',
+        style: TextStyle(
+          color: entry.isPlayer ? const Color(0xffffc766) : Colors.white70,
+          fontSize: 10,
+          fontWeight: entry.isPlayer ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
     );
   }
 }

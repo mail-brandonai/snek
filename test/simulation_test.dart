@@ -56,6 +56,112 @@ void main() {
       expect(simulation.playerRank, 1);
     });
 
+    test('leaderboard returns the five longest living snakes in rank order', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          botCount: 6,
+          initialPellets: 0,
+        ),
+      );
+      simulation.player.grow(20);
+      for (var index = 0; index < 6; index++) {
+        simulation.snakes[index + 1].grow(index * 3);
+      }
+
+      final leaderboard = simulation.leaderboard;
+
+      expect(leaderboard, hasLength(5));
+      expect(leaderboard.map((entry) => entry.rank), [1, 2, 3, 4, 5]);
+      expect(
+        leaderboard.map((entry) => entry.length.toDouble()).toList(),
+        orderedDescending,
+      );
+      expect(leaderboard.first.isPlayer, isTrue);
+      expect(leaderboard.where((entry) => entry.isPlayer), hasLength(1));
+    });
+
+    test('defeated bots respawn after a delay at a safe position', () {
+      const config = SimulationConfig(
+        arenaRadius: 1000,
+        botBoundaryBuffer: 100,
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 0,
+        botRespawnDelay: 0.2,
+        botRespawnSafeDistance: 180,
+      );
+      final simulation = GameSimulation(config: config, seed: 19);
+      final bot = simulation.snakes[1];
+      simulation.player.body[3] = bot.head;
+
+      simulation.update(1 / 60, Vec2.zero);
+      expect(bot.alive, isFalse);
+
+      simulation.update(0.1, Vec2.zero);
+      expect(bot.alive, isFalse);
+
+      simulation.update(0.11, Vec2.zero);
+      expect(bot.alive, isTrue);
+      final firstRespawnPosition = bot.head;
+      for (final playerSegment in simulation.player.body) {
+        for (final botSegment in bot.body) {
+          expect(
+            botSegment.distanceTo(playerSegment),
+            greaterThanOrEqualTo(config.botRespawnSafeDistance),
+          );
+        }
+      }
+
+      simulation.restart();
+      final restartedBot = simulation.snakes[1];
+      simulation.player.body[3] = restartedBot.head;
+      simulation.update(1 / 60, Vec2.zero);
+      simulation.update(0.21, Vec2.zero);
+
+      expect(restartedBot.alive, isTrue);
+      expect(restartedBot.head, firstRespawnPosition);
+    });
+
+    test('pellet maintenance refills gradually below the density threshold', () {
+      const config = SimulationConfig(
+        botCount: 0,
+        initialPellets: 10,
+        pelletRefillThreshold: 0.7,
+        pelletRefillRate: 4,
+        playerSpeed: 0,
+      );
+      final simulation = GameSimulation(config: config);
+      simulation.pellets.clear();
+
+      simulation.update(0.5, Vec2.zero);
+      expect(simulation.pellets.length, 2);
+      expect(simulation.pellets.length, lessThan(config.initialPellets));
+
+      simulation.update(0.5, Vec2.zero);
+      expect(simulation.pellets.length, 4);
+      expect(simulation.pellets.length, lessThanOrEqualTo(7));
+    });
+
+    test('defeat captures final run statistics', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 20,
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 1000,
+        ),
+      );
+
+      simulation.update(0.2, const Vec2(1, 0));
+
+      expect(simulation.finalStats, isNotNull);
+      expect(simulation.finalStats!.score, simulation.score);
+      expect(simulation.finalStats!.length, simulation.config.minimumSprintLength);
+      expect(simulation.finalStats!.survivalSeconds, greaterThan(0));
+      expect(simulation.finalStats!.rank, 1);
+    });
+
     test('bots turn away from the arena boundary', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(

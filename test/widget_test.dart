@@ -8,6 +8,7 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('SCORE'), findsOneWidget);
+    expect(find.text('LEADERBOARD'), findsOneWidget);
     expect(
       find.text(
         'MOVE POINTER / DRAG TO STEER\n'

@@ -17,8 +17,13 @@ class SimulationConfig {
     this.sprintDrainInterval = 0.25,
     this.minimumSprintLength = 4,
     this.initialPellets = 260,
+    this.pelletRefillThreshold = 0.65,
+    this.pelletRefillRate = 10,
     this.botCount = 3,
     this.initialLength = 12,
+    this.botRespawnDelay = 3,
+    this.botRespawnSafeDistance = 520,
+    this.botRespawnAttempts = 32,
   });
 
   final double arenaRadius;
@@ -33,8 +38,13 @@ class SimulationConfig {
   final double sprintDrainInterval;
   final int minimumSprintLength;
   final int initialPellets;
+  final double pelletRefillThreshold;
+  final double pelletRefillRate;
   final int botCount;
   final int initialLength;
+  final double botRespawnDelay;
+  final double botRespawnSafeDistance;
+  final int botRespawnAttempts;
 }
 
 class GameSimulation {
@@ -51,24 +61,51 @@ class GameSimulation {
   final List<SnakeState> snakes = [];
   final List<FoodPellet> pellets = [];
   final List<FoodPellet> droppedMass = [];
+  final Map<String, double> _botRespawnTimers = {};
   double elapsed = 0;
+  double _pelletRefillAccumulator = 0;
   int score = 0;
   bool gameOver = false;
   GameOverReason? gameOverReason;
+  RunStats? finalStats;
 
   SnakeState get player =>
       snakes.firstWhere((snake) => snake.kind == SnakeKind.player);
 
   int get playerRank {
-    final playerLength = player.length;
-    final longerSnakes = snakes.where(
-      (snake) =>
-          snake.alive &&
-          snake.kind == SnakeKind.bot &&
-          snake.length > playerLength,
-    );
-    return longerSnakes.length + 1;
+    return _rankForLength(player.length);
   }
+
+  List<LeaderboardEntry> get leaderboard {
+    final living = snakes.where((snake) => snake.alive).toList()
+      ..sort((left, right) {
+        final lengthOrder = right.length.compareTo(left.length);
+        if (lengthOrder != 0) return lengthOrder;
+        final leftPlayerOrder = left.kind == SnakeKind.player ? 1 : 0;
+        final rightPlayerOrder = right.kind == SnakeKind.player ? 1 : 0;
+        final tieOrder = rightPlayerOrder.compareTo(leftPlayerOrder);
+        if (tieOrder != 0) return tieOrder;
+        return left.id.compareTo(right.id);
+      });
+
+    return [
+      for (var index = 0; index < math.min(5, living.length); index++)
+        LeaderboardEntry(
+          id: living[index].id,
+          kind: living[index].kind,
+          colorIndex: living[index].colorIndex,
+          length: living[index].length,
+          rank: index + 1,
+        ),
+    ];
+  }
+
+  RunStats get currentRunStats => RunStats(
+        score: score,
+        length: player.length,
+        survivalSeconds: elapsed,
+        rank: playerRank,
+      );
 
   bool get canSprint =>
       !gameOver && player.alive && player.length > config.minimumSprintLength;
@@ -78,10 +115,13 @@ class GameSimulation {
     snakes.clear();
     pellets.clear();
     droppedMass.clear();
+    _botRespawnTimers.clear();
     elapsed = 0;
+    _pelletRefillAccumulator = 0;
     score = 0;
     gameOver = false;
     gameOverReason = null;
+    finalStats = null;
 
     snakes.add(
       SnakeState(
@@ -134,10 +174,8 @@ class GameSimulation {
         _collectDroppedMass(snake);
       }
       _resolveCollisions();
-
-      if (pellets.length < config.initialPellets ~/ 2) {
-        _spawnPellets(config.initialPellets - pellets.length);
-      }
+      _advanceBotRespawns(step);
+      _maintainPelletDensity(step);
       remaining -= step;
     }
   }
@@ -368,8 +406,16 @@ class GameSimulation {
     if (!snake.alive) return;
     snake.alive = false;
     if (snake.kind == SnakeKind.player) {
+      finalStats = RunStats(
+        score: score,
+        length: snake.length,
+        survivalSeconds: elapsed,
+        rank: _rankForLength(snake.length),
+      );
       gameOver = true;
       gameOverReason = reason;
+    } else {
+      _botRespawnTimers[snake.id] = config.botRespawnDelay;
     }
     for (var index = 0; index < snake.body.length; index += 3) {
       droppedMass.add(FoodPellet(position: snake.body[index], value: 2));
@@ -377,9 +423,99 @@ class GameSimulation {
   }
 
   void _spawnPellets(int count) {
+    if (count <= 0) return;
     for (var index = 0; index < count; index++) {
       pellets.add(FoodPellet(position: _randomPosition()));
     }
+  }
+
+  void _maintainPelletDensity(double dt) {
+    final target = config.initialPellets;
+    if (target <= 0 || pellets.length >= target) {
+      _pelletRefillAccumulator = 0;
+      return;
+    }
+
+    final threshold = target * config.pelletRefillThreshold;
+    if (pellets.length >= threshold) return;
+
+    _pelletRefillAccumulator += dt * config.pelletRefillRate;
+    final requested = _pelletRefillAccumulator.floor();
+    if (requested == 0) return;
+
+    final count = math.min(requested, target - pellets.length).toInt();
+    _spawnPellets(count);
+    _pelletRefillAccumulator -= count;
+  }
+
+  void _advanceBotRespawns(double dt) {
+    if (_botRespawnTimers.isEmpty) return;
+
+    final due = <String>[];
+    for (final entry in _botRespawnTimers.entries.toList()) {
+      final remaining = entry.value - dt;
+      if (remaining <= 0) {
+        due.add(entry.key);
+      } else {
+        _botRespawnTimers[entry.key] = remaining;
+      }
+    }
+
+    for (final id in due) {
+      final bot = snakes.firstWhere((snake) => snake.id == id);
+      if (!gameOver && !bot.alive) {
+        bot.resetAt(_findBotSpawnPosition(bot));
+      }
+      _botRespawnTimers.remove(id);
+    }
+  }
+
+  Vec2 _findBotSpawnPosition(SnakeState bot) {
+    final spawnRadius = math.max(
+      0.0,
+      config.arenaRadius - config.botBoundaryBuffer,
+    ).toDouble();
+    Vec2? bestPosition;
+    var bestClearance = -double.infinity;
+
+    for (var attempt = 0; attempt < config.botRespawnAttempts; attempt++) {
+      final candidate = _randomPosition(maxRadius: spawnRadius);
+      final clearance = _spawnClearance(candidate, bot);
+      if (clearance > bestClearance) {
+        bestPosition = candidate;
+        bestClearance = clearance;
+      }
+      if (clearance >= config.botRespawnSafeDistance) return candidate;
+    }
+
+    return bestPosition ?? _randomPosition(maxRadius: spawnRadius);
+  }
+
+  double _spawnClearance(Vec2 candidate, SnakeState bot) {
+    var clearance = double.infinity;
+    for (final snake in snakes.where((item) => item.alive)) {
+      for (var index = 0; index < bot.spawnLength; index++) {
+        final candidateSegment =
+            candidate - Vec2(index * bot.segmentSpacing, 0);
+        for (final segment in snake.body) {
+          clearance = math.min(
+            clearance,
+            candidateSegment.distanceTo(segment),
+          );
+        }
+      }
+    }
+    return clearance;
+  }
+
+  int _rankForLength(int length) {
+    final longerSnakes = snakes.where(
+      (snake) =>
+          snake.alive &&
+          snake.kind == SnakeKind.bot &&
+          snake.length > length,
+    );
+    return longerSnakes.length + 1;
   }
 
   Vec2 _randomPosition({double minRadius = 0, double? maxRadius}) {
@@ -388,6 +524,7 @@ class GameSimulation {
           config.arenaRadius,
           maxRadius ?? config.arenaRadius,
         )
+        .clamp(0.0, double.infinity)
         .toDouble();
     final lowerRadius = math.min(minRadius, upperRadius).toDouble();
     final radius =

@@ -49,4 +49,14 @@ The `flutter create` command only adds platform scaffolding to an otherwise plat
 - The player may overlap its own body; only other-snake body collisions defeat the run.
 - Collect cyan pellets to grow and increase score; orange dropped mass is created when a snake is defeated.
 - The minimap marks the player with a ring and living bots with smaller dots.
+- The live leaderboard shows the five longest living snakes and highlights the player; if the player is outside the top five, their rank is shown beneath it.
 - After defeat, read the collision reason and choose `PLAY AGAIN` to reset the seeded opening state.
+
+## V1.1 living arena
+
+The replayable run loop maintains a living arena with deterministic bot respawns
+after a short cooldown. Respawn positions are selected away from living snake
+bodies when space permits. Natural pellets refill gradually only after the arena
+falls below its density threshold, so collection creates a changing food field
+instead of an immediate full refill. The HUD reports survival time, live rank,
+and a final score, length, time, and rank summary after defeat.
