@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'game/domain/game_state.dart';
 import 'game/domain/minimap.dart';
@@ -22,17 +23,30 @@ class SlitherApp extends StatefulWidget {
 
 class _SlitherAppState extends State<SlitherApp> {
   late final SlitherGame game;
+  late final FocusNode _focusNode;
+  DateTime? _lastPointerDown;
 
   @override
   void initState() {
     super.initState();
     game = SlitherGame();
+    _focusNode = FocusNode();
   }
 
   @override
   void dispose() {
     game.hud.dispose();
+    _focusNode.dispose();
     super.dispose();
+  }
+
+  void _handlePointerDown(PointerDownEvent event) {
+    game.setPointer(event.localPosition);
+    final now = DateTime.now();
+    final isDoubleClick = _lastPointerDown != null &&
+        now.difference(_lastPointerDown!).inMilliseconds <= 350;
+    game.setPointerSprint(isDoubleClick);
+    _lastPointerDown = now;
   }
 
   @override
@@ -46,14 +60,29 @@ class _SlitherAppState extends State<SlitherApp> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              MouseRegion(
-                onHover: (event) => game.setPointer(event.localPosition),
-                child: Listener(
-                  onPointerDown: (event) =>
-                      game.setPointer(event.localPosition),
-                  onPointerMove: (event) =>
-                      game.setPointer(event.localPosition),
-                  child: GameWidget(game: game),
+              Focus(
+                focusNode: _focusNode,
+                autofocus: true,
+                onFocusChange: (focused) {
+                  if (!focused) game.setKeyboardSprint(false);
+                },
+                onKeyEvent: (node, event) {
+                  if (event.logicalKey == LogicalKeyboardKey.space) {
+                    game.setKeyboardSprint(event is KeyDownEvent);
+                    return KeyEventResult.handled;
+                  }
+                  return KeyEventResult.ignored;
+                },
+                child: MouseRegion(
+                  onHover: (event) => game.setPointer(event.localPosition),
+                  child: Listener(
+                    onPointerDown: _handlePointerDown,
+                    onPointerMove: (event) =>
+                        game.setPointer(event.localPosition),
+                    onPointerUp: (_) => game.setPointerSprint(false),
+                    onPointerCancel: (_) => game.setPointerSprint(false),
+                    child: GameWidget(game: game),
+                  ),
                 ),
               ),
               ValueListenableBuilder<GameHud>(
@@ -76,6 +105,7 @@ class GameHud {
     required this.score,
     required this.length,
     required this.rank,
+    required this.sprinting,
     required this.gameOver,
     required this.gameOverReason,
     required this.minimap,
@@ -84,6 +114,7 @@ class GameHud {
   final int score;
   final int length;
   final int rank;
+  final bool sprinting;
   final bool gameOver;
   final GameOverReason? gameOverReason;
   final List<MinimapMarker> minimap;
@@ -97,6 +128,7 @@ class SlitherGame extends FlameGame {
             score: 0,
             length: 0,
             rank: 1,
+            sprinting: false,
             gameOver: false,
             gameOverReason: null,
             minimap: <MinimapMarker>[],
@@ -106,7 +138,11 @@ class SlitherGame extends FlameGame {
   final GameSimulation simulation;
   final ValueNotifier<GameHud> hud;
   Vec2 steering = const Vec2(1, 0);
+  bool _pointerSprint = false;
+  bool _keyboardSprint = false;
   double _hudTimer = 0;
+
+  bool get sprinting => _pointerSprint || _keyboardSprint;
 
   void setPointer(Offset point) {
     final centre = Offset(size.x / 2, size.y / 2);
@@ -114,14 +150,24 @@ class SlitherGame extends FlameGame {
   }
 
   void restart() {
+    _pointerSprint = false;
+    _keyboardSprint = false;
     simulation.restart();
     _publishHud();
+  }
+
+  void setPointerSprint(bool active) {
+    _pointerSprint = active;
+  }
+
+  void setKeyboardSprint(bool active) {
+    _keyboardSprint = active;
   }
 
   @override
   void update(double dt) {
     super.update(dt);
-    simulation.update(dt, steering);
+    simulation.update(dt, steering, sprinting: sprinting);
     _hudTimer += dt;
     if (_hudTimer >= 0.1) {
       _hudTimer = 0;
@@ -154,6 +200,7 @@ class SlitherGame extends FlameGame {
       score: simulation.score,
       length: simulation.player.length,
       rank: simulation.playerRank,
+      sprinting: simulation.player.sprinting,
       gameOver: simulation.gameOver,
       gameOverReason: simulation.gameOverReason,
       minimap: MinimapModel.markers(
@@ -273,8 +320,6 @@ class _Hud extends StatelessWidget {
     switch (state.gameOverReason) {
       case GameOverReason.bodyCollision:
         return 'BODY COLLISION';
-      case GameOverReason.selfCollision:
-        return 'SELF COLLISION';
       case GameOverReason.boundary:
       case null:
         return 'OUT OF BOUNDS';
@@ -309,7 +354,8 @@ class _Hud extends StatelessWidget {
                 vertical: 9,
               ),
               child: Text(
-                'SCORE  ${state.score}   LENGTH  ${state.length}   RANK  ${state.rank}',
+                'SCORE  ${state.score}   LENGTH  ${state.length}   RANK  ${state.rank}'
+                '${state.sprinting ? '   SPRINT' : ''}',
                 style: const TextStyle(fontSize: 12, letterSpacing: 1.2),
               ),
             ),
@@ -369,7 +415,7 @@ class _ControlHint extends StatelessWidget {
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         child: Text(
-          'MOVE POINTER / DRAG TO STEER',
+          'MOVE POINTER / DRAG TO STEER\nDOUBLE-CLICK HOLD OR SPACE TO SPRINT',
           style: TextStyle(fontSize: 10, letterSpacing: 1.05),
         ),
       ),
