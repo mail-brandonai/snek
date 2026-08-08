@@ -79,6 +79,67 @@ void main() {
       expect(simulation.droppedMass, isNotEmpty);
     });
 
+    test('a bot hitting the player body is defeated without ending the run', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          botCount: 1,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 0,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      simulation.player.body[8] = bot.head;
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(bot.alive, isFalse);
+      expect(simulation.player.alive, isTrue);
+      expect(simulation.gameOver, isFalse);
+      expect(simulation.droppedMass, isNotEmpty);
+    });
+
+    test('the player can collect dropped mass', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 0,
+        ),
+      );
+      final initialLength = simulation.player.length;
+      simulation.droppedMass.add(
+        FoodPellet(position: simulation.player.head, value: 2),
+      );
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(simulation.score, 2);
+      expect(simulation.player.length, initialLength + 2);
+      expect(simulation.droppedMass, isEmpty);
+    });
+
+    test('restart reproduces the seeded opening state', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(botCount: 1, initialPellets: 4),
+        seed: 42,
+      );
+      final initialBotPosition = simulation.snakes[1].head;
+      final initialPelletPositions = simulation.pellets.toList();
+
+      simulation.update(1, Vec2(1, 0));
+      simulation.restart();
+
+      expect(simulation.snakes[1].head, initialBotPosition);
+      expect(simulation.pellets.length, initialPelletPositions.length);
+      for (var index = 0; index < simulation.pellets.length; index++) {
+        expect(
+          simulation.pellets[index].position,
+          initialPelletPositions[index].position,
+        );
+      }
+    });
+
     test('restart restores a playable state', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(
