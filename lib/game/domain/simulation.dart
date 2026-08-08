@@ -44,6 +44,17 @@ class GameSimulation {
   SnakeState get player =>
       snakes.firstWhere((snake) => snake.kind == SnakeKind.player);
 
+  int get playerRank {
+    final playerLength = player.length;
+    final longerSnakes = snakes.where(
+      (snake) =>
+          snake.alive &&
+          snake.kind == SnakeKind.bot &&
+          snake.length > playerLength,
+    );
+    return longerSnakes.length + 1;
+  }
+
   void reset() {
     _random = math.Random(seed);
     snakes.clear();
