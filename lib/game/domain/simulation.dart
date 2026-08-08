@@ -26,12 +26,14 @@ class GameSimulation {
     SimulationConfig config = const SimulationConfig(),
     int seed = 7,
   })  : config = config,
+        seed = seed,
         _random = math.Random(seed) {
     reset();
   }
 
   final SimulationConfig config;
-  final math.Random _random;
+  final int seed;
+  math.Random _random;
   final List<SnakeState> snakes = [];
   final List<FoodPellet> pellets = [];
   final List<FoodPellet> droppedMass = [];
@@ -43,6 +45,7 @@ class GameSimulation {
       snakes.firstWhere((snake) => snake.kind == SnakeKind.player);
 
   void reset() {
+    _random = math.Random(seed);
     snakes.clear();
     pellets.clear();
     droppedMass.clear();
@@ -90,6 +93,7 @@ class GameSimulation {
       for (final snake in snakes.where((item) => item.alive)) {
         _moveSnake(snake, step);
         _collectPellets(snake);
+        _collectDroppedMass(snake);
       }
       _resolveCollisions();
 
@@ -109,7 +113,7 @@ class GameSimulation {
     final delta = _shortestAngle(target - current);
     final maxTurn = 6.0 * dt;
     player.heading = Vec2.fromAngle(
-      current + (delta.clamp(-maxTurn, maxTurn) as double),
+      current + delta.clamp(-maxTurn, maxTurn),
     );
   }
 
@@ -125,7 +129,7 @@ class GameSimulation {
       final current = bot.heading.angle;
       final delta = _shortestAngle(desired - current);
       bot.heading = Vec2.fromAngle(
-        current + (delta.clamp(-2.2 * dt, 2.2 * dt) as double),
+        current + delta.clamp(-2.2 * dt, 2.2 * dt),
       );
     }
   }
@@ -147,10 +151,18 @@ class GameSimulation {
   }
 
   void _collectPellets(SnakeState snake) {
-    for (var index = pellets.length - 1; index >= 0; index--) {
-      final pellet = pellets[index];
+    _collectFood(snake, pellets);
+  }
+
+  void _collectDroppedMass(SnakeState snake) {
+    _collectFood(snake, droppedMass);
+  }
+
+  void _collectFood(SnakeState snake, List<FoodPellet> source) {
+    for (var index = source.length - 1; index >= 0; index--) {
+      final pellet = source[index];
       if (snake.head.distanceTo(pellet.position) <= snake.radius + 6) {
-        pellets.removeAt(index);
+        source.removeAt(index);
         snake.grow(pellet.value);
         if (snake.kind == SnakeKind.player) score += pellet.value;
       }
@@ -158,25 +170,27 @@ class GameSimulation {
   }
 
   void _resolveCollisions() {
-    final playerSnake = player;
-    if (!playerSnake.alive) return;
-
-    for (final other in snakes.where(
-      (snake) => snake.id != playerSnake.id && snake.alive,
-    )) {
-      for (final segment in other.body.skip(2)) {
-        if (playerSnake.head.distanceTo(segment) <
-            playerSnake.radius + other.radius) {
-          _defeat(playerSnake);
-          return;
+    for (final snake in snakes.where((item) => item.alive)) {
+      for (final other in snakes.where(
+        (item) => item.id != snake.id && item.alive,
+      )) {
+        for (final segment in other.body.skip(2)) {
+          if (snake.head.distanceTo(segment) <
+              snake.radius + other.radius) {
+            _defeat(snake);
+            break;
+          }
         }
+        if (!snake.alive) break;
       }
     }
 
-    for (final segment in playerSnake.body.skip(8)) {
-      if (playerSnake.head.distanceTo(segment) < playerSnake.radius * 1.7) {
-        _defeat(playerSnake);
-        return;
+    for (final snake in snakes.where((item) => item.alive)) {
+      for (final segment in snake.body.skip(8)) {
+        if (snake.head.distanceTo(segment) < snake.radius * 1.7) {
+          _defeat(snake);
+          break;
+        }
       }
     }
   }
