@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flame/game.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -24,6 +25,7 @@ class SlitherApp extends StatefulWidget {
 class _SlitherAppState extends State<SlitherApp> {
   late final SlitherGame game;
   late final FocusNode _focusNode;
+  bool _pointerButtonHeld = false;
 
   @override
   void initState() {
@@ -40,9 +42,39 @@ class _SlitherAppState extends State<SlitherApp> {
   }
 
   void _handlePointerDown(PointerDownEvent event) {
+    if (event.kind == PointerDeviceKind.mouse && (event.buttons & 1) == 0) {
+      return;
+    }
+    _pointerButtonHeld = true;
     _focusNode.requestFocus();
     game.setPointer(event.localPosition);
     game.setPointerSprint(true);
+  }
+
+  void _handlePointerMove(PointerMoveEvent event) {
+    game.setPointer(event.localPosition);
+    // Reassert sprint from the browser's button bitmask. Some platforms emit
+    // a transient pointer cancellation while a held mouse is moved across a
+    // Flutter/HTML boundary; that cancellation must not end a held sprint.
+    if (_pointerButtonHeld &&
+        (event.kind != PointerDeviceKind.mouse || (event.buttons & 1) != 0)) {
+      game.setPointerSprint(true);
+    }
+  }
+
+  void _handlePointerUp(PointerUpEvent event) {
+    _pointerButtonHeld = false;
+    game.setPointerSprint(false);
+  }
+
+  void _handlePointerCancel(PointerCancelEvent event) {
+    // Keep mouse sprint alive through transient cancellation. A subsequent
+    // PointerUpEvent remains the authoritative release. Touch cancellation,
+    // which has no reliable held-button continuation, should release it.
+    if (event.kind != PointerDeviceKind.mouse) {
+      _pointerButtonHeld = false;
+      game.setPointerSprint(false);
+    }
   }
 
   @override
@@ -78,19 +110,24 @@ class _SlitherAppState extends State<SlitherApp> {
                   onHover: (event) => game.setPointer(event.localPosition),
                   child: Listener(
                     onPointerDown: _handlePointerDown,
-                    onPointerMove: (event) =>
-                        game.setPointer(event.localPosition),
-                    onPointerUp: (_) => game.setPointerSprint(false),
-                    onPointerCancel: (_) => game.setPointerSprint(false),
+                    onPointerMove: _handlePointerMove,
+                    onPointerUp: _handlePointerUp,
+                    onPointerCancel: _handlePointerCancel,
                     child: GameWidget(game: game),
                   ),
                 ),
               ),
               ValueListenableBuilder<GameHud>(
                 valueListenable: game.hud,
-                builder: (context, state, child) => _Hud(
-                  state: state,
-                  onRestart: game.restart,
+                builder: (context, state, child) => IgnorePointer(
+                  // During play, the HUD must not become a competing hit-test
+                  // target while the mouse is being dragged with sprint held.
+                  // It remains interactive after game over for PLAY AGAIN.
+                  ignoring: !state.gameOver,
+                  child: _Hud(
+                    state: state,
+                    onRestart: game.restart,
+                  ),
                 ),
               ),
             ],
@@ -282,7 +319,10 @@ class SlitherGame extends FlameGame {
     final bodyPaint = ui.Paint()
       ..color = colour
       ..style = ui.PaintingStyle.fill;
-    for (var index = snake.body.length - 1; index >= 0; index--) {
+    // body[0] is the head position and is rendered separately below. Skipping
+    // it here keeps the visible segment count equal to the HUD length instead
+    // of making every snake appear one segment longer at spawn.
+    for (var index = snake.body.length - 1; index >= 1; index--) {
       final segment = snake.body[index];
       final double taper =
           (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0).toDouble();
