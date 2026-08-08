@@ -8,6 +8,9 @@ class SimulationConfig {
     this.arenaRadius = 1800,
     this.playerSpeed = 175,
     this.botSpeed = 120,
+    this.botTurnRate = 2.2,
+    this.botSenseRadius = 320,
+    this.botBoundaryBuffer = 360,
     this.initialPellets = 260,
     this.botCount = 3,
     this.initialLength = 12,
@@ -16,6 +19,9 @@ class SimulationConfig {
   final double arenaRadius;
   final double playerSpeed;
   final double botSpeed;
+  final double botTurnRate;
+  final double botSenseRadius;
+  final double botBoundaryBuffer;
   final int initialPellets;
   final int botCount;
   final int initialLength;
@@ -23,11 +29,9 @@ class SimulationConfig {
 
 class GameSimulation {
   GameSimulation({
-    SimulationConfig config = const SimulationConfig(),
-    int seed = 7,
-  }) : config = config,
-        seed = seed,
-        _random = math.Random(seed) {
+    this.config = const SimulationConfig(),
+    this.seed = 7,
+  }) : _random = math.Random(seed) {
     reset();
   }
 
@@ -124,7 +128,7 @@ class GameSimulation {
     final delta = _shortestAngle(target - current);
     final maxTurn = 6.0 * dt;
     player.heading = Vec2.fromAngle(
-      current + delta.clamp(-maxTurn, maxTurn),
+      current + delta.clamp(-maxTurn, maxTurn).toDouble(),
     );
   }
 
@@ -132,17 +136,66 @@ class GameSimulation {
     for (final bot in snakes.where(
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
     )) {
-      final target = Vec2(
+      final wander = Vec2(
         math.cos(elapsed * 0.35 + bot.colorIndex),
         math.sin(elapsed * 0.27 + bot.colorIndex * 1.7),
       );
-      final desired = target.angle;
+      final boundary = _boundaryAvoidance(bot);
+      final threat = _nearbyThreat(bot);
+      final interest = _nearestFood(bot);
+      final intent = (wander + boundary + threat + interest).normalized();
+      final desired = intent.length == 0 ? bot.heading.angle : intent.angle;
       final current = bot.heading.angle;
       final delta = _shortestAngle(desired - current);
-      bot.heading = Vec2.fromAngle(
-        current + delta.clamp(-2.2 * dt, 2.2 * dt),
-      );
+      final turnLimit = config.botTurnRate * dt;
+      final turn = delta.clamp(-turnLimit, turnLimit).toDouble();
+      bot.heading = Vec2.fromAngle(current + turn);
     }
+  }
+
+  Vec2 _boundaryAvoidance(SnakeState snake) {
+    final distance = snake.head.length;
+    final threshold = config.arenaRadius - config.botBoundaryBuffer;
+    if (distance <= threshold || distance == 0) return Vec2.zero;
+
+    final double urgency =
+        ((distance - threshold) / config.botBoundaryBuffer)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    return snake.head.normalized() * (-urgency * 3);
+  }
+
+  Vec2 _nearbyThreat(SnakeState snake) {
+    var avoidance = Vec2.zero;
+    for (final other in snakes.where(
+      (candidate) => candidate.id != snake.id && candidate.alive,
+    )) {
+      for (final segment in other.body.skip(1)) {
+        final offset = snake.head - segment;
+        final distance = offset.length;
+        if (distance == 0 || distance > config.botSenseRadius) continue;
+        final double urgency =
+            (config.botSenseRadius - distance) / config.botSenseRadius;
+        avoidance += offset.normalized() * (urgency * urgency * 4);
+      }
+    }
+    return avoidance;
+  }
+
+  Vec2 _nearestFood(SnakeState snake) {
+    FoodPellet? nearest;
+    var nearestDistance = config.botSenseRadius;
+    for (final source in [droppedMass, pellets]) {
+      for (final pellet in source) {
+        final distance = snake.head.distanceTo(pellet.position);
+        if (distance < nearestDistance) {
+          nearest = pellet;
+          nearestDistance = distance;
+        }
+      }
+    }
+    if (nearest == null) return Vec2.zero;
+    return (nearest.position - snake.head).normalized() * 1.5;
   }
 
   void _moveSnake(SnakeState snake, double dt) {
@@ -153,7 +206,9 @@ class GameSimulation {
     while (snake.body.length > desiredSegments) {
       snake.body.removeLast();
     }
-    if (snake.growth > 0) snake.growth--;
+    if (snake.growth > 0) {
+      snake.growth--;
+    }
 
     if (nextHead.length > config.arenaRadius - snake.radius) {
       snake.alive = false;
@@ -208,7 +263,9 @@ class GameSimulation {
 
   void _defeat(SnakeState snake) {
     snake.alive = false;
-    if (snake.kind == SnakeKind.player) gameOver = true;
+    if (snake.kind == SnakeKind.player) {
+      gameOver = true;
+    }
     for (var index = 0; index < snake.body.length; index += 3) {
       droppedMass.add(FoodPellet(position: snake.body[index], value: 2));
     }
