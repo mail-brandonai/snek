@@ -183,8 +183,8 @@ void main() {
       for (var index = 1; index < simulation.player.body.length; index++) {
         expect(
           simulation.player.body[index - 1].distanceTo(
-                simulation.player.body[index],
-              ),
+            simulation.player.body[index],
+          ),
           closeTo(simulation.config.segmentSpacing, 0.0001),
         );
       }
