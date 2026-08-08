@@ -26,8 +26,7 @@ class MinimapModel {
   }) {
     return [
       for (final snake in snakes)
-        if (snake.alive)
-          _markerForSnake(snake, arenaRadius),
+        if (snake.alive) _markerForSnake(snake, arenaRadius),
     ];
   }
 
