@@ -93,7 +93,7 @@ void main() {
         ),
       );
 
-      simulation.update(1, Vec2(1, 0));
+      simulation.update(1, const Vec2(1, 0));
 
       expect(simulation.gameOver, isTrue);
       expect(simulation.player.alive, isFalse);
@@ -192,7 +192,7 @@ void main() {
       final initialBotPosition = simulation.snakes[1].head;
       final initialPelletPositions = simulation.pellets.toList();
 
-      simulation.update(1, Vec2(1, 0));
+      simulation.update(1, const Vec2(1, 0));
       simulation.restart();
 
       expect(simulation.snakes[1].head, initialBotPosition);
@@ -214,7 +214,7 @@ void main() {
           playerSpeed: 1000,
         ),
       );
-      simulation.update(1, Vec2(1, 0));
+      simulation.update(1, const Vec2(1, 0));
       simulation.restart();
 
       expect(simulation.gameOver, isFalse);
