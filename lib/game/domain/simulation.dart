@@ -44,6 +44,7 @@ class GameSimulation {
   double elapsed = 0;
   int score = 0;
   bool gameOver = false;
+  GameOverReason? gameOverReason;
 
   SnakeState get player =>
       snakes.firstWhere((snake) => snake.kind == SnakeKind.player);
@@ -67,6 +68,7 @@ class GameSimulation {
     elapsed = 0;
     score = 0;
     gameOver = false;
+    gameOverReason = null;
 
     snakes.add(
       SnakeState(
@@ -211,8 +213,7 @@ class GameSimulation {
     }
 
     if (nextHead.length > config.arenaRadius - snake.radius) {
-      snake.alive = false;
-      if (snake.kind == SnakeKind.player) gameOver = true;
+      _defeat(snake, GameOverReason.boundary);
     }
   }
 
@@ -243,7 +244,7 @@ class GameSimulation {
         for (final segment in other.body.skip(2)) {
           if (snake.head.distanceTo(segment) <
               snake.radius + other.radius) {
-            _defeat(snake);
+            _defeat(snake, GameOverReason.bodyCollision);
             break;
           }
         }
@@ -254,17 +255,19 @@ class GameSimulation {
     for (final snake in snakes.where((item) => item.alive)) {
       for (final segment in snake.body.skip(8)) {
         if (snake.head.distanceTo(segment) < snake.radius * 1.7) {
-          _defeat(snake);
+          _defeat(snake, GameOverReason.selfCollision);
           break;
         }
       }
     }
   }
 
-  void _defeat(SnakeState snake) {
+  void _defeat(SnakeState snake, GameOverReason reason) {
+    if (!snake.alive) return;
     snake.alive = false;
     if (snake.kind == SnakeKind.player) {
       gameOver = true;
+      gameOverReason = reason;
     }
     for (var index = 0; index < snake.body.length; index += 3) {
       droppedMass.add(FoodPellet(position: snake.body[index], value: 2));
