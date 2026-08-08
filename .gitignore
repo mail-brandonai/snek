@@ -1,0 +1,12 @@
+.dart_tool/
+.idea/
+.vscode/
+build/
+coverage/
+pubspec.lock
+android/.gradle/
+android/local.properties
+ios/Pods/
+macos/Pods/
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
