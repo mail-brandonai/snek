@@ -35,7 +35,8 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          dart format lib test\n          git diff -- lib test > ci-logs/format.patch
+          dart format lib test
+          git diff -- lib test > ci-logs/format.patch
 
       - name: Analyze
         id: analyze
