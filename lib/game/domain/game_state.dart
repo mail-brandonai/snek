@@ -115,10 +115,9 @@ class SnakeState {
 
   void expressGrowth(double distance) {
     if (distance <= 0 || _growthExpressionRemaining <= 0) return;
-    _growthExpressionRemaining =
-        (_growthExpressionRemaining - distance)
-            .clamp(0.0, double.infinity)
-            .toDouble();
+    _growthExpressionRemaining = (_growthExpressionRemaining - distance)
+        .clamp(0.0, double.infinity)
+        .toDouble();
   }
 
   void grow([int amount = 1]) {
@@ -156,10 +155,9 @@ class SnakeState {
 
     final position = body.removeLast();
     if (_growthExpressionRemaining > 0) {
-      _growthExpressionRemaining =
-          (_growthExpressionRemaining - segmentSpacing)
-              .clamp(0.0, double.infinity)
-              .toDouble();
+      _growthExpressionRemaining = (_growthExpressionRemaining - segmentSpacing)
+          .clamp(0.0, double.infinity)
+          .toDouble();
     }
     return position;
   }

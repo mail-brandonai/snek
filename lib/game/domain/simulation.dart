@@ -501,8 +501,8 @@ class GameSimulation {
 
     final expressedDistance =
         (maximumDistance - snake.growthExpressionRemaining)
-        .clamp(0.0, maximumDistance)
-        .toDouble();
+            .clamp(0.0, maximumDistance)
+            .toDouble();
     final transientSpacing = snake.body.length <= 1
         ? 0.0
         : expressedDistance / (snake.body.length - 1);
