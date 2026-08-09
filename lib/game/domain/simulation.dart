@@ -29,11 +29,12 @@ class SimulationConfig {
     this.botRespawnDelay = 3,
     this.botRespawnSafeDistance = 520,
     this.botRespawnAttempts = 32,
-    this.botPopulationInterval = 14,
-    this.botPressureRadius = 720,
-    this.botPressureWeight = 1.6,
-    this.botInterceptLeadTime = 1.2,
+    this.botPopulationInterval = 11,
+    this.botPressureRadius = 840,
+    this.botPressureWeight = 2.0,
+    this.botInterceptLeadTime = 1.45,
     this.botDroppedMassWeight = 2.3,
+    this.botGrowthMultiplier = 1.35,
     this.botRetreatLength = 78,
     this.botRetreatBoundaryBuffer = 150,
     this.botRetreatWeight = 6,
@@ -70,6 +71,7 @@ class SimulationConfig {
   final double botPressureWeight;
   final double botInterceptLeadTime;
   final double botDroppedMassWeight;
+  final double botGrowthMultiplier;
   final int botRetreatLength;
   final double botRetreatBoundaryBuffer;
   final double botRetreatWeight;
@@ -469,12 +471,14 @@ class GameSimulation {
     final nextHead =
         snake.head + snake.heading * (speed * movementMultiplier * dt);
     final hasMoved = nextHead.distanceTo(currentHead) > 0;
-    final growsThisStep = snake.growth > 0;
     if (hasMoved) {
+      final travelled = nextHead.distanceTo(currentHead);
       snake.body.insert(0, nextHead);
       snake.movementTrail.insert(0, nextHead);
-      if (!growsThisStep) snake.body.removeLast();
-      if (growsThisStep) snake.growth--;
+      snake.body.removeLast();
+      if (snake.growthExpressionRemaining > 0) {
+        snake.expressGrowth(travelled);
+      }
       _reflowBody(snake);
     }
 
@@ -495,10 +499,18 @@ class GameSimulation {
       maximumDistance + snake.segmentSpacing * 2,
     );
 
+    final expressedDistance =
+        (maximumDistance - snake.growthExpressionRemaining)
+        .clamp(0.0, maximumDistance)
+        .toDouble();
+    final transientSpacing = snake.body.length <= 1
+        ? 0.0
+        : expressedDistance / (snake.body.length - 1);
+
     for (var index = 1; index < snake.body.length; index++) {
       snake.body[index] = _sampleMovementTrail(
         snake,
-        index * snake.segmentSpacing,
+        index * transientSpacing,
       );
     }
   }
@@ -590,7 +602,13 @@ class GameSimulation {
       final pellet = source[index];
       if (snake.head.distanceTo(pellet.position) <= snake.radius + 6) {
         source.removeAt(index);
-        snake.grow(pellet.value);
+        final growth = snake.kind == SnakeKind.bot
+            ? (pellet.value * config.botGrowthMultiplier)
+                .round()
+                .clamp(1, double.infinity)
+                .toInt()
+            : pellet.value;
+        snake.grow(growth);
         if (snake.kind == SnakeKind.player) score += pellet.value;
       }
     }

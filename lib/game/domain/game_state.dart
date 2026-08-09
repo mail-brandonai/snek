@@ -97,17 +97,38 @@ class SnakeState {
   final List<Vec2> body;
   final List<Vec2> movementTrail = [];
   Vec2 heading;
-  int growth = 0;
+  double _growthExpressionRemaining = 0;
   double sprintDrainAccumulator = 0;
   bool sprinting = false;
   bool retreating = false;
   bool alive = true;
 
   Vec2 get head => body.first;
-  int get length => body.length + growth;
+  int get length => body.length;
+
+  /// Distance still required before newly acquired length is fully expressed.
+  ///
+  /// During this transition the body is allowed to compress, keeping the
+  /// previous tail position fixed while the head's forward travel expresses
+  /// the new length.
+  double get growthExpressionRemaining => _growthExpressionRemaining;
+
+  void expressGrowth(double distance) {
+    if (distance <= 0 || _growthExpressionRemaining <= 0) return;
+    _growthExpressionRemaining =
+        (_growthExpressionRemaining - distance)
+            .clamp(0.0, double.infinity)
+            .toDouble();
+  }
 
   void grow([int amount = 1]) {
-    growth += amount;
+    if (amount <= 0 || body.isEmpty) return;
+
+    final tail = body.last;
+    for (var index = 0; index < amount; index++) {
+      body.add(tail);
+    }
+    _growthExpressionRemaining += amount * segmentSpacing;
   }
 
   void resetAt(Vec2 position) {
@@ -123,7 +144,7 @@ class SnakeState {
       ..clear()
       ..addAll(body);
     heading = const Vec2(1, 0);
-    growth = 0;
+    _growthExpressionRemaining = 0;
     sprintDrainAccumulator = 0;
     sprinting = false;
     retreating = false;
@@ -133,12 +154,13 @@ class SnakeState {
   Vec2? shedMass({required int minimumLength}) {
     if (length <= minimumLength) return null;
 
-    final position = body.last;
-    if (growth > 0) {
-      growth--;
-      return position;
+    final position = body.removeLast();
+    if (_growthExpressionRemaining > 0) {
+      _growthExpressionRemaining =
+          (_growthExpressionRemaining - segmentSpacing)
+              .clamp(0.0, double.infinity)
+              .toDouble();
     }
-    if (body.length <= minimumLength) return null;
-    return body.removeLast();
+    return position;
   }
 }

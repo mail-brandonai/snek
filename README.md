@@ -87,6 +87,9 @@ Natural pellets and sprint drops each award one length point. Defeat drops are
 larger and award three points each, making predation more rewarding than
 collecting ordinary or self-generated mass. Sprint drain is paced more gently
 so acceleration remains useful without consuming length too aggressively.
+Newly acquired length is expressed through movement: the tail stays anchored
+while the head travels the acquired segment distance, producing a smoother
+growth transition instead of an immediate backward tail jump.
 
 ## V1.5 population, bot variety, and boundary readability
 
@@ -99,3 +102,15 @@ Boundary exits never create dropped mass. The arena boundary is marked by a
 high-contrast red perimeter, an inner warning band, boundary ticks, and a HUD
 edge warning. Sprint and defeat drops inherit the color of the snake that
 created them; generated pellets remain cyan.
+
+## V1.6 threat pacing and growth expression
+
+The population ramp now reaches its cap sooner, while nearby bots use a wider
+interception radius and a stronger lead target. Bots also gain a modest growth
+multiplier from food, allowing medium and large rivals to emerge during longer
+runs without removing the smaller and more vulnerable size tiers.
+
+Snake growth is expressed through travel rather than an immediate tail jump.
+New length is added at the existing tail and the body temporarily compresses as
+the head moves through the acquired segment distance; the tail resumes normal
+translation once that distance has been expressed.

@@ -24,6 +24,27 @@ void main() {
       expect(config.sprintDrainInterval, 0.35);
     });
 
+    test('bots grow modestly faster from collected food', () {
+      const config = SimulationConfig(
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 0,
+        botGrowthMultiplier: 1.5,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      final initialLength = bot.length;
+      simulation.pellets.add(
+        FoodPellet(position: bot.head, value: 2),
+      );
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(bot.length, initialLength + 3);
+      expect(simulation.pellets, isEmpty);
+    });
+
     test('reset creates a player, configured bots, and pellets', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(botCount: 2, initialPellets: 10),
@@ -337,6 +358,72 @@ void main() {
         greaterThanOrEqualTo(initialLength + 3),
       );
       expect(simulation.pellets, isEmpty);
+    });
+
+    test('growth keeps the tail anchored while the new length is expressed',
+        () {
+      const config = SimulationConfig(
+        botCount: 0,
+        initialPellets: 0,
+        playerSpeed: 120,
+      );
+      final simulation = GameSimulation(config: config);
+      final pellet = FoodPellet(position: simulation.player.head, value: 1);
+      simulation.pellets.add(pellet);
+
+      simulation.update(1 / 60, const Vec2(1, 0));
+
+      final player = simulation.player;
+      final tailAtCollection = player.body.last;
+      final lengthAtCollection = player.length;
+      expect(player.growthExpressionRemaining, config.segmentSpacing);
+
+      simulation.update(0.05, const Vec2(1, 0));
+      expect(player.length, lengthAtCollection);
+      expect(
+        player.body.last.distanceTo(tailAtCollection),
+        closeTo(0, 0.0001),
+      );
+      expect(
+        player.body[1].distanceTo(player.body[2]),
+        lessThan(config.segmentSpacing),
+      );
+
+      simulation.update(0.05, const Vec2(1, 0));
+      expect(player.growthExpressionRemaining, closeTo(0, 0.0001));
+      expect(
+        player.body.last.distanceTo(tailAtCollection),
+        closeTo(0, 0.0001),
+      );
+
+      simulation.update(0.05, const Vec2(1, 0));
+      expect(player.body.last.x, greaterThan(tailAtCollection.x));
+      for (var index = 1; index < player.body.length; index++) {
+        expect(
+          player.body[index - 1].distanceTo(player.body[index]),
+          closeTo(config.segmentSpacing, 0.0001),
+        );
+      }
+    });
+
+    test('restart clears any unexpressed growth distance', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 0,
+        ),
+      );
+      simulation.player.grow(3);
+
+      expect(simulation.player.growthExpressionRemaining, greaterThan(0));
+      simulation.restart();
+
+      expect(simulation.player.growthExpressionRemaining, 0);
+      expect(
+        simulation.player.length,
+        simulation.config.minimumSprintLength,
+      );
     });
 
     test('leaving the arena ends the player run', () {
