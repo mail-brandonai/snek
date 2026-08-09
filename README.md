@@ -137,3 +137,16 @@ bots can burst away from danger. Sprinting is bounded by a duration, cooldown,
 minimum length, shed-mass cost, and the existing arena boundary rules. Bot
 growth remains capped so sprint-capable rivals do not grow without limit, while
 player sprint economics and V1.8 body geometry remain unchanged.
+
+## V1.10 shared actor telegraphs
+
+Bots and future human players now use the same public-facing movement signals.
+Sprint anticipation and active sprint pulses are visible before and during
+acceleration, while actor intent is classified from observable position,
+heading, movement commitment, and nearby food or actors rather than hidden bot
+decisions. The simulation publishes bounded telegraph events and projected-path
+threat signals, and the HUD/minimap expose them without bot-only warnings.
+These signals are actor-neutral so a future networked player can emit the same
+telegraphs through ordinary public movement state. Collision rules, sprint
+economics, bot dispositions, population, and V1.8 body geometry remain
+unchanged.

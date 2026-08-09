@@ -47,6 +47,13 @@ class SimulationConfig {
     this.botSprintTriggerDistance = 320,
     this.botMaximumLength = 120,
     this.collisionPingDuration = 0.9,
+    this.sprintAnticipationDuration = 0.16,
+    this.sprintPulseDuration = 0.42,
+    this.telegraphEventDuration = 1.1,
+    this.telegraphEventLimit = 24,
+    this.threatProjectionSeconds = 1.2,
+    this.threatRadius = 300,
+    this.threatCommitmentThreshold = 0.55,
   });
 
   final double arenaRadius;
@@ -97,6 +104,13 @@ class SimulationConfig {
   final double botSprintTriggerDistance;
   final int botMaximumLength;
   final double collisionPingDuration;
+  final double sprintAnticipationDuration;
+  final double sprintPulseDuration;
+  final double telegraphEventDuration;
+  final int telegraphEventLimit;
+  final double threatProjectionSeconds;
+  final double threatRadius;
+  final double threatCommitmentThreshold;
 }
 
 class _BotProfile {
@@ -126,6 +140,7 @@ class GameSimulation {
   final List<FoodPellet> pellets = [];
   final List<FoodPellet> droppedMass = [];
   final List<CollisionPing> collisionPings = [];
+  final List<TelegraphEvent> telegraphEvents = [];
   final Map<String, double> _botRespawnTimers = {};
   double elapsed = 0;
   double _pelletRefillAccumulator = 0;
@@ -180,6 +195,73 @@ class GameSimulation {
         rank: playerRank,
       );
 
+  List<ActorTelegraph> get telegraphs => [
+        for (final snake in snakes)
+          if (snake.alive) _telegraphFor(snake),
+      ];
+
+  List<ThreatSignal> get playerThreats {
+    final signals = <ThreatSignal>[];
+    for (final actor in snakes.where(
+      (snake) => snake.id != player.id && snake.alive,
+    )) {
+      final offset = actor.head - player.head;
+      final distance = offset.length;
+      if (distance == 0) continue;
+
+      final actorTowardPlayer =
+          _alignment(actor.heading, player.head - actor.head);
+      final playerTowardActor = _alignment(player.heading, offset);
+      final actorSpeed = _effectiveSpeed(actor);
+      final playerSpeed = _effectiveSpeed(player);
+      final projectedActor = actor.head +
+          actor.heading * (actorSpeed * config.threatProjectionSeconds);
+      final projectedPlayer = player.head +
+          player.heading * (playerSpeed * config.threatProjectionSeconds);
+      final projectedDistance = projectedActor.distanceTo(projectedPlayer);
+      final projectedPath = actorTowardPlayer >= 0.2 &&
+          playerTowardActor >= -0.35 &&
+          projectedDistance <= config.threatRadius;
+      final closeApproach =
+          distance <= config.threatRadius && actorTowardPlayer >= -0.15;
+      if (!projectedPath && !closeApproach && !actor.sprinting) continue;
+
+      final nearestDistance = math.min(distance, projectedDistance).toDouble();
+      final proximity = (1 - nearestDistance / config.threatRadius)
+          .clamp(0.0, 1.0)
+          .toDouble();
+      final sprintBoost = actor.sprinting
+          ? 0.45
+          : actor.sprintAnticipating
+              ? 0.25
+              : 0.0;
+      final pathBoost = projectedPath ? 0.25 : 0.0;
+      final urgency =
+          (proximity + sprintBoost + pathBoost).clamp(0.0, 1.0).toDouble();
+      signals.add(
+        ThreatSignal(
+          actorId: actor.id,
+          direction: offset.normalized(),
+          distance: distance,
+          urgency: urgency,
+          actorLength: actor.length,
+          playerLength: player.length,
+          projectedPath: projectedPath,
+          intent: actor.publicIntent,
+          sprintAnticipating: actor.sprintAnticipating,
+          sprinting: actor.sprinting,
+        ),
+      );
+    }
+    signals.sort((left, right) => right.urgency.compareTo(left.urgency));
+    return signals;
+  }
+
+  ThreatSignal? get primaryPlayerThreat {
+    final threats = playerThreats;
+    return threats.isEmpty ? null : threats.first;
+  }
+
   bool get canSprint =>
       !gameOver && player.alive && player.length > config.minimumSprintLength;
 
@@ -189,6 +271,7 @@ class GameSimulation {
     pellets.clear();
     droppedMass.clear();
     collisionPings.clear();
+    telegraphEvents.clear();
     _botRespawnTimers.clear();
     elapsed = 0;
     _pelletRefillAccumulator = 0;
@@ -225,17 +308,23 @@ class GameSimulation {
     if (dt <= 0) return;
     if (gameOver) {
       _advanceCollisionPings(dt);
+      _advanceTelegraphEvents(dt);
       return;
     }
 
-    player.sprinting = sprinting && canSprint;
-    if (!player.sprinting) player.sprintDrainAccumulator = 0;
+    if (sprinting && canSprint) {
+      _requestSprint(player);
+    } else {
+      _cancelSprintRequest(player);
+    }
 
     var remaining = dt;
     while (remaining > 0 && !gameOver) {
       final step = math.min(remaining, 0.05).toDouble();
       _advanceCollisionPings(step);
+      _advanceTelegraphEvents(step);
       elapsed += step;
+      _advancePlayerSprint(step);
       _steerPlayer(steering, step);
       _steerBots(step);
 
@@ -246,6 +335,7 @@ class GameSimulation {
         _collectDroppedMass(snake);
       }
       _resolveCollisions();
+      _refreshPublicTelegraphs();
       _advanceBotRespawns(step);
       _advanceBotPopulation(step);
       _maintainPelletDensity(step);
@@ -261,9 +351,62 @@ class GameSimulation {
     final current = player.heading.angle;
     final delta = _shortestAngle(target - current);
     final maxTurn = 6.0 * dt;
+    player.headingChange = delta.abs().clamp(0.0, math.pi).toDouble();
+    player.movementCommitment =
+        (1 - player.headingChange / math.pi).clamp(0.0, 1.0).toDouble();
     player.heading = Vec2.fromAngle(
       current + delta.clamp(-maxTurn, maxTurn).toDouble(),
     );
+  }
+
+  void _requestSprint(SnakeState actor) {
+    if (actor.sprintRequested || actor.sprinting) {
+      actor.sprintRequested = true;
+      return;
+    }
+    actor.sprintRequested = true;
+    actor.sprintAnticipationRemaining = config.sprintAnticipationDuration;
+    _recordTelegraphEvent(actor, TelegraphEventKind.sprintAnticipation);
+  }
+
+  void _cancelSprintRequest(SnakeState actor) {
+    actor.sprintRequested = false;
+    actor.sprintAnticipationRemaining = 0;
+    if (actor.sprinting) {
+      if (actor.kind == SnakeKind.bot) {
+        _stopBotSprint(actor);
+      } else {
+        actor.sprinting = false;
+        actor.sprintPulseRemaining = 0;
+        actor.sprintDrainAccumulator = 0;
+        _recordTelegraphEvent(actor, TelegraphEventKind.sprintEnded);
+      }
+    } else {
+      actor.sprintDrainAccumulator = 0;
+    }
+  }
+
+  void _advancePlayerSprint(double dt) {
+    _advanceSprintTelegraph(player, dt);
+  }
+
+  void _advanceSprintTelegraph(SnakeState actor, double dt) {
+    actor.sprintPulseRemaining =
+        math.max(0, actor.sprintPulseRemaining - dt).toDouble();
+    if (!actor.sprintRequested) {
+      actor.sprinting = false;
+      actor.sprintAnticipationRemaining = 0;
+      actor.sprintDrainAccumulator = 0;
+      return;
+    }
+    if (actor.sprinting) return;
+    actor.sprintAnticipationRemaining =
+        math.max(0, actor.sprintAnticipationRemaining - dt).toDouble();
+    if (actor.sprintAnticipationRemaining > 0) return;
+
+    actor.sprinting = true;
+    actor.sprintPulseRemaining = config.sprintPulseDuration;
+    _recordTelegraphEvent(actor, TelegraphEventKind.sprintStarted);
   }
 
   void _steerBots(double dt) {
@@ -310,6 +453,7 @@ class GameSimulation {
           )
           .toDouble();
     }
+    _advanceSprintTelegraph(bot, dt);
     if (!bot.sprinting) return;
 
     bot.botSprintRemaining -= dt;
@@ -318,6 +462,7 @@ class GameSimulation {
 
   void _decideBotSprint(SnakeState bot) {
     if (bot.sprinting ||
+        bot.sprintRequested ||
         bot.botSprintCooldownRemaining > 0 ||
         bot.speed <= 0 ||
         bot.length <= config.botSprintMinimumLength) {
@@ -348,17 +493,24 @@ class GameSimulation {
     }
 
     if (shouldSprint) {
-      bot.sprinting = true;
+      _requestSprint(bot);
       bot.botSprintRemaining = config.botSprintDuration;
       bot.sprintDrainAccumulator = 0;
+      if (config.sprintAnticipationDuration <= 0) {
+        _advanceSprintTelegraph(bot, 0);
+      }
     }
   }
 
   void _stopBotSprint(SnakeState bot) {
+    bot.sprintRequested = false;
     bot.sprinting = false;
     bot.botSprintRemaining = 0;
+    bot.sprintAnticipationRemaining = 0;
+    bot.sprintPulseRemaining = 0;
     bot.sprintDrainAccumulator = 0;
     bot.botSprintCooldownRemaining = config.botSprintCooldown;
+    _recordTelegraphEvent(bot, TelegraphEventKind.sprintEnded);
   }
 
   void _turnBotToward(SnakeState bot, Vec2 intent, double dt) {
@@ -367,6 +519,9 @@ class GameSimulation {
     final delta = _shortestAngle(desired - current);
     final turnLimit = config.botTurnRate * dt;
     final turn = delta.clamp(-turnLimit, turnLimit).toDouble();
+    bot.headingChange = turn.abs().clamp(0.0, math.pi).toDouble();
+    bot.movementCommitment =
+        (1 - bot.headingChange / math.pi).clamp(0.0, 1.0).toDouble();
     bot.heading = Vec2.fromAngle(current + turn);
   }
 
@@ -556,6 +711,132 @@ class GameSimulation {
         (config.botPressureWeight * (0.65 + proximity * 0.35) * sizeFactor);
   }
 
+  ActorTelegraph _telegraphFor(SnakeState actor) => ActorTelegraph(
+        actorId: actor.id,
+        position: actor.head,
+        heading: actor.heading,
+        length: actor.length,
+        speed: _effectiveSpeed(actor),
+        intent: actor.publicIntent,
+        sprintAnticipating: actor.sprintAnticipating,
+        sprinting: actor.sprinting,
+        movementCommitment: actor.movementCommitment,
+      );
+
+  void _refreshPublicTelegraphs() {
+    for (final actor in snakes.where((snake) => snake.alive)) {
+      actor.publicIntent = _classifyPublicIntent(actor);
+    }
+  }
+
+  ActorIntent _classifyPublicIntent(SnakeState actor) {
+    if (actor.sprinting || actor.sprintAnticipating) {
+      return ActorIntent.sprinting;
+    }
+
+    final food = _nearestFoodTarget(actor);
+    if (food != null &&
+        actor.head.distanceTo(food) <= config.botSenseRadius &&
+        _alignment(actor.heading, food - actor.head) >= 0.55) {
+      return ActorIntent.contestingFood;
+    }
+
+    final other = _nearestOtherActor(actor);
+    if (other != null) {
+      final toOther = other.head - actor.head;
+      final alignment = _alignment(actor.heading, toOther);
+      if (alignment >= 0.55) return ActorIntent.pursuing;
+      if (alignment <= -0.55 &&
+          actor.head.distanceTo(other.head) <= config.botPressureRadius) {
+        return ActorIntent.retreating;
+      }
+    }
+
+    if (actor.headingChange >= config.threatCommitmentThreshold) {
+      return ActorIntent.repositioning;
+    }
+    return ActorIntent.wandering;
+  }
+
+  Vec2? _nearestFoodTarget(SnakeState actor) {
+    FoodPellet? nearest;
+    var nearestDistance = double.infinity;
+    for (final source in [droppedMass, pellets]) {
+      for (final pellet in source) {
+        final distance = actor.head.distanceTo(pellet.position);
+        if (distance < nearestDistance) {
+          nearest = pellet;
+          nearestDistance = distance;
+        }
+      }
+    }
+    return nearest?.position;
+  }
+
+  SnakeState? _nearestOtherActor(SnakeState actor) {
+    SnakeState? nearest;
+    var nearestDistance = double.infinity;
+    for (final candidate in snakes.where(
+      (snake) => snake.alive && snake.id != actor.id,
+    )) {
+      final distance = actor.head.distanceTo(candidate.head);
+      if (distance < nearestDistance) {
+        nearest = candidate;
+        nearestDistance = distance;
+      }
+    }
+    return nearest;
+  }
+
+  double _effectiveSpeed(SnakeState actor) {
+    var speed = actor.speed;
+    if (actor.kind == SnakeKind.bot) {
+      final excessLength = math.max(0, actor.length - actor.spawnLength);
+      final mobilityPenalty = (excessLength * config.botSizeSpeedPenalty)
+          .clamp(0.0, 0.28)
+          .toDouble();
+      speed *= 1 - mobilityPenalty;
+    }
+    if (actor.sprinting) {
+      speed *= actor.kind == SnakeKind.player
+          ? config.sprintMultiplier
+          : config.botSprintMultiplier;
+    }
+    return speed;
+  }
+
+  double _alignment(Vec2 first, Vec2 second) {
+    if (first.length == 0 || second.length == 0) return 0;
+    return (first.x * second.x + first.y * second.y) /
+        (first.length * second.length);
+  }
+
+  void _recordTelegraphEvent(SnakeState actor, TelegraphEventKind kind) {
+    telegraphEvents.insert(
+      0,
+      TelegraphEvent(
+        actorId: actor.id,
+        kind: kind,
+        position: actor.head,
+        heading: actor.heading,
+        durationSeconds: config.telegraphEventDuration,
+      ),
+    );
+    if (telegraphEvents.length > config.telegraphEventLimit) {
+      telegraphEvents.removeRange(
+        config.telegraphEventLimit,
+        telegraphEvents.length,
+      );
+    }
+  }
+
+  void _advanceTelegraphEvents(double dt) {
+    for (final event in telegraphEvents) {
+      event.remainingSeconds -= dt;
+    }
+    telegraphEvents.removeWhere((event) => event.remainingSeconds <= 0);
+  }
+
   void _moveSnake(SnakeState snake, double dt) {
     final currentHead = snake.head;
     final movementMultiplier = snake.sprinting
@@ -675,7 +956,8 @@ class GameSimulation {
         ? config.botSprintMinimumLength
         : config.minimumSprintLength;
     snake.sprintDrainAccumulator += dt;
-    while (snake.sprintDrainAccumulator >= config.sprintDrainInterval) {
+    while (snake.sprintDrainAccumulator + 1e-9 >=
+    config.sprintDrainInterval) {
       snake.sprintDrainAccumulator -= config.sprintDrainInterval;
       final position = snake.shedMass(
         minimumLength: minimumLength,
@@ -684,8 +966,7 @@ class GameSimulation {
         if (snake.kind == SnakeKind.bot) {
           _stopBotSprint(snake);
         } else {
-          snake.sprinting = false;
-          snake.sprintDrainAccumulator = 0;
+          _stopPlayerSprint(snake);
         }
         return;
       }
@@ -701,12 +982,20 @@ class GameSimulation {
         if (snake.kind == SnakeKind.bot) {
           _stopBotSprint(snake);
         } else {
-          snake.sprinting = false;
-          snake.sprintDrainAccumulator = 0;
+          _stopPlayerSprint(snake);
         }
         return;
       }
     }
+  }
+
+  void _stopPlayerSprint(SnakeState player) {
+    player.sprintRequested = false;
+    player.sprinting = false;
+    player.sprintAnticipationRemaining = 0;
+    player.sprintPulseRemaining = 0;
+    player.sprintDrainAccumulator = 0;
+    _recordTelegraphEvent(player, TelegraphEventKind.sprintEnded);
   }
 
   void _collectPellets(SnakeState snake) {

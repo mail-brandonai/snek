@@ -241,6 +241,7 @@ void main() {
           botTurnRate: 20,
           botRetreatLength: 200,
           botSprintTriggerDistance: 400,
+          sprintAnticipationDuration: 0,
         ),
       );
       final defensive = simulation.snakes[1];
@@ -284,6 +285,7 @@ void main() {
           botSprintCooldown: 2,
           botSprintTriggerDistance: 400,
           sprintDrainInterval: 0.1,
+          sprintAnticipationDuration: 0,
         ),
       );
       final bot = simulation.snakes[1];
@@ -304,6 +306,106 @@ void main() {
           (pellet) => pellet.kind == FoodPelletKind.sprintDrop,
         ),
         isTrue,
+      );
+    });
+
+    test('sprint anticipation is public before acceleration begins', () {
+      const config = SimulationConfig(
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 100,
+        botTurnRate: 20,
+        botRetreatLength: 200,
+        botSprintTriggerDistance: 400,
+        sprintAnticipationDuration: 0.2,
+      );
+      final simulation = GameSimulation(config: config);
+      simulation.player.grow(10);
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(100, 0);
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(bot.sprintAnticipating, isTrue);
+      expect(bot.sprinting, isFalse);
+      expect(
+        simulation.telegraphs
+            .firstWhere((telegraph) => telegraph.actorId == bot.id)
+            .sprintAnticipating,
+        isTrue,
+      );
+      expect(
+        simulation.telegraphEvents.first.kind,
+        TelegraphEventKind.sprintAnticipation,
+      );
+
+      simulation.update(0.2, Vec2.zero);
+
+      expect(bot.sprinting, isTrue);
+      expect(
+        simulation.telegraphs
+            .firstWhere((telegraph) => telegraph.actorId == bot.id)
+            .sprinting,
+        isTrue,
+      );
+      expect(
+        simulation.telegraphEvents.map((event) => event.kind),
+        contains(TelegraphEventKind.sprintStarted),
+      );
+    });
+
+    test('threat signals use projected public movement state', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 100,
+        botSpeed: 100,
+        botTurnRate: 20,
+        botRetreatLength: 200,
+        threatRadius: 280,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(200, 0);
+      bot.heading = const Vec2(-1, 0);
+      simulation.player.heading = const Vec2(1, 0);
+
+      simulation.update(1 / 60, const Vec2(1, 0));
+
+      final threat = simulation.primaryPlayerThreat;
+      expect(threat, isNotNull);
+      expect(threat!.actorId, bot.id);
+      expect(threat.projectedPath, isTrue);
+      expect(threat.direction.x, greaterThan(0));
+      expect(threat.urgency, greaterThan(0));
+    });
+
+    test('public intent is classified from observable movement', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 100,
+        botTurnRate: 20,
+        botRetreatLength: 200,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(100, 0);
+      bot.heading = const Vec2(-1, 0);
+      simulation.player.heading = const Vec2(1, 0);
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(bot.publicIntent, ActorIntent.pursuing);
+      expect(
+        simulation.telegraphs
+            .firstWhere((telegraph) => telegraph.actorId == bot.id)
+            .intent,
+        ActorIntent.pursuing,
       );
     });
 
@@ -784,6 +886,7 @@ void main() {
         playerSpeed: 100,
         sprintMultiplier: 2,
         sprintDrainInterval: 0.2,
+        sprintAnticipationDuration: 0,
       );
       final normal = GameSimulation(config: config);
       final sprinting = GameSimulation(config: config);
@@ -848,6 +951,7 @@ void main() {
         playerSpeed: 100,
         sprintMultiplier: 2,
         sprintDrainInterval: 0.2,
+        sprintAnticipationDuration: 0,
       );
       final simulation = GameSimulation(config: config);
       simulation.player.grow(1);

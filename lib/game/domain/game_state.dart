@@ -8,6 +8,21 @@ enum FoodPelletKind { natural, sprintDrop, defeatDrop }
 
 enum BotDisposition { defensive, aggressive, opportunistic, wanderer }
 
+enum ActorIntent {
+  wandering,
+  pursuing,
+  contestingFood,
+  retreating,
+  sprinting,
+  repositioning,
+}
+
+enum TelegraphEventKind {
+  sprintAnticipation,
+  sprintStarted,
+  sprintEnded,
+}
+
 class FoodPellet {
   const FoodPellet({
     required this.position,
@@ -32,6 +47,76 @@ class CollisionPing {
 
   double get progress =>
       (1 - remainingSeconds / durationSeconds).clamp(0.0, 1.0).toDouble();
+}
+
+class TelegraphEvent {
+  TelegraphEvent({
+    required this.actorId,
+    required this.kind,
+    required this.position,
+    required this.heading,
+    required this.durationSeconds,
+  }) : remainingSeconds = durationSeconds;
+
+  final String actorId;
+  final TelegraphEventKind kind;
+  final Vec2 position;
+  final Vec2 heading;
+  final double durationSeconds;
+  double remainingSeconds;
+
+  double get progress =>
+      (1 - remainingSeconds / durationSeconds).clamp(0.0, 1.0).toDouble();
+}
+
+class ActorTelegraph {
+  const ActorTelegraph({
+    required this.actorId,
+    required this.position,
+    required this.heading,
+    required this.length,
+    required this.speed,
+    required this.intent,
+    required this.sprintAnticipating,
+    required this.sprinting,
+    required this.movementCommitment,
+  });
+
+  final String actorId;
+  final Vec2 position;
+  final Vec2 heading;
+  final int length;
+  final double speed;
+  final ActorIntent intent;
+  final bool sprintAnticipating;
+  final bool sprinting;
+  final double movementCommitment;
+}
+
+class ThreatSignal {
+  const ThreatSignal({
+    required this.actorId,
+    required this.direction,
+    required this.distance,
+    required this.urgency,
+    required this.actorLength,
+    required this.playerLength,
+    required this.projectedPath,
+    required this.intent,
+    required this.sprintAnticipating,
+    required this.sprinting,
+  });
+
+  final String actorId;
+  final Vec2 direction;
+  final double distance;
+  final double urgency;
+  final int actorLength;
+  final int playerLength;
+  final bool projectedPath;
+  final ActorIntent intent;
+  final bool sprintAnticipating;
+  final bool sprinting;
 }
 
 class LeaderboardEntry {
@@ -103,8 +188,14 @@ class SnakeState {
   double sprintDrainAccumulator = 0;
   double botSprintCooldownRemaining = 0;
   double botSprintRemaining = 0;
+  double sprintAnticipationRemaining = 0;
+  double sprintPulseRemaining = 0;
+  double movementCommitment = 0;
+  double headingChange = 0;
+  bool sprintRequested = false;
   bool sprinting = false;
   bool retreating = false;
+  ActorIntent publicIntent = ActorIntent.wandering;
   bool alive = true;
 
   Vec2 get head => body.first;
@@ -172,10 +263,18 @@ class SnakeState {
     sprintDrainAccumulator = 0;
     botSprintCooldownRemaining = 0;
     botSprintRemaining = 0;
+    sprintAnticipationRemaining = 0;
+    sprintPulseRemaining = 0;
+    movementCommitment = 0;
+    headingChange = 0;
+    sprintRequested = false;
     sprinting = false;
     retreating = false;
+    publicIntent = ActorIntent.wandering;
     alive = true;
   }
+
+  bool get sprintAnticipating => sprintAnticipationRemaining > 0;
 
   Vec2? shedMass({required int minimumLength}) {
     if (length <= minimumLength) return null;

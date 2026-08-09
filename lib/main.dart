@@ -166,6 +166,8 @@ class GameHud {
     required this.minimapPings,
     required this.collisionAlertProgress,
     required this.boundaryWarningProgress,
+    required this.minimapTelegraphEvents,
+    required this.threats,
   });
 
   final int score;
@@ -181,6 +183,8 @@ class GameHud {
   final List<MinimapPing> minimapPings;
   final double collisionAlertProgress;
   final double boundaryWarningProgress;
+  final List<MinimapTelegraphEvent> minimapTelegraphEvents;
+  final List<ThreatSignal> threats;
 }
 
 class SlitherGame extends FlameGame {
@@ -201,6 +205,8 @@ class SlitherGame extends FlameGame {
             minimapPings: <MinimapPing>[],
             collisionAlertProgress: 0,
             boundaryWarningProgress: 0,
+            minimapTelegraphEvents: <MinimapTelegraphEvent>[],
+            threats: <ThreatSignal>[],
           ),
         );
 
@@ -275,10 +281,12 @@ class SlitherGame extends FlameGame {
       gameOver: simulation.gameOver,
       gameOverReason: simulation.gameOverReason,
       finalStats: simulation.finalStats,
+      threats: simulation.playerThreats,
       leaderboard: simulation.leaderboard,
       minimap: MinimapModel.markers(
         snakes: simulation.snakes,
         arenaRadius: simulation.config.arenaRadius,
+        threats: simulation.playerThreats,
       ),
       minimapPings: MinimapModel.pings(
         collisionPings: simulation.collisionPings,
@@ -289,6 +297,10 @@ class SlitherGame extends FlameGame {
         (maximum, ping) => math.max(maximum, ping.progress).toDouble(),
       ),
       boundaryWarningProgress: _boundaryWarningProgress(),
+      minimapTelegraphEvents: MinimapModel.events(
+        telegraphEvents: simulation.telegraphEvents,
+        arenaRadius: simulation.config.arenaRadius,
+      ),
     );
   }
 
@@ -406,6 +418,26 @@ class SlitherGame extends FlameGame {
 
   void _drawSnake(ui.Canvas canvas, SnakeState snake) {
     final colour = _snakeColour(snake.colorIndex);
+    if (snake.sprintAnticipating || snake.sprinting) {
+      final double pulse = (snake.sprinting
+              ? snake.sprintPulseRemaining /
+                  math.max(simulation.config.sprintPulseDuration, 0.0001)
+              : snake.sprintAnticipationRemaining /
+                  math.max(
+                      simulation.config.sprintAnticipationDuration, 0.0001))
+          .toDouble();
+      final ringPaint = ui.Paint()
+        ..color = colour.withValues(
+          alpha: (0.22 + pulse.clamp(0.0, 1.0) * 0.34).toDouble(),
+        )
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = snake.sprinting ? 3 : 2;
+      canvas.drawCircle(
+        Offset(snake.head.x, snake.head.y),
+        snake.radius + 8 + (1 - pulse.clamp(0.0, 1.0)) * 8,
+        ringPaint,
+      );
+    }
     if (snake.kind == SnakeKind.player && snake.sprinting) {
       final pulse = (math.sin(simulation.elapsed * 10) + 1) / 2;
       final auraPaint = ui.Paint()
@@ -520,8 +552,15 @@ class _Hud extends StatelessWidget {
           child: _Minimap(
             markers: state.minimap,
             pings: state.minimapPings,
+            events: state.minimapTelegraphEvents,
           ),
         ),
+        if (state.threats.isNotEmpty)
+          Positioned(
+            left: 16,
+            top: 58,
+            child: _ThreatPanel(threat: state.threats.first),
+          ),
         const Positioned(
           left: 16,
           bottom: 16,
@@ -691,17 +730,71 @@ class _ControlHint extends StatelessWidget {
 }
 
 class _Minimap extends StatelessWidget {
-  const _Minimap({required this.markers, required this.pings});
+  const _Minimap({
+    required this.markers,
+    required this.pings,
+    required this.events,
+  });
 
   final List<MinimapMarker> markers;
   final List<MinimapPing> pings;
+  final List<MinimapTelegraphEvent> events;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 142,
       height: 142,
-      child: CustomPaint(painter: _MinimapPainter(markers, pings)),
+      child: CustomPaint(painter: _MinimapPainter(markers, pings, events)),
+    );
+  }
+}
+
+class _ThreatPanel extends StatelessWidget {
+  const _ThreatPanel({required this.threat});
+
+  final ThreatSignal threat;
+
+  String get _intentLabel {
+    switch (threat.intent) {
+      case ActorIntent.wandering:
+        return 'NEARBY';
+      case ActorIntent.pursuing:
+        return 'APPROACHING';
+      case ActorIntent.contestingFood:
+        return 'CONTESTING';
+      case ActorIntent.retreating:
+        return 'RETREATING';
+      case ActorIntent.sprinting:
+        return 'SPRINTING';
+      case ActorIntent.repositioning:
+        return 'REPOSITIONING';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final urgency = (threat.urgency * 100).round();
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xcc301923),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xffa64655)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        child: Text(
+          'THREAT  ${threat.actorId.toUpperCase()}  $_intentLabel\n'
+          '${threat.distance.round()}m  URGENCY $urgency%'
+          '${threat.sprinting || threat.sprintAnticipating ? '  BURST' : ''}',
+          style: const TextStyle(
+            color: Color(0xffffc0b8),
+            fontSize: 10,
+            letterSpacing: 0.9,
+            height: 1.35,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -774,10 +867,11 @@ class _BoundaryWarningPainter extends CustomPainter {
 }
 
 class _MinimapPainter extends CustomPainter {
-  const _MinimapPainter(this.markers, this.pings);
+  const _MinimapPainter(this.markers, this.pings, this.events);
 
   final List<MinimapMarker> markers;
   final List<MinimapPing> pings;
+  final List<MinimapTelegraphEvent> events;
 
   @override
   void paint(ui.Canvas canvas, ui.Size size) {
@@ -830,6 +924,18 @@ class _MinimapPainter extends CustomPainter {
       canvas.drawCircle(position, 2, centre);
     }
 
+    for (final event in events) {
+      final position = Offset(event.x * size.width, event.y * size.height);
+      final colour = event.kind == TelegraphEventKind.sprintStarted
+          ? const Color(0xffffa72f)
+          : const Color(0xff55d7ff);
+      final ring = ui.Paint()
+        ..color = colour.withValues(alpha: 0.55 * (1 - event.progress))
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 1.2;
+      canvas.drawCircle(position, 4 + event.progress * 12, ring);
+    }
+
     for (final marker in markers) {
       final position = Offset(
         marker.x * size.width,
@@ -838,6 +944,35 @@ class _MinimapPainter extends CustomPainter {
       final colour = _snakeColour(marker.colorIndex);
       final paint = ui.Paint()..color = colour;
       canvas.drawCircle(position, marker.isPlayer ? 5 : 3, paint);
+      if (marker.sprintAnticipating || marker.sprinting) {
+        final ring = ui.Paint()
+          ..color = colour.withValues(
+            alpha: marker.sprinting ? 0.8 : 0.45,
+          )
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = marker.sprinting ? 2 : 1;
+        canvas.drawCircle(position, marker.isPlayer ? 10 : 7, ring);
+      }
+      if (marker.intent == ActorIntent.retreating) {
+        final retreatPaint = ui.Paint()
+          ..color = colour.withValues(alpha: 0.65)
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = 1;
+        canvas.drawCircle(position, marker.isPlayer ? 12 : 6, retreatPaint);
+      }
+      if (marker.threatUrgency > 0) {
+        final threatPaint = ui.Paint()
+          ..color = const Color(0xffff5f56).withValues(
+            alpha: 0.35 + marker.threatUrgency * 0.55,
+          )
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = 1.5;
+        canvas.drawCircle(
+          position,
+          (marker.isPlayer ? 12 : 7) + marker.threatUrgency * 7,
+          threatPaint,
+        );
+      }
       if (marker.isPlayer) {
         final ring = ui.Paint()
           ..color = colour.withValues(alpha: 0.35)
@@ -850,7 +985,9 @@ class _MinimapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MinimapPainter oldDelegate) =>
-      oldDelegate.markers != markers || oldDelegate.pings != pings;
+      oldDelegate.markers != markers ||
+      oldDelegate.pings != pings ||
+      oldDelegate.events != events;
 }
 
 Color _snakeColour(int colorIndex) =>
