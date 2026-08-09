@@ -30,6 +30,7 @@ class SimulationConfig {
     this.botPressureWeight = 1.6,
     this.botInterceptLeadTime = 1.2,
     this.botDroppedMassWeight = 2.3,
+    this.collisionPingDuration = 0.9,
   });
 
   final double arenaRadius;
@@ -57,6 +58,7 @@ class SimulationConfig {
   final double botPressureWeight;
   final double botInterceptLeadTime;
   final double botDroppedMassWeight;
+  final double collisionPingDuration;
 }
 
 class GameSimulation {
@@ -73,6 +75,7 @@ class GameSimulation {
   final List<SnakeState> snakes = [];
   final List<FoodPellet> pellets = [];
   final List<FoodPellet> droppedMass = [];
+  final List<CollisionPing> collisionPings = [];
   final Map<String, double> _botRespawnTimers = {};
   double elapsed = 0;
   double _pelletRefillAccumulator = 0;
@@ -135,6 +138,7 @@ class GameSimulation {
     snakes.clear();
     pellets.clear();
     droppedMass.clear();
+    collisionPings.clear();
     _botRespawnTimers.clear();
     elapsed = 0;
     _pelletRefillAccumulator = 0;
@@ -168,7 +172,11 @@ class GameSimulation {
   }
 
   void update(double dt, Vec2 steering, {bool sprinting = false}) {
-    if (gameOver || dt <= 0) return;
+    if (dt <= 0) return;
+    if (gameOver) {
+      _advanceCollisionPings(dt);
+      return;
+    }
 
     player.sprinting = sprinting && canSprint;
     if (!player.sprinting) player.sprintDrainAccumulator = 0;
@@ -176,6 +184,7 @@ class GameSimulation {
     var remaining = dt;
     while (remaining > 0 && !gameOver) {
       final step = math.min(remaining, 0.05).toDouble();
+      _advanceCollisionPings(step);
       elapsed += step;
       _steerPlayer(steering, step);
       _steerBots(step);
@@ -415,7 +424,13 @@ class GameSimulation {
         snake.sprintDrainAccumulator = 0;
         return;
       }
-      droppedMass.add(FoodPellet(position: position, value: 1));
+      droppedMass.add(
+        FoodPellet(
+          position: position,
+          value: 1,
+          kind: FoodPelletKind.sprintDrop,
+        ),
+      );
       if (snake.length <= config.minimumSprintLength) {
         snake.sprinting = false;
         snake.sprintDrainAccumulator = 0;
@@ -462,6 +477,14 @@ class GameSimulation {
   void _defeat(SnakeState snake, GameOverReason reason) {
     if (!snake.alive) return;
     snake.alive = false;
+    if (reason == GameOverReason.bodyCollision) {
+      collisionPings.add(
+        CollisionPing(
+          position: snake.head,
+          durationSeconds: config.collisionPingDuration,
+        ),
+      );
+    }
     if (snake.kind == SnakeKind.player) {
       finalStats = RunStats(
         score: score,
@@ -475,8 +498,21 @@ class GameSimulation {
       _botRespawnTimers[snake.id] = config.botRespawnDelay;
     }
     for (var index = 0; index < snake.body.length; index += 3) {
-      droppedMass.add(FoodPellet(position: snake.body[index], value: 2));
+      droppedMass.add(
+        FoodPellet(
+          position: snake.body[index],
+          value: 2,
+          kind: FoodPelletKind.defeatDrop,
+        ),
+      );
     }
+  }
+
+  void _advanceCollisionPings(double dt) {
+    for (final ping in collisionPings) {
+      ping.remainingSeconds -= dt;
+    }
+    collisionPings.removeWhere((ping) => ping.remainingSeconds <= 0);
   }
 
   void _spawnPellets(int count) {

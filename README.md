@@ -47,8 +47,8 @@ The `flutter create` command only adds platform scaffolding to an otherwise plat
 - The player starts at the minimum playable length and must collect pellets before sprinting becomes available.
 - The snake continues on its current heading when the pointer is centred.
 - The player may overlap its own body; only other-snake body collisions defeat the run.
-- Collect cyan pellets to grow and increase score; orange dropped mass is created when a snake is defeated.
-- The minimap marks the player with a ring and living bots with smaller dots.
+- Collect cyan pellets to grow and increase score; sprint drops are normal-sized orange pellets, while larger orange mass is created when a snake is defeated.
+- The minimap marks the player with a ring, living bots with smaller dots, and recent body collisions with short radar pings.
 - The live leaderboard shows the five longest living snakes and highlights the player; if the player is outside the top five, their rank is shown beneath it.
 - After defeat, read the collision reason and choose `PLAY AGAIN` to reset the seeded opening state.
 
@@ -71,3 +71,10 @@ bounded intercept target ahead of the player when nearby, avoid living bodies,
 and give dropped mass stronger priority than ordinary pellets. This creates
 increasing competitive pressure while preserving readable, deterministic
 movement and the player's size-versus-maneuverability tradeoff.
+
+## V1.3 collision readability
+
+Sprint drops now use the same compact size as generated pellets, while defeat
+drops remain larger and glowing so death locations are easier to identify. Body
+collisions also emit a short-lived radar ping on the minimap, including bot
+collisions, giving the player a clear signal of where a death occurred.

@@ -4,11 +4,30 @@ enum SnakeKind { player, bot }
 
 enum GameOverReason { boundary, bodyCollision }
 
+enum FoodPelletKind { natural, sprintDrop, defeatDrop }
+
 class FoodPellet {
-  const FoodPellet({required this.position, this.value = 1});
+  const FoodPellet({
+    required this.position,
+    this.value = 1,
+    this.kind = FoodPelletKind.natural,
+  });
 
   final Vec2 position;
   final int value;
+  final FoodPelletKind kind;
+}
+
+class CollisionPing {
+  CollisionPing({required this.position, required this.durationSeconds})
+      : remainingSeconds = durationSeconds;
+
+  final Vec2 position;
+  final double durationSeconds;
+  double remainingSeconds;
+
+  double get progress =>
+      (1 - remainingSeconds / durationSeconds).clamp(0.0, 1.0).toDouble();
 }
 
 class LeaderboardEntry {

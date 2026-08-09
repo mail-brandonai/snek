@@ -319,6 +319,22 @@ void main() {
       expect(simulation.gameOver, isTrue);
       expect(simulation.gameOverReason, GameOverReason.bodyCollision);
       expect(simulation.droppedMass, isNotEmpty);
+      expect(
+        simulation.droppedMass.every(
+          (pellet) => pellet.kind == FoodPelletKind.defeatDrop,
+        ),
+        isTrue,
+      );
+      expect(simulation.collisionPings, hasLength(1));
+      expect(
+        simulation.collisionPings.single.position,
+        simulation.player.head,
+      );
+
+      simulation.update(0.45, Vec2.zero);
+      expect(simulation.collisionPings, hasLength(1));
+      simulation.update(0.45, Vec2.zero);
+      expect(simulation.collisionPings, isEmpty);
     });
 
     test(
@@ -342,6 +358,13 @@ void main() {
         expect(simulation.gameOver, isFalse);
         expect(simulation.gameOverReason, isNull);
         expect(simulation.droppedMass, isNotEmpty);
+        expect(
+          simulation.droppedMass.every(
+            (pellet) => pellet.kind == FoodPelletKind.defeatDrop,
+          ),
+          isTrue,
+        );
+        expect(simulation.collisionPings, hasLength(1));
       },
     );
 
@@ -435,6 +458,12 @@ void main() {
         greaterThanOrEqualTo(config.minimumSprintLength),
       );
       expect(sprinting.droppedMass, isNotEmpty);
+      expect(
+        sprinting.droppedMass.every(
+          (pellet) => pellet.kind == FoodPelletKind.sprintDrop,
+        ),
+        isTrue,
+      );
       expect(normal.player.length, normalLength);
     });
 
@@ -561,6 +590,24 @@ void main() {
 
       expect(markers.map((marker) => marker.id), ['player']);
       expect(markers.single.isPlayer, isTrue);
+    });
+
+    test('projects collision pings and exposes their animation progress', () {
+      final ping = CollisionPing(
+        position: const Vec2(250, -250),
+        durationSeconds: 1,
+      );
+      ping.remainingSeconds = 0.5;
+
+      final pings = MinimapModel.pings(
+        collisionPings: [ping],
+        arenaRadius: 100,
+      );
+
+      expect(pings, hasLength(1));
+      expect(pings.single.x, 1);
+      expect(pings.single.y, 0);
+      expect(pings.single.progress, 0.5);
     });
   });
 }

@@ -150,6 +150,7 @@ class GameHud {
     required this.finalStats,
     required this.leaderboard,
     required this.minimap,
+    required this.minimapPings,
   });
 
   final int score;
@@ -162,6 +163,7 @@ class GameHud {
   final RunStats? finalStats;
   final List<LeaderboardEntry> leaderboard;
   final List<MinimapMarker> minimap;
+  final List<MinimapPing> minimapPings;
 }
 
 class SlitherGame extends FlameGame {
@@ -179,6 +181,7 @@ class SlitherGame extends FlameGame {
             finalStats: null,
             leaderboard: <LeaderboardEntry>[],
             minimap: <MinimapMarker>[],
+            minimapPings: <MinimapPing>[],
           ),
         );
 
@@ -258,6 +261,10 @@ class SlitherGame extends FlameGame {
         snakes: simulation.snakes,
         arenaRadius: simulation.config.arenaRadius,
       ),
+      minimapPings: MinimapModel.pings(
+        collisionPings: simulation.collisionPings,
+        arenaRadius: simulation.config.arenaRadius,
+      ),
     );
   }
 
@@ -302,14 +309,15 @@ class SlitherGame extends FlameGame {
     for (final pellet in items) {
       final colour =
           dropped ? const Color(0xffffb43b) : const Color(0xff54e8d1);
+      final isDefeatDrop = pellet.kind == FoodPelletKind.defeatDrop;
       final paint = ui.Paint()
         ..color = colour.withValues(alpha: dropped ? 0.95 : 0.8);
       canvas.drawCircle(
         Offset(pellet.position.x, pellet.position.y),
-        dropped ? 8 : 4,
+        isDefeatDrop ? 8 : 4,
         paint,
       );
-      if (dropped) {
+      if (isDefeatDrop) {
         final glow = ui.Paint()..color = colour.withValues(alpha: 0.13);
         canvas.drawCircle(
           Offset(pellet.position.x, pellet.position.y),
@@ -395,7 +403,10 @@ class _Hud extends StatelessWidget {
         Positioned(
           right: 16,
           bottom: 16,
-          child: _Minimap(markers: state.minimap),
+          child: _Minimap(
+            markers: state.minimap,
+            pings: state.minimapPings,
+          ),
         ),
         const Positioned(
           left: 16,
@@ -565,24 +576,26 @@ class _ControlHint extends StatelessWidget {
 }
 
 class _Minimap extends StatelessWidget {
-  const _Minimap({required this.markers});
+  const _Minimap({required this.markers, required this.pings});
 
   final List<MinimapMarker> markers;
+  final List<MinimapPing> pings;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 142,
       height: 142,
-      child: CustomPaint(painter: _MinimapPainter(markers)),
+      child: CustomPaint(painter: _MinimapPainter(markers, pings)),
     );
   }
 }
 
 class _MinimapPainter extends CustomPainter {
-  const _MinimapPainter(this.markers);
+  const _MinimapPainter(this.markers, this.pings);
 
   final List<MinimapMarker> markers;
+  final List<MinimapPing> pings;
 
   @override
   void paint(ui.Canvas canvas, ui.Size size) {
@@ -615,6 +628,26 @@ class _MinimapPainter extends CustomPainter {
       arenaPaint,
     );
 
+    for (final ping in pings) {
+      final position = Offset(
+        ping.x * size.width,
+        ping.y * size.height,
+      );
+      final progress = ping.progress;
+      final ring = ui.Paint()
+        ..color = const Color(0xffffd166).withValues(
+          alpha: 0.9 * (1 - progress),
+        )
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      canvas.drawCircle(position, 5 + progress * 17, ring);
+      final centre = ui.Paint()
+        ..color = const Color(0xffffd166).withValues(
+          alpha: 0.75 * (1 - progress),
+        );
+      canvas.drawCircle(position, 2, centre);
+    }
+
     final colours = [
       const Color(0xffffa72f),
       const Color(0xff55d7ff),
@@ -641,5 +674,5 @@ class _MinimapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MinimapPainter oldDelegate) =>
-      oldDelegate.markers != markers;
+      oldDelegate.markers != markers || oldDelegate.pings != pings;
 }

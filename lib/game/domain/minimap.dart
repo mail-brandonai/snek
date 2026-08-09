@@ -17,6 +17,18 @@ class MinimapMarker {
   final bool isPlayer;
 }
 
+class MinimapPing {
+  const MinimapPing({
+    required this.x,
+    required this.y,
+    required this.progress,
+  });
+
+  final double x;
+  final double y;
+  final double progress;
+}
+
 class MinimapModel {
   const MinimapModel._();
 
@@ -27,6 +39,20 @@ class MinimapModel {
     return [
       for (final snake in snakes)
         if (snake.alive) _markerForSnake(snake, arenaRadius),
+    ];
+  }
+
+  static List<MinimapPing> pings({
+    required Iterable<CollisionPing> collisionPings,
+    required double arenaRadius,
+  }) {
+    return [
+      for (final ping in collisionPings)
+        MinimapPing(
+          x: project(ping.position, arenaRadius).x,
+          y: project(ping.position, arenaRadius).y,
+          progress: ping.progress,
+        ),
     ];
   }
 
