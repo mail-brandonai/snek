@@ -101,6 +101,8 @@ class SnakeState {
   int _logicalLength;
   double _growthExpressionRemaining = 0;
   double sprintDrainAccumulator = 0;
+  double botSprintCooldownRemaining = 0;
+  double botSprintRemaining = 0;
   bool sprinting = false;
   bool retreating = false;
   bool alive = true;
@@ -168,6 +170,8 @@ class SnakeState {
     _logicalLength = spawnLength;
     _growthExpressionRemaining = 0;
     sprintDrainAccumulator = 0;
+    botSprintCooldownRemaining = 0;
+    botSprintRemaining = 0;
     sprinting = false;
     retreating = false;
     alive = true;

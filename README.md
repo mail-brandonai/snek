@@ -126,3 +126,14 @@ geometry as overlapping placeholder segments. Existing segments remain sampled
 at normal spacing from the movement trail. Growth is expressed only through a
 fractional terminal tail extension until each new segment is fully travelled,
 so queued growth no longer compresses or reshapes the entire snake body.
+
+## V1.9 intentional bot sprinting
+
+The existing deterministic bot roster now has a movement resource in addition
+to its disposition-specific steering. Aggressive bots can sprint to complete a
+viable interception, opportunistic bots can contest fresh defeat mass, wandering
+foragers can commit to unusually nearby natural food, and defensive or retreating
+bots can burst away from danger. Sprinting is bounded by a duration, cooldown,
+minimum length, shed-mass cost, and the existing arena boundary rules. Bot
+growth remains capped so sprint-capable rivals do not grow without limit, while
+player sprint economics and V1.8 body geometry remain unchanged.

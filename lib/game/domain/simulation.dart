@@ -40,6 +40,12 @@ class SimulationConfig {
     this.botRetreatBoundaryBuffer = 150,
     this.botRetreatWeight = 6,
     this.botSizeSpeedPenalty = 0.003,
+    this.botSprintMultiplier = 1.85,
+    this.botSprintDuration = 0.75,
+    this.botSprintCooldown = 2.4,
+    this.botSprintMinimumLength = 8,
+    this.botSprintTriggerDistance = 320,
+    this.botMaximumLength = 120,
     this.collisionPingDuration = 0.9,
   });
 
@@ -84,6 +90,12 @@ class SimulationConfig {
   final double botRetreatBoundaryBuffer;
   final double botRetreatWeight;
   final double botSizeSpeedPenalty;
+  final double botSprintMultiplier;
+  final double botSprintDuration;
+  final double botSprintCooldown;
+  final int botSprintMinimumLength;
+  final double botSprintTriggerDistance;
+  final int botMaximumLength;
   final double collisionPingDuration;
 }
 
@@ -258,11 +270,13 @@ class GameSimulation {
     for (final bot in snakes.where(
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
     )) {
+      _advanceBotSprint(bot, dt);
       if (!bot.retreating && bot.length >= config.botRetreatLength) {
         bot.retreating = true;
       }
       if (bot.retreating) {
         _turnBotToward(bot, _retreatDirection(bot), dt);
+        _decideBotSprint(bot);
         continue;
       }
 
@@ -283,7 +297,68 @@ class GameSimulation {
               pressure * _pressureWeight(bot))
           .normalized();
       _turnBotToward(bot, intent, dt);
+      _decideBotSprint(bot);
     }
+  }
+
+  void _advanceBotSprint(SnakeState bot, double dt) {
+    if (bot.botSprintCooldownRemaining > 0) {
+      bot.botSprintCooldownRemaining = math
+          .max(
+            0,
+            bot.botSprintCooldownRemaining - dt,
+          )
+          .toDouble();
+    }
+    if (!bot.sprinting) return;
+
+    bot.botSprintRemaining -= dt;
+    if (bot.botSprintRemaining <= 0) _stopBotSprint(bot);
+  }
+
+  void _decideBotSprint(SnakeState bot) {
+    if (bot.sprinting ||
+        bot.botSprintCooldownRemaining > 0 ||
+        bot.speed <= 0 ||
+        bot.length <= config.botSprintMinimumLength) {
+      return;
+    }
+
+    final playerDistance = bot.head.distanceTo(player.head);
+    final droppedMassDistance = _nearestDroppedMassDistance(bot);
+    final naturalFoodDistance = _nearestNaturalFoodDistance(bot);
+    final distanceLimit = config.botSprintTriggerDistance;
+    var shouldSprint = false;
+
+    switch (bot.disposition) {
+      case BotDisposition.defensive:
+        shouldSprint = bot.retreating ||
+            (player.alive &&
+                playerDistance <= distanceLimit * 0.8 &&
+                bot.length <= player.length * 1.2);
+      case BotDisposition.aggressive:
+        shouldSprint = player.alive &&
+            playerDistance <= distanceLimit &&
+            bot.length >= player.length * 0.75 &&
+            bot.length <= player.length * 1.6;
+      case BotDisposition.opportunistic:
+        shouldSprint = droppedMassDistance <= distanceLimit;
+      case BotDisposition.wanderer:
+        shouldSprint = naturalFoodDistance <= distanceLimit * 0.7;
+    }
+
+    if (shouldSprint) {
+      bot.sprinting = true;
+      bot.botSprintRemaining = config.botSprintDuration;
+      bot.sprintDrainAccumulator = 0;
+    }
+  }
+
+  void _stopBotSprint(SnakeState bot) {
+    bot.sprinting = false;
+    bot.botSprintRemaining = 0;
+    bot.sprintDrainAccumulator = 0;
+    bot.botSprintCooldownRemaining = config.botSprintCooldown;
   }
 
   void _turnBotToward(SnakeState bot, Vec2 intent, double dt) {
@@ -428,6 +503,15 @@ class GameSimulation {
     return (nearest.position - snake.head).normalized() * 1.5;
   }
 
+  double _nearestNaturalFoodDistance(SnakeState snake) {
+    var nearestDistance = double.infinity;
+    for (final pellet in pellets) {
+      final distance = snake.head.distanceTo(pellet.position);
+      if (distance < nearestDistance) nearestDistance = distance;
+    }
+    return nearestDistance;
+  }
+
   Vec2 _nearestDroppedMass(SnakeState snake) {
     FoodPellet? nearest;
     var nearestDistance = config.botSenseRadius;
@@ -441,6 +525,15 @@ class GameSimulation {
     if (nearest == null) return Vec2.zero;
     return (nearest.position - snake.head).normalized() *
         config.botDroppedMassWeight;
+  }
+
+  double _nearestDroppedMassDistance(SnakeState snake) {
+    var nearestDistance = double.infinity;
+    for (final pellet in droppedMass) {
+      final distance = snake.head.distanceTo(pellet.position);
+      if (distance < nearestDistance) nearestDistance = distance;
+    }
+    return nearestDistance;
   }
 
   Vec2 _playerPressure(SnakeState bot) {
@@ -465,8 +558,10 @@ class GameSimulation {
 
   void _moveSnake(SnakeState snake, double dt) {
     final currentHead = snake.head;
-    final movementMultiplier = snake.kind == SnakeKind.player && snake.sprinting
-        ? config.sprintMultiplier
+    final movementMultiplier = snake.sprinting
+        ? snake.kind == SnakeKind.player
+            ? config.sprintMultiplier
+            : config.botSprintMultiplier
         : 1.0;
     var speed = snake.speed;
     if (snake.kind == SnakeKind.bot) {
@@ -490,7 +585,7 @@ class GameSimulation {
       _reflowBody(snake);
     }
 
-    if (snake.kind == SnakeKind.player && snake.sprinting) {
+    if (snake.sprinting) {
       _drainSprint(snake, dt);
     }
 
@@ -576,15 +671,22 @@ class GameSimulation {
   }
 
   void _drainSprint(SnakeState snake, double dt) {
+    final minimumLength = snake.kind == SnakeKind.bot
+        ? config.botSprintMinimumLength
+        : config.minimumSprintLength;
     snake.sprintDrainAccumulator += dt;
     while (snake.sprintDrainAccumulator >= config.sprintDrainInterval) {
       snake.sprintDrainAccumulator -= config.sprintDrainInterval;
       final position = snake.shedMass(
-        minimumLength: config.minimumSprintLength,
+        minimumLength: minimumLength,
       );
       if (position == null) {
-        snake.sprinting = false;
-        snake.sprintDrainAccumulator = 0;
+        if (snake.kind == SnakeKind.bot) {
+          _stopBotSprint(snake);
+        } else {
+          snake.sprinting = false;
+          snake.sprintDrainAccumulator = 0;
+        }
         return;
       }
       droppedMass.add(
@@ -595,9 +697,13 @@ class GameSimulation {
           sourceColorIndex: snake.colorIndex,
         ),
       );
-      if (snake.length <= config.minimumSprintLength) {
-        snake.sprinting = false;
-        snake.sprintDrainAccumulator = 0;
+      if (snake.length <= minimumLength) {
+        if (snake.kind == SnakeKind.bot) {
+          _stopBotSprint(snake);
+        } else {
+          snake.sprinting = false;
+          snake.sprintDrainAccumulator = 0;
+        }
         return;
       }
     }
@@ -616,13 +722,21 @@ class GameSimulation {
       final pellet = source[index];
       if (snake.head.distanceTo(pellet.position) <= snake.radius + 6) {
         source.removeAt(index);
-        final growth = snake.kind == SnakeKind.bot
+        final requestedGrowth = snake.kind == SnakeKind.bot
             ? (pellet.value * config.botGrowthMultiplier)
                 .round()
                 .clamp(1, double.infinity)
                 .toInt()
             : pellet.value;
-        snake.grow(growth);
+        final growth = snake.kind == SnakeKind.bot
+            ? math
+                .min(
+                  requestedGrowth,
+                  math.max(0, config.botMaximumLength - snake.length),
+                )
+                .toInt()
+            : requestedGrowth;
+        if (growth > 0) snake.grow(growth);
         if (snake.kind == SnakeKind.player) score += pellet.value;
       }
     }

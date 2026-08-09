@@ -230,6 +230,103 @@ void main() {
       expect(bot.retreating, isTrue);
     });
 
+    test('bot sprinting follows each disposition objective', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 2000,
+          botCount: 4,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 100,
+          botTurnRate: 20,
+          botRetreatLength: 200,
+          botSprintTriggerDistance: 400,
+        ),
+      );
+      final defensive = simulation.snakes[1];
+      final aggressive = simulation.snakes[2];
+      final opportunistic = simulation.snakes[3];
+      final wanderer = simulation.snakes[4];
+      simulation.player.grow(20);
+      defensive.body[0] = const Vec2(0, 100);
+      aggressive.body[0] = const Vec2(0, 300);
+      opportunistic.body[0] = const Vec2(-300, 0);
+      wanderer.body[0] = const Vec2(300, 0);
+      simulation.droppedMass.add(
+        const FoodPellet(
+          position: Vec2(-300, 0),
+          kind: FoodPelletKind.defeatDrop,
+        ),
+      );
+      simulation.pellets.add(
+        const FoodPellet(position: Vec2(300, 0)),
+      );
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(defensive.sprinting, isTrue);
+      expect(aggressive.sprinting, isTrue);
+      expect(opportunistic.sprinting, isTrue);
+      expect(wanderer.sprinting, isTrue);
+    });
+
+    test('bot sprinting sheds mass and observes a cooldown', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 2000,
+          botCount: 1,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 100,
+          botTurnRate: 20,
+          botRetreatLength: 200,
+          botSprintDuration: 0.5,
+          botSprintCooldown: 2,
+          botSprintTriggerDistance: 400,
+          sprintDrainInterval: 0.1,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      simulation.player.grow(10);
+      bot.body[0] = const Vec2(100, 0);
+      final initialLength = bot.length;
+
+      simulation.update(1 / 60, Vec2.zero);
+      expect(bot.sprinting, isTrue);
+
+      simulation.update(0.6, Vec2.zero);
+
+      expect(bot.sprinting, isFalse);
+      expect(bot.length, lessThan(initialLength));
+      expect(bot.botSprintCooldownRemaining, greaterThan(0));
+      expect(
+        simulation.droppedMass.any(
+          (pellet) => pellet.kind == FoodPelletKind.sprintDrop,
+        ),
+        isTrue,
+      );
+    });
+
+    test(
+        'bot growth is bounded while the disposition multiplier remains active',
+        () {
+      const config = SimulationConfig(
+        botCount: 1,
+        initialPellets: 0,
+        botSpeed: 0,
+        botMaximumLength: 20,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      simulation.pellets.add(
+        FoodPellet(position: bot.head, value: 100),
+      );
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(bot.length, config.botMaximumLength);
+    });
+
     test('pellet maintenance refills gradually below the density threshold',
         () {
       const config = SimulationConfig(
