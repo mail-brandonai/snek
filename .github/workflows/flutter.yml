@@ -35,8 +35,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          dart format lib test
-          git diff -- lib test > ci-logs/format.patch
+          dart format --output=none --set-exit-if-changed lib test 2>&1 | tee ci-logs/format.log
 
       - name: Analyze
         id: analyze

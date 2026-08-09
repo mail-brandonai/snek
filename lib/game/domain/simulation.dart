@@ -956,8 +956,7 @@ class GameSimulation {
         ? config.botSprintMinimumLength
         : config.minimumSprintLength;
     snake.sprintDrainAccumulator += dt;
-    while (snake.sprintDrainAccumulator + 1e-9 >=
-    config.sprintDrainInterval) {
+    while (snake.sprintDrainAccumulator + 1e-9 >= config.sprintDrainInterval) {
       snake.sprintDrainAccumulator -= config.sprintDrainInterval;
       final position = snake.shedMass(
         minimumLength: minimumLength,
