@@ -87,9 +87,10 @@ Natural pellets and sprint drops each award one length point. Defeat drops are
 larger and award three points each, making predation more rewarding than
 collecting ordinary or self-generated mass. Sprint drain is paced more gently
 so acceleration remains useful without consuming length too aggressively.
-Newly acquired length is expressed through movement: the tail stays anchored
-while the head travels the acquired segment distance, producing a smoother
-growth transition instead of an immediate backward tail jump.
+Newly acquired length is expressed through movement: the tail projects
+backward through the movement trail at a controlled fraction of head travel,
+producing a smooth growth transition instead of an immediate backward tail
+jump or a visibly stationary tail.
 
 ## V1.5 population, bot variety, and boundary readability
 
@@ -112,5 +113,6 @@ runs without removing the smaller and more vulnerable size tiers.
 
 Snake growth is expressed through travel rather than an immediate tail jump.
 New length is added at the existing tail and the body temporarily compresses as
-the head moves through the acquired segment distance; the tail resumes normal
+the head moves through the acquired segment distance. The current expression
+rate is 0.90 units of growth per unit of head travel; the tail resumes normal
 translation once that distance has been expressed.

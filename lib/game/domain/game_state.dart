@@ -108,9 +108,10 @@ class SnakeState {
 
   /// Distance still required before newly acquired length is fully expressed.
   ///
-  /// During this transition the body is allowed to compress, keeping the
-  /// previous tail position fixed while the head's forward travel expresses
-  /// the new length.
+  /// During this transition the body is allowed to compress while the
+  /// movement trail gradually projects the tail backward. The expression
+  /// rate is controlled by the simulation so the tail is not moved backward
+  /// by the full amount in a single frame.
   double get growthExpressionRemaining => _growthExpressionRemaining;
 
   void expressGrowth(double distance) {

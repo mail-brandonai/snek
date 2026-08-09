@@ -14,6 +14,7 @@ class SimulationConfig {
     this.botBoundaryBuffer = 360,
     this.botSpawnRadius = 440,
     this.segmentSpacing = 12,
+    this.growthExpressionRate = 0.9,
     this.sprintMultiplier = 2.4,
     this.sprintDrainInterval = 0.35,
     this.naturalPelletValue = 1,
@@ -51,6 +52,12 @@ class SimulationConfig {
   final double botBoundaryBuffer;
   final double botSpawnRadius;
   final double segmentSpacing;
+
+  /// Fraction of head travel that expresses pending length at the tail.
+  ///
+  /// Keeping this just below 1 lets the tail project backward gradually
+  /// without exactly pinning it in world space during the transition.
+  final double growthExpressionRate;
   final double sprintMultiplier;
   final double sprintDrainInterval;
   final int naturalPelletValue;
@@ -477,7 +484,7 @@ class GameSimulation {
       snake.movementTrail.insert(0, nextHead);
       snake.body.removeLast();
       if (snake.growthExpressionRemaining > 0) {
-        snake.expressGrowth(travelled);
+        snake.expressGrowth(travelled * config.growthExpressionRate);
       }
       _reflowBody(snake);
     }

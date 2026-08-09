@@ -360,12 +360,12 @@ void main() {
       expect(simulation.pellets, isEmpty);
     });
 
-    test('growth keeps the tail anchored while the new length is expressed',
-        () {
+    test('growth projects the tail gradually at the movement cadence', () {
       const config = SimulationConfig(
         botCount: 0,
         initialPellets: 0,
         playerSpeed: 120,
+        growthExpressionRate: 0.9,
       );
       final simulation = GameSimulation(config: config);
       final pellet = FoodPellet(position: simulation.player.head, value: 1);
@@ -381,22 +381,20 @@ void main() {
       simulation.update(0.05, const Vec2(1, 0));
       expect(player.length, lengthAtCollection);
       expect(
-        player.body.last.distanceTo(tailAtCollection),
-        closeTo(0, 0.0001),
+        player.body.last.x,
+        greaterThan(tailAtCollection.x),
       );
+      expect(player.body.last.x, lessThan(tailAtCollection.x + 6));
       expect(
         player.body[1].distanceTo(player.body[2]),
         lessThan(config.segmentSpacing),
       );
 
       simulation.update(0.05, const Vec2(1, 0));
-      expect(player.growthExpressionRemaining, closeTo(0, 0.0001));
-      expect(
-        player.body.last.distanceTo(tailAtCollection),
-        closeTo(0, 0.0001),
-      );
+      expect(player.growthExpressionRemaining, greaterThan(0));
 
       simulation.update(0.05, const Vec2(1, 0));
+      expect(player.growthExpressionRemaining, closeTo(0, 0.0001));
       expect(player.body.last.x, greaterThan(tailAtCollection.x));
       for (var index = 1; index < player.body.length; index++) {
         expect(
