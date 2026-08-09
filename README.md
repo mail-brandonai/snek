@@ -104,15 +104,25 @@ high-contrast red perimeter, an inner warning band, boundary ticks, and a HUD
 edge warning. Sprint and defeat drops inherit the color of the snake that
 created them; generated pellets remain cyan.
 
-## V1.6 threat pacing and growth expression
+## V1.6 threat pacing
 
 The population ramp now reaches its cap sooner, while nearby bots use a wider
 interception radius and a stronger lead target. Bots also gain a modest growth
 multiplier from food, allowing medium and large rivals to emerge during longer
 runs without removing the smaller and more vulnerable size tiers.
 
+## V1.7 paced tail growth
+
 Snake growth is expressed through travel rather than an immediate tail jump.
-New length is added at the existing tail and the body temporarily compresses as
-the head moves through the acquired segment distance. The current expression
-rate is 0.90 units of growth per unit of head travel; the tail resumes normal
-translation once that distance has been expressed.
+New length projects backward through the movement trail at a controlled rate,
+while the tail continues to translate with the head instead of remaining
+stationary during the transition.
+
+## V1.8 stable body geometry
+
+Logical length updates immediately for score, rank, bot scaling, and sprint
+eligibility, but newly acquired length is not inserted into collision or render
+geometry as overlapping placeholder segments. Existing segments remain sampled
+at normal spacing from the movement trail. Growth is expressed only through a
+fractional terminal tail extension until each new segment is fully travelled,
+so queued growth no longer compresses or reshapes the entire snake body.

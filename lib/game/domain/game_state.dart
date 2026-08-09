@@ -79,6 +79,7 @@ class SnakeState {
     int initialLength = 12,
   })  : heading = const Vec2(1, 0),
         spawnLength = initialLength,
+        _logicalLength = initialLength,
         body = List<Vec2>.generate(
           initialLength,
           (index) => position - Vec2(index * segmentSpacing, 0),
@@ -97,6 +98,7 @@ class SnakeState {
   final List<Vec2> body;
   final List<Vec2> movementTrail = [];
   Vec2 heading;
+  int _logicalLength;
   double _growthExpressionRemaining = 0;
   double sprintDrainAccumulator = 0;
   bool sprinting = false;
@@ -104,14 +106,36 @@ class SnakeState {
   bool alive = true;
 
   Vec2 get head => body.first;
-  int get length => body.length;
+
+  /// Logical length used for score, rank, bot scaling, and sprint eligibility.
+  ///
+  /// This can be ahead of the visible body while newly acquired length is
+  /// being expressed through movement.
+  int get length => _logicalLength;
+
+  /// Number of newly acquired segments that have not been fully expressed.
+  int get pendingGrowthSegments {
+    if (_growthExpressionRemaining <= 0) return 0;
+    return (_growthExpressionRemaining / segmentSpacing).ceil();
+  }
+
+  /// Number of full segments currently represented by the visible path.
+  int get fullyExpressedLength => _logicalLength - pendingGrowthSegments;
+
+  /// Distance of the fractional terminal extension beyond the last full
+  /// segment. This is always smaller than one segment spacing.
+  double get growthExtensionDistance {
+    final extension =
+        pendingGrowthSegments * segmentSpacing - _growthExpressionRemaining;
+    return extension.clamp(0.0, segmentSpacing).toDouble();
+  }
 
   /// Distance still required before newly acquired length is fully expressed.
   ///
-  /// During this transition the body is allowed to compress while the
-  /// movement trail gradually projects the tail backward. The expression
-  /// rate is controlled by the simulation so the tail is not moved backward
-  /// by the full amount in a single frame.
+  /// During this transition the existing body keeps its normal spacing while
+  /// only a fractional terminal tail segment is extended. The expression rate
+  /// is controlled by the simulation so the tail is not moved backward by the
+  /// full amount in a single frame.
   double get growthExpressionRemaining => _growthExpressionRemaining;
 
   void expressGrowth(double distance) {
@@ -124,10 +148,7 @@ class SnakeState {
   void grow([int amount = 1]) {
     if (amount <= 0 || body.isEmpty) return;
 
-    final tail = body.last;
-    for (var index = 0; index < amount; index++) {
-      body.add(tail);
-    }
+    _logicalLength += amount;
     _growthExpressionRemaining += amount * segmentSpacing;
   }
 
@@ -144,6 +165,7 @@ class SnakeState {
       ..clear()
       ..addAll(body);
     heading = const Vec2(1, 0);
+    _logicalLength = spawnLength;
     _growthExpressionRemaining = 0;
     sprintDrainAccumulator = 0;
     sprinting = false;
@@ -154,11 +176,17 @@ class SnakeState {
   Vec2? shedMass({required int minimumLength}) {
     if (length <= minimumLength) return null;
 
-    final position = body.removeLast();
+    final position = body.last;
+    _logicalLength -= 1;
     if (_growthExpressionRemaining > 0) {
       _growthExpressionRemaining = (_growthExpressionRemaining - segmentSpacing)
           .clamp(0.0, double.infinity)
           .toDouble();
+      if (body.length == _logicalLength + 1 && body.length > 1) {
+        body.removeLast();
+      }
+    } else if (body.length > 1) {
+      body.removeLast();
     }
     return position;
   }

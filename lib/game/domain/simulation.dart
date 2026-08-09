@@ -14,7 +14,7 @@ class SimulationConfig {
     this.botBoundaryBuffer = 360,
     this.botSpawnRadius = 440,
     this.segmentSpacing = 12,
-    this.growthExpressionRate = 0.9,
+    this.growthExpressionRate = 0.05,
     this.sprintMultiplier = 2.4,
     this.sprintDrainInterval = 0.35,
     this.naturalPelletValue = 1,
@@ -55,8 +55,9 @@ class SimulationConfig {
 
   /// Fraction of head travel that expresses pending length at the tail.
   ///
-  /// Keeping this just below 1 lets the tail project backward gradually
-  /// without exactly pinning it in world space during the transition.
+  /// Growth is represented by a fractional terminal segment, so this value
+  /// controls the cadence of the extension without deforming existing body
+  /// spacing. Lower values create a slower, softer growth transition.
   final double growthExpressionRate;
   final double sprintMultiplier;
   final double sprintDrainInterval;
@@ -499,27 +500,33 @@ class GameSimulation {
   }
 
   void _reflowBody(SnakeState snake) {
-    final maximumDistance =
-        ((snake.body.length - 1) * snake.segmentSpacing).toDouble();
+    final fullLength = snake.fullyExpressedLength;
+    final extension = snake.growthExtensionDistance;
+    final maximumDistance = fullLength <= 0
+        ? extension
+        : ((fullLength - 1) * snake.segmentSpacing + extension).toDouble();
     _trimMovementTrail(
       snake,
       maximumDistance + snake.segmentSpacing * 2,
     );
 
-    final expressedDistance =
-        (maximumDistance - snake.growthExpressionRemaining)
-            .clamp(0.0, maximumDistance)
-            .toDouble();
-    final transientSpacing = snake.body.length <= 1
-        ? 0.0
-        : expressedDistance / (snake.body.length - 1);
-
-    for (var index = 1; index < snake.body.length; index++) {
-      snake.body[index] = _sampleMovementTrail(
-        snake,
-        index * transientSpacing,
+    final visibleBody = <Vec2>[];
+    for (var index = 0; index < fullLength; index++) {
+      visibleBody.add(
+        _sampleMovementTrail(snake, index * snake.segmentSpacing),
       );
     }
+    if (extension > 0.0001 && visibleBody.isNotEmpty) {
+      visibleBody.add(
+        _sampleMovementTrail(
+          snake,
+          (fullLength - 1) * snake.segmentSpacing + extension,
+        ),
+      );
+    }
+    snake.body
+      ..clear()
+      ..addAll(visibleBody);
   }
 
   void _trimMovementTrail(SnakeState snake, double maximumDistance) {

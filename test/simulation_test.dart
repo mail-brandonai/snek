@@ -360,12 +360,13 @@ void main() {
       expect(simulation.pellets, isEmpty);
     });
 
-    test('growth projects the tail gradually at the movement cadence', () {
+    test('growth keeps existing spacing and extends only the terminal tail',
+        () {
       const config = SimulationConfig(
         botCount: 0,
         initialPellets: 0,
         playerSpeed: 120,
-        growthExpressionRate: 0.9,
+        growthExpressionRate: 0.05,
       );
       final simulation = GameSimulation(config: config);
       final pellet = FoodPellet(position: simulation.player.head, value: 1);
@@ -377,31 +378,93 @@ void main() {
       final tailAtCollection = player.body.last;
       final lengthAtCollection = player.length;
       expect(player.growthExpressionRemaining, config.segmentSpacing);
+      expect(player.body.length, lengthAtCollection - 1);
 
       simulation.update(0.05, const Vec2(1, 0));
       expect(player.length, lengthAtCollection);
-      expect(
-        player.body.last.x,
-        greaterThan(tailAtCollection.x),
-      );
+      expect(player.body.length, lengthAtCollection);
+      expect(player.body.last.x, greaterThan(tailAtCollection.x));
       expect(player.body.last.x, lessThan(tailAtCollection.x + 6));
+      for (var index = 1; index < player.body.length - 1; index++) {
+        expect(
+          player.body[index - 1].distanceTo(player.body[index]),
+          closeTo(config.segmentSpacing, 0.0001),
+        );
+      }
       expect(
-        player.body[1].distanceTo(player.body[2]),
+        player.body[player.body.length - 2].distanceTo(player.body.last),
         lessThan(config.segmentSpacing),
       );
+      expect(
+        player.body.last.distanceTo(player.body[player.body.length - 2]),
+        greaterThan(0),
+      );
 
-      simulation.update(0.05, const Vec2(1, 0));
-      expect(player.growthExpressionRemaining, greaterThan(0));
-
-      simulation.update(0.05, const Vec2(1, 0));
+      simulation.update(2.2, const Vec2(1, 0));
       expect(player.growthExpressionRemaining, closeTo(0, 0.0001));
-      expect(player.body.last.x, greaterThan(tailAtCollection.x));
+      expect(player.body.length, player.length);
       for (var index = 1; index < player.body.length; index++) {
         expect(
           player.body[index - 1].distanceTo(player.body[index]),
           closeTo(config.segmentSpacing, 0.0001),
         );
       }
+    });
+
+    test(
+        'multiple queued growth events do not create hidden collision segments',
+        () {
+      const config = SimulationConfig(
+        botCount: 0,
+        initialPellets: 0,
+        playerSpeed: 120,
+        growthExpressionRate: 0.05,
+      );
+      final simulation = GameSimulation(config: config);
+      final player = simulation.player;
+      player.grow(3);
+
+      expect(player.length, config.minimumSprintLength + 3);
+      expect(player.body.length, config.minimumSprintLength);
+
+      simulation.update(0.05, const Vec2(1, 0));
+
+      expect(player.body.length, lessThan(player.length));
+      expect(player.pendingGrowthSegments, 3);
+      expect(player.body.length, player.fullyExpressedLength + 1);
+
+      simulation.update(8, const Vec2(1, 0));
+
+      expect(player.growthExpressionRemaining, closeTo(0, 0.0001));
+      expect(player.body.length, player.length);
+      expect(player.pendingGrowthSegments, 0);
+    });
+
+    test('growth follows a turn without deforming established segments', () {
+      const config = SimulationConfig(
+        botCount: 0,
+        initialPellets: 0,
+        playerSpeed: 120,
+        growthExpressionRate: 0.05,
+      );
+      final simulation = GameSimulation(config: config);
+      final player = simulation.player;
+      player.grow();
+
+      simulation.update(0.25, const Vec2(1, 0));
+      simulation.update(0.25, const Vec2(0, 1));
+
+      expect(player.growthExpressionRemaining, greaterThan(0));
+      for (var index = 1; index < player.body.length - 1; index++) {
+        expect(
+          player.body[index - 1].distanceTo(player.body[index]),
+          lessThanOrEqualTo(config.segmentSpacing + 0.0001),
+        );
+      }
+      expect(
+        player.body.last.distanceTo(player.body[player.body.length - 2]),
+        lessThan(config.segmentSpacing),
+      );
     });
 
     test('restart clears any unexpressed growth distance', () {
