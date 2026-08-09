@@ -151,6 +151,7 @@ class GameHud {
     required this.leaderboard,
     required this.minimap,
     required this.minimapPings,
+    required this.collisionAlertProgress,
   });
 
   final int score;
@@ -164,6 +165,7 @@ class GameHud {
   final List<LeaderboardEntry> leaderboard;
   final List<MinimapMarker> minimap;
   final List<MinimapPing> minimapPings;
+  final double collisionAlertProgress;
 }
 
 class SlitherGame extends FlameGame {
@@ -182,6 +184,7 @@ class SlitherGame extends FlameGame {
             leaderboard: <LeaderboardEntry>[],
             minimap: <MinimapMarker>[],
             minimapPings: <MinimapPing>[],
+            collisionAlertProgress: 0,
           ),
         );
 
@@ -265,6 +268,10 @@ class SlitherGame extends FlameGame {
         collisionPings: simulation.collisionPings,
         arenaRadius: simulation.config.arenaRadius,
       ),
+      collisionAlertProgress: simulation.collisionPings.fold<double>(
+        0,
+        (maximum, ping) => math.max(maximum, ping.progress).toDouble(),
+      ),
     );
   }
 
@@ -336,6 +343,32 @@ class SlitherGame extends FlameGame {
       const Color(0xff79e36c),
     ];
     final colour = colours[snake.colorIndex % colours.length];
+    if (snake.kind == SnakeKind.player && snake.sprinting) {
+      final pulse = (math.sin(simulation.elapsed * 10) + 1) / 2;
+      final auraPaint = ui.Paint()
+        ..color = const Color(0xffffc766).withValues(
+          alpha: 0.12 + pulse * 0.1,
+        )
+        ..style = ui.PaintingStyle.fill;
+      for (final segment in snake.body) {
+        canvas.drawCircle(
+          Offset(segment.x, segment.y),
+          snake.radius * (1.45 + pulse * 0.18),
+          auraPaint,
+        );
+      }
+      final auraRing = ui.Paint()
+        ..color = const Color(0xffffd166).withValues(
+          alpha: 0.45 + pulse * 0.25,
+        )
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 1.5 + pulse;
+      canvas.drawCircle(
+        Offset(snake.head.x, snake.head.y),
+        snake.radius * (1.55 + pulse * 0.25),
+        auraRing,
+      );
+    }
     final bodyPaint = ui.Paint()
       ..color = colour
       ..style = ui.PaintingStyle.fill;
@@ -392,6 +425,14 @@ class _Hud extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        if (state.collisionAlertProgress > 0)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _CollisionAlertPainter(state.collisionAlertProgress),
+              ),
+            ),
+          ),
         Positioned(
           top: 16,
           right: 16,
@@ -589,6 +630,46 @@ class _Minimap extends StatelessWidget {
       child: CustomPaint(painter: _MinimapPainter(markers, pings)),
     );
   }
+}
+
+class _CollisionAlertPainter extends CustomPainter {
+  const _CollisionAlertPainter(this.progress);
+
+  final double progress;
+
+  @override
+  void paint(ui.Canvas canvas, ui.Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+
+    final fade = (1 - progress).clamp(0.0, 1.0).toDouble();
+    final shimmer = (math.sin(progress * math.pi * 5) + 1) / 2;
+    final alpha = (0.07 + shimmer * 0.08) * fade;
+    final borderPaint = ui.Paint()
+      ..color = const Color(0xffffd166).withValues(alpha: alpha)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+    canvas.drawRRect(
+      ui.RRect.fromRectAndRadius(
+        ui.Rect.fromLTWH(5, 5, size.width - 10, size.height - 10),
+        const ui.Radius.circular(16),
+      ),
+      borderPaint,
+    );
+
+    final sweepPaint = ui.Paint()
+      ..color = const Color(0xffffd166).withValues(alpha: alpha * 1.5)
+      ..strokeWidth = 3;
+    final sweepX = size.width * (0.15 + progress * 0.7);
+    canvas.drawLine(
+      Offset(sweepX - 42, 5),
+      Offset(sweepX + 42, 5),
+      sweepPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CollisionAlertPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
 
 class _MinimapPainter extends CustomPainter {

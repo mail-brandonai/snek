@@ -14,7 +14,10 @@ class SimulationConfig {
     this.botSpawnRadius = 440,
     this.segmentSpacing = 12,
     this.sprintMultiplier = 2.4,
-    this.sprintDrainInterval = 0.25,
+    this.sprintDrainInterval = 0.35,
+    this.naturalPelletValue = 1,
+    this.sprintDropValue = 1,
+    this.defeatDropValue = 3,
     this.minimumSprintLength = 4,
     this.initialPellets = 260,
     this.pelletRefillThreshold = 0.65,
@@ -43,6 +46,9 @@ class SimulationConfig {
   final double segmentSpacing;
   final double sprintMultiplier;
   final double sprintDrainInterval;
+  final int naturalPelletValue;
+  final int sprintDropValue;
+  final int defeatDropValue;
   final int minimumSprintLength;
   final int initialPellets;
   final double pelletRefillThreshold;
@@ -427,7 +433,7 @@ class GameSimulation {
       droppedMass.add(
         FoodPellet(
           position: position,
-          value: 1,
+          value: config.sprintDropValue,
           kind: FoodPelletKind.sprintDrop,
         ),
       );
@@ -501,7 +507,7 @@ class GameSimulation {
       droppedMass.add(
         FoodPellet(
           position: snake.body[index],
-          value: 2,
+          value: config.defeatDropValue,
           kind: FoodPelletKind.defeatDrop,
         ),
       );
@@ -518,7 +524,12 @@ class GameSimulation {
   void _spawnPellets(int count) {
     if (count <= 0) return;
     for (var index = 0; index < count; index++) {
-      pellets.add(FoodPellet(position: _randomPosition()));
+      pellets.add(
+        FoodPellet(
+          position: _randomPosition(),
+          value: config.naturalPelletValue,
+        ),
+      );
     }
   }
 

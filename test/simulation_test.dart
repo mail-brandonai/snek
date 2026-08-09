@@ -15,6 +15,15 @@ void main() {
   });
 
   group('GameSimulation', () {
+    test('default food and sprint balance favours predation', () {
+      const config = SimulationConfig();
+
+      expect(config.naturalPelletValue, 1);
+      expect(config.sprintDropValue, config.naturalPelletValue);
+      expect(config.defeatDropValue, greaterThan(config.sprintDropValue));
+      expect(config.sprintDrainInterval, 0.35);
+    });
+
     test('reset creates a player, configured bots, and pellets', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(botCount: 2, initialPellets: 10),
@@ -31,6 +40,12 @@ void main() {
         simulation.config.minimumSprintLength,
       );
       expect(simulation.pellets.length, 10);
+      expect(
+        simulation.pellets.every(
+          (pellet) => pellet.value == simulation.config.naturalPelletValue,
+        ),
+        isTrue,
+      );
       expect(simulation.gameOver, isFalse);
       for (final bot in simulation.snakes.skip(1)) {
         expect(
@@ -325,6 +340,12 @@ void main() {
         ),
         isTrue,
       );
+      expect(
+        simulation.droppedMass.every(
+          (pellet) => pellet.value == simulation.config.defeatDropValue,
+        ),
+        isTrue,
+      );
       expect(simulation.collisionPings, hasLength(1));
       expect(
         simulation.collisionPings.single.position,
@@ -361,6 +382,12 @@ void main() {
         expect(
           simulation.droppedMass.every(
             (pellet) => pellet.kind == FoodPelletKind.defeatDrop,
+          ),
+          isTrue,
+        );
+        expect(
+          simulation.droppedMass.every(
+            (pellet) => pellet.value == simulation.config.defeatDropValue,
           ),
           isTrue,
         );
@@ -464,6 +491,13 @@ void main() {
         ),
         isTrue,
       );
+      expect(
+        sprinting.droppedMass.every(
+          (pellet) => pellet.value == config.naturalPelletValue,
+        ),
+        isTrue,
+      );
+      expect(config.defeatDropValue, greaterThan(config.sprintDropValue));
       expect(normal.player.length, normalLength);
     });
 

@@ -77,4 +77,13 @@ movement and the player's size-versus-maneuverability tradeoff.
 Sprint drops now use the same compact size as generated pellets, while defeat
 drops remain larger and glowing so death locations are easier to identify. Body
 collisions also emit a short-lived radar ping on the minimap, including bot
-collisions, giving the player a clear signal of where a death occurred.
+collisions, giving the player a clear signal of where a death occurred. The
+collision event also produces a brief HUD-edge shimmer, while active sprinting
+uses a pulsing aura around the player snake.
+
+## V1.4 reward and sprint readability
+
+Natural pellets and sprint drops each award one length point. Defeat drops are
+larger and award three points each, making predation more rewarding than
+collecting ordinary or self-generated mass. Sprint drain is paced more gently
+so acceleration remains useful without consuming length too aggressively.
