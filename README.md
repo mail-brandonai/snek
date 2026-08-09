@@ -150,3 +150,20 @@ These signals are actor-neutral so a future networked player can emit the same
 telegraphs through ordinary public movement state. Collision rules, sprint
 economics, bot dispositions, population, and V1.8 body geometry remain
 unchanged.
+
+## V1.11 tactical bot movement
+
+Bot steering now changes tactics on bounded, deterministic intervals instead of
+following one continuous turn curve. Depending on its public situation, a bot
+may feint with a zig-zag, cut off a moving player, flank from a lateral line,
+approach the space between the player's head and tail, disengage through an
+anti-encirclement escape vector, or position beyond food as a baiting trap.
+Short speed commitments and braking phases create readable speed-then-slow
+interactions without granting hidden information or unlimited acceleration.
+The existing actor-neutral telegraph state continues to describe the movement
+that is actually visible in the arena.
+
+The tactical HUD is optional and disabled by default. The base score, rank,
+leaderboard, minimap, boundary, collision, and restart feedback remain visible;
+the player can enable the extra threat and tactical minimap signals with the
+`TACTICS HUD` control.

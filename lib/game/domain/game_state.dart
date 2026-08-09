@@ -190,6 +190,8 @@ class SnakeState {
   double botSprintRemaining = 0;
   double sprintAnticipationRemaining = 0;
   double sprintPulseRemaining = 0;
+  double tacticalSpeedMultiplier = 1;
+  double tacticalTurnRateMultiplier = 1;
   double movementCommitment = 0;
   double headingChange = 0;
   bool sprintRequested = false;
@@ -265,6 +267,8 @@ class SnakeState {
     botSprintRemaining = 0;
     sprintAnticipationRemaining = 0;
     sprintPulseRemaining = 0;
+    tacticalSpeedMultiplier = 1;
+    tacticalTurnRateMultiplier = 1;
     movementCommitment = 0;
     headingChange = 0;
     sprintRequested = false;

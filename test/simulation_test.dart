@@ -409,6 +409,48 @@ void main() {
       );
     });
 
+    test('bot tactics vary turn commitment and movement speed over time', () {
+      const config = SimulationConfig(
+        arenaRadius: 4000,
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 100,
+        botTurnRate: 5,
+        botRetreatLength: 200,
+        botTacticDecisionMin: 0.2,
+        botTacticDecisionMax: 0.35,
+        botTacticTurnVariance: 1.2,
+        botTacticSpeedBoost: 1.25,
+        botTacticBrakeMultiplier: 0.6,
+      );
+      final simulation = GameSimulation(config: config, seed: 91);
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 600);
+
+      final headings = <Vec2>[];
+      final speeds = <double>[];
+      for (var index = 0; index < 24; index++) {
+        simulation.update(0.1, Vec2.zero);
+        headings.add(bot.heading);
+        speeds.add(bot.tacticalSpeedMultiplier);
+      }
+
+      expect(headings.toSet().length, greaterThan(3));
+      expect(
+        speeds.any((speed) => (speed - 1).abs() > 0.01),
+        isTrue,
+      );
+      expect(
+        speeds.every((speed) => speed >= config.botTacticBrakeMultiplier),
+        isTrue,
+      );
+      expect(
+        speeds.every((speed) => speed <= config.botTacticSpeedBoost),
+        isTrue,
+      );
+    });
+
     test(
         'bot growth is bounded while the disposition multiplier remains active',
         () {

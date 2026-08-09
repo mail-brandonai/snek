@@ -132,15 +132,27 @@ class _SlitherAppState extends State<SlitherApp> {
               ),
               ValueListenableBuilder<GameHud>(
                 valueListenable: game.hud,
-                builder: (context, state, child) => IgnorePointer(
-                  // During play, the HUD must not become a competing hit-test
-                  // target while the mouse is being dragged with sprint held.
-                  // It remains interactive after game over for PLAY AGAIN.
-                  ignoring: !state.gameOver,
-                  child: _Hud(
-                    state: state,
-                    onRestart: game.restart,
-                  ),
+                builder: (context, state, child) => Stack(
+                  children: [
+                    IgnorePointer(
+                      // During play, the HUD must not become a competing
+                      // hit-test target while the mouse is being dragged.
+                      // It remains interactive after game over for PLAY AGAIN.
+                      ignoring: !state.gameOver,
+                      child: _Hud(
+                        state: state,
+                        onRestart: game.restart,
+                      ),
+                    ),
+                    Positioned(
+                      top: 62,
+                      left: 16,
+                      child: _TacticsHudToggle(
+                        enabled: state.advancedHudEnabled,
+                        onPressed: game.toggleAdvancedHud,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -168,6 +180,7 @@ class GameHud {
     required this.boundaryWarningProgress,
     required this.minimapTelegraphEvents,
     required this.threats,
+    required this.advancedHudEnabled,
   });
 
   final int score;
@@ -185,6 +198,7 @@ class GameHud {
   final double boundaryWarningProgress;
   final List<MinimapTelegraphEvent> minimapTelegraphEvents;
   final List<ThreatSignal> threats;
+  final bool advancedHudEnabled;
 }
 
 class SlitherGame extends FlameGame {
@@ -207,6 +221,7 @@ class SlitherGame extends FlameGame {
             boundaryWarningProgress: 0,
             minimapTelegraphEvents: <MinimapTelegraphEvent>[],
             threats: <ThreatSignal>[],
+            advancedHudEnabled: false,
           ),
         );
 
@@ -215,6 +230,7 @@ class SlitherGame extends FlameGame {
   Vec2 steering = const Vec2(1, 0);
   bool _pointerSprint = false;
   bool _keyboardSprint = false;
+  bool advancedHudEnabled = false;
   double _hudTimer = 0;
 
   bool get sprinting =>
@@ -238,6 +254,11 @@ class SlitherGame extends FlameGame {
 
   void setKeyboardSprint(bool active) {
     _keyboardSprint = active;
+  }
+
+  void toggleAdvancedHud() {
+    advancedHudEnabled = !advancedHudEnabled;
+    _publishHud();
   }
 
   @override
@@ -301,6 +322,7 @@ class SlitherGame extends FlameGame {
         telegraphEvents: simulation.telegraphEvents,
         arenaRadius: simulation.config.arenaRadius,
       ),
+      advancedHudEnabled: advancedHudEnabled,
     );
   }
 
@@ -553,9 +575,10 @@ class _Hud extends StatelessWidget {
             markers: state.minimap,
             pings: state.minimapPings,
             events: state.minimapTelegraphEvents,
+            showTacticalSignals: state.advancedHudEnabled,
           ),
         ),
-        if (state.threats.isNotEmpty)
+        if (state.advancedHudEnabled && state.threats.isNotEmpty)
           Positioned(
             left: 16,
             top: 58,
@@ -633,6 +656,34 @@ class _Hud extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _TacticsHudToggle extends StatelessWidget {
+  const _TacticsHudToggle({
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: enabled ? const Color(0xffffc766) : Colors.white70,
+        backgroundColor: const Color(0xcc0b1323),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        textStyle: const TextStyle(fontSize: 9, letterSpacing: 0.8),
+      ),
+      icon: Icon(
+        enabled ? Icons.visibility : Icons.visibility_off,
+        size: 14,
+      ),
+      label: Text(enabled ? 'TACTICS HUD ON' : 'TACTICS HUD OFF'),
     );
   }
 }
@@ -734,18 +785,27 @@ class _Minimap extends StatelessWidget {
     required this.markers,
     required this.pings,
     required this.events,
+    required this.showTacticalSignals,
   });
 
   final List<MinimapMarker> markers;
   final List<MinimapPing> pings;
   final List<MinimapTelegraphEvent> events;
+  final bool showTacticalSignals;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 142,
       height: 142,
-      child: CustomPaint(painter: _MinimapPainter(markers, pings, events)),
+      child: CustomPaint(
+        painter: _MinimapPainter(
+          markers,
+          pings,
+          events,
+          showTacticalSignals,
+        ),
+      ),
     );
   }
 }
@@ -867,11 +927,17 @@ class _BoundaryWarningPainter extends CustomPainter {
 }
 
 class _MinimapPainter extends CustomPainter {
-  const _MinimapPainter(this.markers, this.pings, this.events);
+  const _MinimapPainter(
+    this.markers,
+    this.pings,
+    this.events,
+    this.showTacticalSignals,
+  );
 
   final List<MinimapMarker> markers;
   final List<MinimapPing> pings;
   final List<MinimapTelegraphEvent> events;
+  final bool showTacticalSignals;
 
   @override
   void paint(ui.Canvas canvas, ui.Size size) {
@@ -924,16 +990,18 @@ class _MinimapPainter extends CustomPainter {
       canvas.drawCircle(position, 2, centre);
     }
 
-    for (final event in events) {
-      final position = Offset(event.x * size.width, event.y * size.height);
-      final colour = event.kind == TelegraphEventKind.sprintStarted
-          ? const Color(0xffffa72f)
-          : const Color(0xff55d7ff);
-      final ring = ui.Paint()
-        ..color = colour.withValues(alpha: 0.55 * (1 - event.progress))
-        ..style = ui.PaintingStyle.stroke
-        ..strokeWidth = 1.2;
-      canvas.drawCircle(position, 4 + event.progress * 12, ring);
+    if (showTacticalSignals) {
+      for (final event in events) {
+        final position = Offset(event.x * size.width, event.y * size.height);
+        final colour = event.kind == TelegraphEventKind.sprintStarted
+            ? const Color(0xffffa72f)
+            : const Color(0xff55d7ff);
+        final ring = ui.Paint()
+          ..color = colour.withValues(alpha: 0.55 * (1 - event.progress))
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = 1.2;
+        canvas.drawCircle(position, 4 + event.progress * 12, ring);
+      }
     }
 
     for (final marker in markers) {
@@ -953,14 +1021,14 @@ class _MinimapPainter extends CustomPainter {
           ..strokeWidth = marker.sprinting ? 2 : 1;
         canvas.drawCircle(position, marker.isPlayer ? 10 : 7, ring);
       }
-      if (marker.intent == ActorIntent.retreating) {
+      if (showTacticalSignals && marker.intent == ActorIntent.retreating) {
         final retreatPaint = ui.Paint()
           ..color = colour.withValues(alpha: 0.65)
           ..style = ui.PaintingStyle.stroke
           ..strokeWidth = 1;
         canvas.drawCircle(position, marker.isPlayer ? 12 : 6, retreatPaint);
       }
-      if (marker.threatUrgency > 0) {
+      if (showTacticalSignals && marker.threatUrgency > 0) {
         final threatPaint = ui.Paint()
           ..color = const Color(0xffff5f56).withValues(
             alpha: 0.35 + marker.threatUrgency * 0.55,
@@ -987,7 +1055,8 @@ class _MinimapPainter extends CustomPainter {
   bool shouldRepaint(covariant _MinimapPainter oldDelegate) =>
       oldDelegate.markers != markers ||
       oldDelegate.pings != pings ||
-      oldDelegate.events != events;
+      oldDelegate.events != events ||
+      oldDelegate.showTacticalSignals != showTacticalSignals;
 }
 
 Color _snakeColour(int colorIndex) =>

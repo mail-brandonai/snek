@@ -54,6 +54,16 @@ class SimulationConfig {
     this.threatProjectionSeconds = 1.2,
     this.threatRadius = 300,
     this.threatCommitmentThreshold = 0.55,
+    this.botTacticDecisionMin = 0.7,
+    this.botTacticDecisionMax = 1.55,
+    this.botTacticTurnVariance = 0.8,
+    this.botTacticSpeedBoost = 1.22,
+    this.botTacticBrakeMultiplier = 0.68,
+    this.botTacticWeaveStrength = 190,
+    this.botCutoffLeadTime = 2.15,
+    this.botFlankDistance = 180,
+    this.botEncircleGapDistance = 110,
+    this.botBaitDistance = 135,
   });
 
   final double arenaRadius;
@@ -111,6 +121,16 @@ class SimulationConfig {
   final double threatProjectionSeconds;
   final double threatRadius;
   final double threatCommitmentThreshold;
+  final double botTacticDecisionMin;
+  final double botTacticDecisionMax;
+  final double botTacticTurnVariance;
+  final double botTacticSpeedBoost;
+  final double botTacticBrakeMultiplier;
+  final double botTacticWeaveStrength;
+  final double botCutoffLeadTime;
+  final double botFlankDistance;
+  final double botEncircleGapDistance;
+  final double botBaitDistance;
 }
 
 class _BotProfile {
@@ -123,6 +143,14 @@ class _BotProfile {
   final BotDisposition disposition;
   final int lengthBonus;
   final double speedMultiplier;
+}
+
+enum _BotTactic { feint, cutoff, flank, encircle, bait, disengage, weave }
+
+class _BotTacticState {
+  _BotTactic mode = _BotTactic.weave;
+  double remaining = 0;
+  double sign = 1;
 }
 
 class GameSimulation {
@@ -142,6 +170,7 @@ class GameSimulation {
   final List<CollisionPing> collisionPings = [];
   final List<TelegraphEvent> telegraphEvents = [];
   final Map<String, double> _botRespawnTimers = {};
+  final Map<String, _BotTacticState> _botTactics = {};
   double elapsed = 0;
   double _pelletRefillAccumulator = 0;
   double _botPopulationAccumulator = 0;
@@ -273,6 +302,7 @@ class GameSimulation {
     collisionPings.clear();
     telegraphEvents.clear();
     _botRespawnTimers.clear();
+    _botTactics.clear();
     elapsed = 0;
     _pelletRefillAccumulator = 0;
     _botPopulationAccumulator = 0;
@@ -414,6 +444,8 @@ class GameSimulation {
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
     )) {
       _advanceBotSprint(bot, dt);
+      final tactic = _advanceBotTactic(bot, dt);
+      _applyTacticalMotion(bot, tactic, dt);
       if (!bot.retreating && bot.length >= config.botRetreatLength) {
         bot.retreating = true;
       }
@@ -432,15 +464,143 @@ class GameSimulation {
       final interest = _nearestFood(bot);
       final droppedMassInterest = _nearestDroppedMass(bot);
       final pressure = _playerPressure(bot);
+      final tactical = _tacticalIntent(bot, tactic);
       final intent = (wander * _wanderWeight(bot) +
               boundary * _boundaryWeight(bot) +
               threat * _threatWeight(bot) +
               interest * _foodWeight(bot) +
               droppedMassInterest * _droppedMassWeight(bot) +
-              pressure * _pressureWeight(bot))
+              pressure * _pressureWeight(bot) +
+              tactical * 1.55)
           .normalized();
       _turnBotToward(bot, intent, dt);
       _decideBotSprint(bot);
+    }
+  }
+
+  _BotTactic _advanceBotTactic(SnakeState bot, double dt) {
+    final state = _botTactics.putIfAbsent(bot.id, _BotTacticState.new);
+    state.remaining -= dt;
+    if (state.remaining > 0) return state.mode;
+
+    state.mode = _selectBotTactic(bot);
+    final minimum = math.max(0.1, config.botTacticDecisionMin);
+    final maximum = math.max(minimum, config.botTacticDecisionMax);
+    state.remaining = minimum + _random.nextDouble() * (maximum - minimum);
+    state.sign = _random.nextBool() ? 1 : -1;
+    bot.tacticalTurnRateMultiplier = 1 -
+        config.botTacticTurnVariance / 2 +
+        _random.nextDouble() * config.botTacticTurnVariance;
+    return state.mode;
+  }
+
+  _BotTactic _selectBotTactic(SnakeState bot) {
+    if (bot.retreating) return _BotTactic.disengage;
+    if (!player.alive) return _BotTactic.weave;
+
+    final playerDistance = bot.head.distanceTo(player.head);
+    final nearDanger = playerDistance <= config.botPressureRadius * 0.72;
+    final roll = _random.nextDouble();
+    switch (bot.disposition) {
+      case BotDisposition.defensive:
+        return nearDanger && roll < 0.65
+            ? _BotTactic.disengage
+            : roll < 0.55
+                ? _BotTactic.feint
+                : _BotTactic.weave;
+      case BotDisposition.aggressive:
+        if (roll < 0.35) return _BotTactic.cutoff;
+        if (roll < 0.65) return _BotTactic.flank;
+        if (roll < 0.82) return _BotTactic.encircle;
+        return _BotTactic.feint;
+      case BotDisposition.opportunistic:
+        if (_nearestFoodTarget(bot) != null && roll < 0.42) {
+          return _BotTactic.bait;
+        }
+        if (roll < 0.7) return _BotTactic.flank;
+        return _BotTactic.feint;
+      case BotDisposition.wanderer:
+        return roll < 0.5 ? _BotTactic.weave : _BotTactic.feint;
+    }
+  }
+
+  void _applyTacticalMotion(SnakeState bot, _BotTactic tactic, double dt) {
+    final state = _botTactics[bot.id];
+    if (state == null) return;
+
+    var targetMultiplier = 1.0;
+    switch (tactic) {
+      case _BotTactic.cutoff:
+      case _BotTactic.flank:
+      case _BotTactic.encircle:
+        targetMultiplier = config.botTacticSpeedBoost;
+      case _BotTactic.disengage:
+        targetMultiplier = math.max(1, config.botTacticSpeedBoost);
+      case _BotTactic.bait:
+        final food = _nearestFoodTarget(bot);
+        final nearFood = food != null && bot.head.distanceTo(food) < 90;
+        targetMultiplier = nearFood ? config.botTacticBrakeMultiplier : 1.0;
+      case _BotTactic.feint:
+        targetMultiplier = 1 + math.sin(elapsed * 8 + bot.colorIndex) * 0.12;
+      case _BotTactic.weave:
+        targetMultiplier = 0.96;
+    }
+
+    final smoothing = (dt * 5).clamp(0.0, 1.0).toDouble();
+    bot.tacticalSpeedMultiplier +=
+        (targetMultiplier - bot.tacticalSpeedMultiplier) * smoothing;
+  }
+
+  Vec2 _tacticalIntent(SnakeState bot, _BotTactic tactic) {
+    if (!player.alive) return Vec2.zero;
+    final state = _botTactics[bot.id];
+    final sign = state?.sign ?? 1;
+    final playerLateral = Vec2(-player.heading.y, player.heading.x);
+    final playerDistance = bot.head.distanceTo(player.head);
+    final lead = player.heading * config.botCutoffLeadTime * player.speed;
+
+    switch (tactic) {
+      case _BotTactic.feint:
+        final oscillation = math.sin(elapsed * 7.0 + bot.colorIndex * 1.9) *
+            config.botTacticWeaveStrength;
+        final target =
+            player.head + lead + playerLateral * (oscillation + sign * 70);
+        return target - bot.head;
+      case _BotTactic.cutoff:
+        return player.head +
+            lead +
+            playerLateral * (sign * config.botFlankDistance * 0.55) -
+            bot.head;
+      case _BotTactic.flank:
+        final target = player.head +
+            player.heading * (config.botCutoffLeadTime * player.speed * 0.55) +
+            playerLateral * (sign * config.botFlankDistance);
+        return target - bot.head;
+      case _BotTactic.encircle:
+        final index = math.min(
+          player.body.length - 1,
+          math.max(1, player.body.length ~/ 2),
+        );
+        final gap = player.body[index] +
+            playerLateral * (sign * config.botEncircleGapDistance);
+        return gap - bot.head;
+      case _BotTactic.bait:
+        final food = _nearestFoodTarget(bot);
+        if (food == null) return player.head + lead - bot.head;
+        final fromPlayer = food - player.head;
+        final baitDirection =
+            fromPlayer.length == 0 ? player.heading : fromPlayer.normalized();
+        final trapPoint = food + baitDirection * config.botBaitDistance;
+        return trapPoint - bot.head;
+      case _BotTactic.disengage:
+        final away = (bot.head - player.head).normalized();
+        final tangent = Vec2(-away.y, away.x) * sign;
+        return away * 2.0 +
+            tangent * (playerDistance < 180 ? 1.4 : 0.7) +
+            _nearbyThreat(bot);
+      case _BotTactic.weave:
+        final wave = math.sin(elapsed * 5.5 + bot.colorIndex) * sign;
+        return bot.heading + Vec2(-bot.heading.y, bot.heading.x) * wave;
     }
   }
 
@@ -517,7 +677,7 @@ class GameSimulation {
     final desired = intent.length == 0 ? bot.heading.angle : intent.angle;
     final current = bot.heading.angle;
     final delta = _shortestAngle(desired - current);
-    final turnLimit = config.botTurnRate * dt;
+    final turnLimit = config.botTurnRate * bot.tacticalTurnRateMultiplier * dt;
     final turn = delta.clamp(-turnLimit, turnLimit).toDouble();
     bot.headingChange = turn.abs().clamp(0.0, math.pi).toDouble();
     bot.movementCommitment =
@@ -802,6 +962,9 @@ class GameSimulation {
           ? config.sprintMultiplier
           : config.botSprintMultiplier;
     }
+    if (actor.kind == SnakeKind.bot) {
+      speed *= actor.tacticalSpeedMultiplier;
+    }
     return speed;
   }
 
@@ -839,21 +1002,7 @@ class GameSimulation {
 
   void _moveSnake(SnakeState snake, double dt) {
     final currentHead = snake.head;
-    final movementMultiplier = snake.sprinting
-        ? snake.kind == SnakeKind.player
-            ? config.sprintMultiplier
-            : config.botSprintMultiplier
-        : 1.0;
-    var speed = snake.speed;
-    if (snake.kind == SnakeKind.bot) {
-      final excessLength = math.max(0, snake.length - snake.spawnLength);
-      final mobilityPenalty = (excessLength * config.botSizeSpeedPenalty)
-          .clamp(0.0, 0.28)
-          .toDouble();
-      speed *= 1 - mobilityPenalty;
-    }
-    final nextHead =
-        snake.head + snake.heading * (speed * movementMultiplier * dt);
+    final nextHead = snake.head + snake.heading * (_effectiveSpeed(snake) * dt);
     final hasMoved = nextHead.distanceTo(currentHead) > 0;
     if (hasMoved) {
       final travelled = nextHead.distanceTo(currentHead);
@@ -1138,6 +1287,7 @@ class GameSimulation {
       final bot = snakes.firstWhere((snake) => snake.id == id);
       if (!gameOver && !bot.alive) {
         bot.resetAt(_findBotSpawnPosition(bot));
+        _botTactics.remove(id);
       }
       _botRespawnTimers.remove(id);
     }
