@@ -79,7 +79,7 @@ void main() {
           initialPellets: 0,
         ),
       );
-      simulation.player.grow(40);
+      simulation.player.grow(88);
       for (var index = 0; index < 6; index++) {
         simulation.snakes[index + 1].grow(index * 3);
       }
@@ -90,7 +90,7 @@ void main() {
       expect(leaderboard.map((entry) => entry.rank), [1, 2, 3, 4, 5]);
       expect(
         leaderboard.map((entry) => entry.length.toDouble()).toList(),
-        <double>[44, 37, 32, 27, 22],
+        <double>[92, 63, 42, 42, 25],
       );
       expect(leaderboard.first.isPlayer, isTrue);
       expect(leaderboard.where((entry) => entry.isPlayer), hasLength(1));
@@ -167,6 +167,46 @@ void main() {
 
       simulation.update(2.0, Vec2.zero);
       expect(simulation.totalBotCount, 3);
+    });
+
+    test('default bot roster varies size and disposition', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          botCount: 6,
+          initialPellets: 0,
+        ),
+      );
+      final bots = simulation.snakes.skip(1).toList();
+
+      expect(bots.map((bot) => bot.length).toSet().length, greaterThan(3));
+      expect(
+        bots.map((bot) => bot.disposition).toSet(),
+        containsAll(<BotDisposition>[
+          BotDisposition.defensive,
+          BotDisposition.aggressive,
+          BotDisposition.opportunistic,
+          BotDisposition.wanderer,
+        ]),
+      );
+      expect(bots[2].length, greaterThan(bots[0].length));
+      expect(bots[5].length, greaterThan(bots[1].length));
+    });
+
+    test('large bots enter a one-way retreat state', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 1000,
+          botCount: 1,
+          botRetreatLength: 10,
+          botSpeed: 0,
+          initialPellets: 0,
+        ),
+      );
+      final bot = simulation.snakes[1];
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(bot.retreating, isTrue);
     });
 
     test('pellet maintenance refills gradually below the density threshold',
@@ -314,7 +354,27 @@ void main() {
       expect(simulation.gameOver, isTrue);
       expect(simulation.player.alive, isFalse);
       expect(simulation.gameOverReason, GameOverReason.boundary);
-      expect(simulation.droppedMass, isNotEmpty);
+      expect(simulation.droppedMass, isEmpty);
+    });
+
+    test('a bot leaving the arena is removed without dropping mass', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 100,
+          botCount: 1,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 1000,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(99, 0);
+      bot.heading = const Vec2(1, 0);
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(bot.alive, isFalse);
+      expect(simulation.droppedMass, isEmpty);
     });
 
     test('hitting another snake body ends the player run and drops mass', () {
@@ -343,6 +403,12 @@ void main() {
       expect(
         simulation.droppedMass.every(
           (pellet) => pellet.value == simulation.config.defeatDropValue,
+        ),
+        isTrue,
+      );
+      expect(
+        simulation.droppedMass.every(
+          (pellet) => pellet.sourceColorIndex == simulation.player.colorIndex,
         ),
         isTrue,
       );
@@ -388,6 +454,12 @@ void main() {
         expect(
           simulation.droppedMass.every(
             (pellet) => pellet.value == simulation.config.defeatDropValue,
+          ),
+          isTrue,
+        );
+        expect(
+          simulation.droppedMass.every(
+            (pellet) => pellet.sourceColorIndex == bot.colorIndex,
           ),
           isTrue,
         );
@@ -494,6 +566,12 @@ void main() {
       expect(
         sprinting.droppedMass.every(
           (pellet) => pellet.value == config.naturalPelletValue,
+        ),
+        isTrue,
+      );
+      expect(
+        sprinting.droppedMass.every(
+          (pellet) => pellet.sourceColorIndex == sprinting.player.colorIndex,
         ),
         isTrue,
       );

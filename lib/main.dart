@@ -11,6 +11,19 @@ import 'game/domain/minimap.dart';
 import 'game/domain/simulation.dart';
 import 'game/domain/vec2.dart';
 
+const _snakeColours = <Color>[
+  Color(0xffffa72f),
+  Color(0xff55d7ff),
+  Color(0xffd875ff),
+  Color(0xff79e36c),
+  Color(0xffff6f91),
+  Color(0xfff2d15c),
+  Color(0xff8d9eff),
+  Color(0xff48d1b5),
+  Color(0xffff8a4c),
+  Color(0xffc77dff),
+];
+
 void main() {
   runApp(const SlitherApp());
 }
@@ -152,6 +165,7 @@ class GameHud {
     required this.minimap,
     required this.minimapPings,
     required this.collisionAlertProgress,
+    required this.boundaryWarningProgress,
   });
 
   final int score;
@@ -166,6 +180,7 @@ class GameHud {
   final List<MinimapMarker> minimap;
   final List<MinimapPing> minimapPings;
   final double collisionAlertProgress;
+  final double boundaryWarningProgress;
 }
 
 class SlitherGame extends FlameGame {
@@ -185,6 +200,7 @@ class SlitherGame extends FlameGame {
             minimap: <MinimapMarker>[],
             minimapPings: <MinimapPing>[],
             collisionAlertProgress: 0,
+            boundaryWarningProgress: 0,
           ),
         );
 
@@ -272,7 +288,17 @@ class SlitherGame extends FlameGame {
         0,
         (maximum, ping) => math.max(maximum, ping.progress).toDouble(),
       ),
+      boundaryWarningProgress: _boundaryWarningProgress(),
     );
+  }
+
+  double _boundaryWarningProgress() {
+    final buffer = simulation.config.arenaBoundaryWarningBuffer;
+    if (buffer <= 0) return 0;
+    final warningRadius = simulation.config.arenaRadius - buffer;
+    return ((simulation.player.head.length - warningRadius) / buffer)
+        .clamp(0.0, 1.0)
+        .toDouble();
   }
 
   void _drawArena(ui.Canvas canvas) {
@@ -305,7 +331,49 @@ class SlitherGame extends FlameGame {
         canvas.drawPath(path, gridPaint);
       }
     }
-    canvas.drawCircle(Offset.zero, radius, gridPaint);
+    final warningRadius = math
+        .max(
+          0.0,
+          radius - simulation.config.arenaBoundaryWarningBuffer,
+        )
+        .toDouble();
+    final warningGlow = ui.Paint()
+      ..color = const Color(0xffff9f43).withValues(alpha: 0.08)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 18;
+    canvas.drawCircle(Offset.zero, warningRadius, warningGlow);
+
+    final warningPaint = ui.Paint()
+      ..color = const Color(0xffffb347).withValues(alpha: 0.72)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawCircle(Offset.zero, warningRadius, warningPaint);
+
+    final boundaryGlow = ui.Paint()
+      ..color = const Color(0xffff4d5f).withValues(alpha: 0.16)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 16;
+    canvas.drawCircle(Offset.zero, radius, boundaryGlow);
+
+    final boundaryPaint = ui.Paint()
+      ..color = const Color(0xffff5263)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 5;
+    canvas.drawCircle(Offset.zero, radius, boundaryPaint);
+
+    final tickPaint = ui.Paint()
+      ..color = const Color(0xffff8d78).withValues(alpha: 0.85)
+      ..strokeWidth = 3;
+    for (var index = 0; index < 48; index++) {
+      final angle = index * math.pi / 24;
+      final inner = radius - 13;
+      final outer = radius + 13;
+      canvas.drawLine(
+        Offset(math.cos(angle) * inner, math.sin(angle) * inner),
+        Offset(math.cos(angle) * outer, math.sin(angle) * outer),
+        tickPaint,
+      );
+    }
   }
 
   void _drawPellets(
@@ -314,8 +382,9 @@ class SlitherGame extends FlameGame {
     required bool dropped,
   }) {
     for (final pellet in items) {
-      final colour =
-          dropped ? const Color(0xffffb43b) : const Color(0xff54e8d1);
+      final colour = dropped
+          ? _snakeColour(pellet.sourceColorIndex ?? 0)
+          : const Color(0xff54e8d1);
       final isDefeatDrop = pellet.kind == FoodPelletKind.defeatDrop;
       final paint = ui.Paint()
         ..color = colour.withValues(alpha: dropped ? 0.95 : 0.8);
@@ -336,13 +405,7 @@ class SlitherGame extends FlameGame {
   }
 
   void _drawSnake(ui.Canvas canvas, SnakeState snake) {
-    final colours = [
-      const Color(0xffffa72f),
-      const Color(0xff55d7ff),
-      const Color(0xffd875ff),
-      const Color(0xff79e36c),
-    ];
-    final colour = colours[snake.colorIndex % colours.length];
+    final colour = _snakeColour(snake.colorIndex);
     if (snake.kind == SnakeKind.player && snake.sprinting) {
       final pulse = (math.sin(simulation.elapsed * 10) + 1) / 2;
       final auraPaint = ui.Paint()
@@ -425,6 +488,16 @@ class _Hud extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        if (state.boundaryWarningProgress > 0)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _BoundaryWarningPainter(
+                  state.boundaryWarningProgress,
+                ),
+              ),
+            ),
+          ),
         if (state.collisionAlertProgress > 0)
           Positioned.fill(
             child: IgnorePointer(
@@ -470,7 +543,8 @@ class _Hud extends StatelessWidget {
               child: Text(
                 'SCORE  ${state.score}   LENGTH  ${state.length}'
                 '   RANK  ${state.rank}   TIME  ${_formatDuration(state.survivalSeconds)}'
-                '${state.sprinting ? '   SPRINT' : ''}',
+                '${state.sprinting ? '   SPRINT' : ''}'
+                '${state.boundaryWarningProgress > 0.45 ? '   EDGE' : ''}',
                 style: const TextStyle(fontSize: 12, letterSpacing: 1.2),
               ),
             ),
@@ -672,6 +746,33 @@ class _CollisionAlertPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
+class _BoundaryWarningPainter extends CustomPainter {
+  const _BoundaryWarningPainter(this.progress);
+
+  final double progress;
+
+  @override
+  void paint(ui.Canvas canvas, ui.Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+
+    final pulse = (math.sin(progress * math.pi * 8) + 1) / 2;
+    final alpha =
+        (0.02 + progress * 0.045 + pulse * 0.025).clamp(0.0, 0.13).toDouble();
+    final paint = ui.Paint()
+      ..color = const Color(0xffff4259).withValues(alpha: alpha)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 10 + progress * 8;
+    canvas.drawRect(
+      ui.Rect.fromLTWH(5, 5, size.width - 10, size.height - 10),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BoundaryWarningPainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
 class _MinimapPainter extends CustomPainter {
   const _MinimapPainter(this.markers, this.pings);
 
@@ -700,9 +801,9 @@ class _MinimapPainter extends CustomPainter {
     );
 
     final arenaPaint = ui.Paint()
-      ..color = const Color(0xff172238)
+      ..color = const Color(0xffff5263).withValues(alpha: 0.7)
       ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 1;
+      ..strokeWidth = 2;
     canvas.drawCircle(
       Offset(size.width / 2, size.height / 2),
       size.width * 0.37,
@@ -729,18 +830,12 @@ class _MinimapPainter extends CustomPainter {
       canvas.drawCircle(position, 2, centre);
     }
 
-    final colours = [
-      const Color(0xffffa72f),
-      const Color(0xff55d7ff),
-      const Color(0xffd875ff),
-      const Color(0xff79e36c),
-    ];
     for (final marker in markers) {
       final position = Offset(
         marker.x * size.width,
         marker.y * size.height,
       );
-      final colour = colours[marker.colorIndex % colours.length];
+      final colour = _snakeColour(marker.colorIndex);
       final paint = ui.Paint()..color = colour;
       canvas.drawCircle(position, marker.isPlayer ? 5 : 3, paint);
       if (marker.isPlayer) {
@@ -757,3 +852,6 @@ class _MinimapPainter extends CustomPainter {
   bool shouldRepaint(covariant _MinimapPainter oldDelegate) =>
       oldDelegate.markers != markers || oldDelegate.pings != pings;
 }
+
+Color _snakeColour(int colorIndex) =>
+    _snakeColours[colorIndex.abs() % _snakeColours.length];

@@ -6,6 +6,7 @@ import 'vec2.dart';
 class SimulationConfig {
   const SimulationConfig({
     this.arenaRadius = 1800,
+    this.arenaBoundaryWarningBuffer = 260,
     this.playerSpeed = 175,
     this.botSpeed = 120,
     this.botTurnRate = 2.2,
@@ -23,20 +24,25 @@ class SimulationConfig {
     this.pelletRefillThreshold = 0.65,
     this.pelletRefillRate = 10,
     this.botCount = 3,
-    this.maxBotCount = 8,
+    this.maxBotCount = 10,
     this.initialLength = 12,
     this.botRespawnDelay = 3,
     this.botRespawnSafeDistance = 520,
     this.botRespawnAttempts = 32,
-    this.botPopulationInterval = 18,
+    this.botPopulationInterval = 14,
     this.botPressureRadius = 720,
     this.botPressureWeight = 1.6,
     this.botInterceptLeadTime = 1.2,
     this.botDroppedMassWeight = 2.3,
+    this.botRetreatLength = 78,
+    this.botRetreatBoundaryBuffer = 150,
+    this.botRetreatWeight = 6,
+    this.botSizeSpeedPenalty = 0.003,
     this.collisionPingDuration = 0.9,
   });
 
   final double arenaRadius;
+  final double arenaBoundaryWarningBuffer;
   final double playerSpeed;
   final double botSpeed;
   final double botTurnRate;
@@ -64,7 +70,23 @@ class SimulationConfig {
   final double botPressureWeight;
   final double botInterceptLeadTime;
   final double botDroppedMassWeight;
+  final int botRetreatLength;
+  final double botRetreatBoundaryBuffer;
+  final double botRetreatWeight;
+  final double botSizeSpeedPenalty;
   final double collisionPingDuration;
+}
+
+class _BotProfile {
+  const _BotProfile({
+    required this.disposition,
+    required this.lengthBonus,
+    required this.speedMultiplier,
+  });
+
+  final BotDisposition disposition;
+  final int lengthBonus;
+  final double speedMultiplier;
 }
 
 class GameSimulation {
@@ -226,6 +248,14 @@ class GameSimulation {
     for (final bot in snakes.where(
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
     )) {
+      if (!bot.retreating && bot.length >= config.botRetreatLength) {
+        bot.retreating = true;
+      }
+      if (bot.retreating) {
+        _turnBotToward(bot, _retreatDirection(bot), dt);
+        continue;
+      }
+
       final wander = Vec2(
         math.cos(elapsed * 0.35 + bot.colorIndex),
         math.sin(elapsed * 0.27 + bot.colorIndex * 1.7),
@@ -235,19 +265,112 @@ class GameSimulation {
       final interest = _nearestFood(bot);
       final droppedMassInterest = _nearestDroppedMass(bot);
       final pressure = _playerPressure(bot);
-      final intent = (wander +
-              boundary +
-              threat +
-              interest +
-              droppedMassInterest +
-              pressure)
+      final intent = (wander * _wanderWeight(bot) +
+              boundary * _boundaryWeight(bot) +
+              threat * _threatWeight(bot) +
+              interest * _foodWeight(bot) +
+              droppedMassInterest * _droppedMassWeight(bot) +
+              pressure * _pressureWeight(bot))
           .normalized();
-      final desired = intent.length == 0 ? bot.heading.angle : intent.angle;
-      final current = bot.heading.angle;
-      final delta = _shortestAngle(desired - current);
-      final turnLimit = config.botTurnRate * dt;
-      final turn = delta.clamp(-turnLimit, turnLimit).toDouble();
-      bot.heading = Vec2.fromAngle(current + turn);
+      _turnBotToward(bot, intent, dt);
+    }
+  }
+
+  void _turnBotToward(SnakeState bot, Vec2 intent, double dt) {
+    final desired = intent.length == 0 ? bot.heading.angle : intent.angle;
+    final current = bot.heading.angle;
+    final delta = _shortestAngle(desired - current);
+    final turnLimit = config.botTurnRate * dt;
+    final turn = delta.clamp(-turnLimit, turnLimit).toDouble();
+    bot.heading = Vec2.fromAngle(current + turn);
+  }
+
+  Vec2 _retreatDirection(SnakeState bot) {
+    final direction =
+        bot.head.length == 0 ? bot.heading : bot.head.normalized();
+    final target = direction *
+        math.max(
+          0.0,
+          config.arenaRadius - config.botRetreatBoundaryBuffer,
+        );
+    return (target - bot.head).normalized() * config.botRetreatWeight;
+  }
+
+  double _wanderWeight(SnakeState bot) {
+    switch (bot.disposition) {
+      case BotDisposition.defensive:
+        return 0.85;
+      case BotDisposition.aggressive:
+        return 0.55;
+      case BotDisposition.opportunistic:
+        return 0.7;
+      case BotDisposition.wanderer:
+        return 1.35;
+    }
+  }
+
+  double _boundaryWeight(SnakeState bot) {
+    switch (bot.disposition) {
+      case BotDisposition.defensive:
+        return 1.35;
+      case BotDisposition.aggressive:
+        return 0.85;
+      case BotDisposition.opportunistic:
+        return 1.0;
+      case BotDisposition.wanderer:
+        return 1.0;
+    }
+  }
+
+  double _threatWeight(SnakeState bot) {
+    switch (bot.disposition) {
+      case BotDisposition.defensive:
+        return 1.7;
+      case BotDisposition.aggressive:
+        return 0.55;
+      case BotDisposition.opportunistic:
+        return 0.9;
+      case BotDisposition.wanderer:
+        return 1.15;
+    }
+  }
+
+  double _foodWeight(SnakeState bot) {
+    switch (bot.disposition) {
+      case BotDisposition.defensive:
+        return 0.85;
+      case BotDisposition.aggressive:
+        return 0.75;
+      case BotDisposition.opportunistic:
+        return 1.45;
+      case BotDisposition.wanderer:
+        return 0.7;
+    }
+  }
+
+  double _droppedMassWeight(SnakeState bot) {
+    switch (bot.disposition) {
+      case BotDisposition.defensive:
+        return 0.8;
+      case BotDisposition.aggressive:
+        return 1.35;
+      case BotDisposition.opportunistic:
+        return 2.1;
+      case BotDisposition.wanderer:
+        return 0.65;
+    }
+  }
+
+  double _pressureWeight(SnakeState bot) {
+    switch (bot.disposition) {
+      case BotDisposition.defensive:
+        return 0.25;
+      case BotDisposition.aggressive:
+        return 1.7;
+      case BotDisposition.opportunistic:
+        return 0.8;
+      case BotDisposition.wanderer:
+        return 0.4;
     }
   }
 
@@ -335,8 +458,16 @@ class GameSimulation {
     final movementMultiplier = snake.kind == SnakeKind.player && snake.sprinting
         ? config.sprintMultiplier
         : 1.0;
+    var speed = snake.speed;
+    if (snake.kind == SnakeKind.bot) {
+      final excessLength = math.max(0, snake.length - snake.spawnLength);
+      final mobilityPenalty = (excessLength * config.botSizeSpeedPenalty)
+          .clamp(0.0, 0.28)
+          .toDouble();
+      speed *= 1 - mobilityPenalty;
+    }
     final nextHead =
-        snake.head + snake.heading * (snake.speed * movementMultiplier * dt);
+        snake.head + snake.heading * (speed * movementMultiplier * dt);
     final hasMoved = nextHead.distanceTo(currentHead) > 0;
     final growsThisStep = snake.growth > 0;
     if (hasMoved) {
@@ -435,6 +566,7 @@ class GameSimulation {
           position: position,
           value: config.sprintDropValue,
           kind: FoodPelletKind.sprintDrop,
+          sourceColorIndex: snake.colorIndex,
         ),
       );
       if (snake.length <= config.minimumSprintLength) {
@@ -503,14 +635,17 @@ class GameSimulation {
     } else {
       _botRespawnTimers[snake.id] = config.botRespawnDelay;
     }
-    for (var index = 0; index < snake.body.length; index += 3) {
-      droppedMass.add(
-        FoodPellet(
-          position: snake.body[index],
-          value: config.defeatDropValue,
-          kind: FoodPelletKind.defeatDrop,
-        ),
-      );
+    if (reason == GameOverReason.bodyCollision) {
+      for (var index = 0; index < snake.body.length; index += 3) {
+        droppedMass.add(
+          FoodPellet(
+            position: snake.body[index],
+            value: config.defeatDropValue,
+            kind: FoodPelletKind.defeatDrop,
+            sourceColorIndex: snake.colorIndex,
+          ),
+        );
+      }
     }
   }
 
@@ -595,13 +730,15 @@ class GameSimulation {
   }
 
   SnakeState _createBot(int index, {bool safeSpawn = false}) {
+    final profile = _profileForBot(index);
     final bot = SnakeState(
       id: 'bot-$index',
       kind: SnakeKind.bot,
       position: Vec2.zero,
       colorIndex: index + 1,
-      speed: config.botSpeed,
-      initialLength: config.initialLength + index * 2,
+      disposition: profile.disposition,
+      speed: config.botSpeed * profile.speedMultiplier,
+      initialLength: config.initialLength + profile.lengthBonus,
       segmentSpacing: config.segmentSpacing,
     );
 
@@ -613,6 +750,62 @@ class GameSimulation {
           );
     bot.resetAt(position);
     return bot;
+  }
+
+  _BotProfile _profileForBot(int index) {
+    const profiles = [
+      _BotProfile(
+        disposition: BotDisposition.defensive,
+        lengthBonus: 0,
+        speedMultiplier: 1.0,
+      ),
+      _BotProfile(
+        disposition: BotDisposition.aggressive,
+        lengthBonus: 10,
+        speedMultiplier: 1.0,
+      ),
+      _BotProfile(
+        disposition: BotDisposition.opportunistic,
+        lengthBonus: 24,
+        speedMultiplier: 0.9,
+      ),
+      _BotProfile(
+        disposition: BotDisposition.wanderer,
+        lengthBonus: 4,
+        speedMultiplier: 1.05,
+      ),
+      _BotProfile(
+        disposition: BotDisposition.defensive,
+        lengthBonus: 18,
+        speedMultiplier: 0.95,
+      ),
+      _BotProfile(
+        disposition: BotDisposition.aggressive,
+        lengthBonus: 36,
+        speedMultiplier: 0.88,
+      ),
+      _BotProfile(
+        disposition: BotDisposition.opportunistic,
+        lengthBonus: 12,
+        speedMultiplier: 0.98,
+      ),
+      _BotProfile(
+        disposition: BotDisposition.defensive,
+        lengthBonus: 58,
+        speedMultiplier: 0.8,
+      ),
+      _BotProfile(
+        disposition: BotDisposition.aggressive,
+        lengthBonus: 2,
+        speedMultiplier: 1.02,
+      ),
+      _BotProfile(
+        disposition: BotDisposition.opportunistic,
+        lengthBonus: 44,
+        speedMultiplier: 0.86,
+      ),
+    ];
+    return profiles[index % profiles.length];
   }
 
   Vec2 _findBotSpawnPosition(SnakeState bot) {

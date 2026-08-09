@@ -87,3 +87,15 @@ Natural pellets and sprint drops each award one length point. Defeat drops are
 larger and award three points each, making predation more rewarding than
 collecting ordinary or self-generated mass. Sprint drain is paced more gently
 so acceleration remains useful without consuming length too aggressively.
+
+## V1.5 population, bot variety, and boundary readability
+
+The arena now builds toward a larger population more quickly, with a
+deterministic roster of small, medium, large, defensive, aggressive,
+opportunistic, and wandering bots. Large bodies remain slower and easier to
+intercept, while exceptionally large bots retreat toward the boundary and are
+removed from play before they become an unlimited source of high-value prey.
+Boundary exits never create dropped mass. The arena boundary is marked by a
+high-contrast red perimeter, an inner warning band, boundary ticks, and a HUD
+edge warning. Sprint and defeat drops inherit the color of the snake that
+created them; generated pellets remain cyan.

@@ -6,16 +6,20 @@ enum GameOverReason { boundary, bodyCollision }
 
 enum FoodPelletKind { natural, sprintDrop, defeatDrop }
 
+enum BotDisposition { defensive, aggressive, opportunistic, wanderer }
+
 class FoodPellet {
   const FoodPellet({
     required this.position,
     this.value = 1,
     this.kind = FoodPelletKind.natural,
+    this.sourceColorIndex,
   });
 
   final Vec2 position;
   final int value;
   final FoodPelletKind kind;
+  final int? sourceColorIndex;
 }
 
 class CollisionPing {
@@ -68,6 +72,7 @@ class SnakeState {
     required this.kind,
     required Vec2 position,
     required this.colorIndex,
+    this.disposition = BotDisposition.opportunistic,
     this.speed = 130,
     this.radius = 10,
     this.segmentSpacing = 12,
@@ -84,6 +89,7 @@ class SnakeState {
   final String id;
   final SnakeKind kind;
   final int colorIndex;
+  final BotDisposition disposition;
   final double speed;
   final double radius;
   final double segmentSpacing;
@@ -94,6 +100,7 @@ class SnakeState {
   int growth = 0;
   double sprintDrainAccumulator = 0;
   bool sprinting = false;
+  bool retreating = false;
   bool alive = true;
 
   Vec2 get head => body.first;
@@ -119,6 +126,7 @@ class SnakeState {
     growth = 0;
     sprintDrainAccumulator = 0;
     sprinting = false;
+    retreating = false;
     alive = true;
   }
 
