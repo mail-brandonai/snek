@@ -107,6 +107,10 @@ class SimulationConfig {
     this.botCatchUpDelay = 18,
     this.botCatchUpRate = 1.4,
     this.botCatchUpTargetFraction = 0.58,
+    this.botTacticalDecisionInterval = 0.12,
+    this.botPlannerLookahead = 0.9,
+    this.botRouteReservationDistance = 170,
+    this.movementTrailTrimSlackSegments = 8,
   });
 
   final double arenaRadius;
@@ -217,6 +221,10 @@ class SimulationConfig {
   final double botCatchUpDelay;
   final double botCatchUpRate;
   final double botCatchUpTargetFraction;
+  final double botTacticalDecisionInterval;
+  final double botPlannerLookahead;
+  final double botRouteReservationDistance;
+  final int movementTrailTrimSlackSegments;
 }
 
 class _BotProfile {
@@ -249,6 +257,15 @@ class _BotTacticState {
   double sign = 1;
   Vec2? plannedPlayerHeading;
   Vec2? plannedPlayerPosition;
+}
+
+enum _BotPlanMode { retreat, evadePeer, evadePlayer, attack, contest, wander }
+
+class _BotPlan {
+  const _BotPlan({required this.intent, required this.mode});
+
+  final Vec2 intent;
+  final _BotPlanMode mode;
 }
 
 class _BotClosedLoopState {
@@ -356,12 +373,15 @@ class GameSimulation {
   final Map<String, _BotTacticState> _botTactics = {};
   final Map<String, _BotClosedLoopState> _botEngagementStates = {};
   final Map<String, _BotFormationRole> _botFormationRoles = {};
+  final Map<String, _BotPlan> _botPlans = {};
+  final List<Vec2> _botRouteReservations = [];
   final _BotFormationState _botFormation = _BotFormationState();
   Vec2 _observedPlayerHeading = const Vec2(1, 0);
   double _observedPlayerTurnRate = 0;
   double elapsed = 0;
   double _pelletRefillAccumulator = 0;
   double _botPopulationAccumulator = 0;
+  double _botTacticalDecisionRemaining = 0;
   int score = 0;
   bool gameOver = false;
   GameOverReason? gameOverReason;
@@ -496,6 +516,8 @@ class GameSimulation {
     _botTactics.clear();
     _botEngagementStates.clear();
     _botFormationRoles.clear();
+    _botPlans.clear();
+    _botRouteReservations.clear();
     _botFormation.remaining = 0;
     _botFormation.playerAnchor = null;
     _observedPlayerHeading = const Vec2(1, 0);
@@ -503,6 +525,7 @@ class GameSimulation {
     elapsed = 0;
     _pelletRefillAccumulator = 0;
     _botPopulationAccumulator = 0;
+    _botTacticalDecisionRemaining = 0;
     score = 0;
     gameOver = false;
     gameOverReason = null;
@@ -654,20 +677,71 @@ class GameSimulation {
   }
 
   void _steerBots(double dt) {
-    _rebuildDroppedMassClusters();
-    _refreshBotFormation(dt);
     for (final bot in snakes.where(
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
     )) {
       _advanceBotSprint(bot, dt);
-      final tactic = _advanceBotTactic(bot, dt);
+      final tactic = _botTactics[bot.id]?.mode ?? _BotTactic.weave;
       _applyTacticalMotion(bot, tactic, dt);
+    }
+
+    _botTacticalDecisionRemaining -= dt;
+    if (_observedPlayerTurnRate.abs() >= 1.2) {
+      _botTacticalDecisionRemaining = 0;
+    }
+    if (_botTacticalDecisionRemaining <= 0) {
+      _botTacticalDecisionRemaining = math
+          .max(
+            0.04,
+            config.botTacticalDecisionInterval,
+          )
+          .toDouble();
+      _replanBotPlans(dt);
+    }
+
+    for (final bot in snakes.where(
+      (snake) => snake.kind == SnakeKind.bot && snake.alive,
+    )) {
+      final plan = _botPlans[bot.id];
+      if (plan == null) continue;
+      if ((plan.mode == _BotPlanMode.evadePeer ||
+              plan.mode == _BotPlanMode.evadePlayer) &&
+          (bot.sprinting || bot.sprintRequested)) {
+        _interruptBotPursuit(bot);
+      }
+      _turnBotToward(bot, plan.intent, dt);
+    }
+  }
+
+  void _replanBotPlans(double dt) {
+    _rebuildDroppedMassClusters();
+    _refreshBotFormation(dt);
+    _botPlans.clear();
+    _botRouteReservations.clear();
+    final planningBots = snakes
+        .where(
+          (snake) => snake.kind == SnakeKind.bot && snake.alive,
+        )
+        .toList()
+      ..sort((left, right) {
+        final leftPriority = _botPlanningPriority(left);
+        final rightPriority = _botPlanningPriority(right);
+        final order = rightPriority.compareTo(leftPriority);
+        return order == 0 ? left.id.compareTo(right.id) : order;
+      });
+
+    for (final bot in planningBots) {
+      final tactic = _advanceBotTactic(bot, dt);
       if (!bot.retreating && bot.length >= config.botRetreatLength) {
         bot.retreating = true;
       }
       if (_shouldPrioritizeRetreat(bot)) {
-        _turnBotToward(bot, _retreatDirection(bot), dt);
         _decideBotSprint(bot);
+        _commitBotPlan(
+          bot,
+          _retreatDirection(bot),
+          _BotPlanMode.retreat,
+        );
         continue;
       }
 
@@ -738,9 +812,76 @@ class GameSimulation {
                               config.botDefensiveAvoidanceWeight *
                               (safeAttack ? 0.45 : 1.0)))
                   .normalized();
-      _turnBotToward(bot, intent, dt);
+      final mode = peerRisk.urgency >= config.botPeerAbortThreshold
+          ? _BotPlanMode.evadePeer
+          : routeRisk.urgency >= 0.58 && !safeAttack
+              ? _BotPlanMode.evadePlayer
+              : safeAttack
+                  ? _BotPlanMode.attack
+                  : closedLoop == _BotEngagementMode.harvest ||
+                          closedLoop == _BotEngagementMode.deny ||
+                          closedLoop == _BotEngagementMode.screen
+                      ? _BotPlanMode.contest
+                      : _BotPlanMode.wander;
       _decideBotSprint(bot);
+      _commitBotPlan(bot, intent, mode);
     }
+  }
+
+  double _botPlanningPriority(SnakeState bot) {
+    final distance = player.alive ? bot.head.distanceTo(player.head) : 10000;
+    final sizePressure = bot.length >= player.length ? 1.5 : 1.0;
+    final disposition =
+        bot.disposition == BotDisposition.aggressive ? 1.4 : 1.0;
+    return sizePressure *
+        disposition *
+        (1 + config.botEngagementRadius / math.max(1.0, distance));
+  }
+
+  void _commitBotPlan(
+    SnakeState bot,
+    Vec2 intent,
+    _BotPlanMode mode,
+  ) {
+    final deconflicted = _deconflictBotIntent(bot, intent);
+    _botPlans[bot.id] = _BotPlan(
+      intent: deconflicted,
+      mode: mode,
+    );
+    if (deconflicted.length > 0) {
+      _botRouteReservations.add(
+        bot.head +
+            deconflicted * (_effectiveSpeed(bot) * config.botPlannerLookahead),
+      );
+    }
+  }
+
+  Vec2 _deconflictBotIntent(SnakeState bot, Vec2 intent) {
+    if (intent.length == 0 || _botRouteReservations.isEmpty) {
+      return intent;
+    }
+    var result = intent.normalized();
+    final projected =
+        bot.head + result * (_effectiveSpeed(bot) * config.botPlannerLookahead);
+    for (final reservation in _botRouteReservations) {
+      if (projected.distanceTo(reservation) >=
+          config.botRouteReservationDistance) {
+        continue;
+      }
+      final axis = projected - reservation;
+      final separation = axis.length == 0
+          ? _peerYieldSide(
+              bot,
+              snakes.firstWhere(
+                (candidate) =>
+                    candidate.kind == SnakeKind.bot &&
+                    candidate.alive &&
+                    candidate.id != bot.id,
+              ))
+          : axis.normalized();
+      result = (result * 0.35 + separation * 1.15).normalized();
+    }
+    return result;
   }
 
   void _refreshBotFormation(double dt) {
@@ -2210,9 +2351,11 @@ class GameSimulation {
     final hasMoved = nextHead.distanceTo(currentHead) > 0;
     if (hasMoved) {
       final travelled = nextHead.distanceTo(currentHead);
-      snake.body.insert(0, nextHead);
-      snake.movementTrail.insert(0, nextHead);
-      snake.body.removeLast();
+      if (snake.movementTrail.isEmpty ||
+          snake.movementTrail.last != currentHead) {
+        snake.movementTrail.add(currentHead);
+      }
+      snake.movementTrail.add(nextHead);
       if (snake.growthExpressionRemaining > 0) {
         snake.expressGrowth(travelled * config.growthExpressionRate);
       }
@@ -2236,21 +2379,23 @@ class GameSimulation {
         : ((fullLength - 1) * snake.segmentSpacing + extension).toDouble();
     _trimMovementTrail(
       snake,
-      maximumDistance + snake.segmentSpacing * 2,
+      maximumDistance +
+          snake.segmentSpacing *
+              math.max(2, config.movementTrailTrimSlackSegments),
     );
 
     final visibleBody = <Vec2>[];
     final trail = snake.movementTrail;
-    var trailIndex = 0;
+    var trailIndex = trail.length - 1;
     var travelled = 0.0;
 
     Vec2 sampleAt(double distance) {
-      while (trailIndex < trail.length - 1) {
+      while (trailIndex > 0) {
         final start = trail[trailIndex];
-        final end = trail[trailIndex + 1];
+        final end = trail[trailIndex - 1];
         final segmentLength = start.distanceTo(end);
         if (segmentLength == 0) {
-          trailIndex++;
+          trailIndex--;
           continue;
         }
         if (travelled + segmentLength >= distance) {
@@ -2258,12 +2403,12 @@ class GameSimulation {
           return start + (end - start) * fraction;
         }
         travelled += segmentLength;
-        trailIndex++;
+        trailIndex--;
       }
 
-      final last = trail.last;
+      final last = trail.first;
       if (trail.length < 2) return last;
-      final tailDirection = last - trail[trail.length - 2];
+      final tailDirection = last - trail[1];
       final normalized = tailDirection.length == 0
           ? snake.heading * -1
           : tailDirection.normalized();
@@ -2286,17 +2431,14 @@ class GameSimulation {
     if (snake.movementTrail.length < 3) return;
 
     var distance = 0.0;
-    for (var index = 0; index < snake.movementTrail.length - 1; index++) {
+    for (var index = snake.movementTrail.length - 1; index > 0; index--) {
       distance += snake.movementTrail[index].distanceTo(
-        snake.movementTrail[index + 1],
+        snake.movementTrail[index - 1],
       );
       if (distance > maximumDistance) {
-        final removeFrom = index + 2;
-        if (removeFrom < snake.movementTrail.length) {
-          snake.movementTrail.removeRange(
-            removeFrom,
-            snake.movementTrail.length,
-          );
+        final removeThrough = index - 1;
+        if (removeThrough > 0) {
+          snake.movementTrail.removeRange(0, removeThrough);
         }
         return;
       }
@@ -2628,6 +2770,7 @@ class GameSimulation {
       if (!gameOver && !bot.alive) {
         bot.resetAt(_findBotSpawnPosition(bot));
         _botTactics.remove(id);
+        _botPlans.remove(id);
       }
       _botRespawnTimers.remove(id);
     }

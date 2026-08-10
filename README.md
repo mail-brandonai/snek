@@ -304,3 +304,19 @@ preserving the existing maximum, movement penalties, collision rules, and
 actor-neutral telegraphing. Bots can still be outmaneuvered or defeated; the
 player can no longer win indefinitely by waiting for undersized bots to fail
 nearby.
+
+## V1.20 bounded tactical planning
+
+Movement trails are maintained in append order and trimmed with bounded slack,
+removing the repeated front-insertion cost that became visible as long snakes
+filled the arena. Body geometry still follows the same public path, spacing,
+growth expression, and collision rules, but the trail work is now amortized.
+
+Bot tactical decisions are recomputed on a bounded cadence instead of rebuilding
+the full engagement stack on every movement substep. A sharp public player turn
+still invalidates the cached plan immediately. Each planning pass uses a shared
+priority order and route reservations: emergency peer deconfliction and player
+body evasion take precedence over attack, resource contest, and wandering, while
+attack candidates retain an explicit abort route. This keeps pursuit intentional
+without allowing food steering or another bot's approach to dilute a necessary
+evasion.

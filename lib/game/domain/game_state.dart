@@ -169,7 +169,7 @@ class SnakeState {
           initialLength,
           (index) => position - Vec2(index * segmentSpacing, 0),
         ) {
-    movementTrail.addAll(body);
+    movementTrail.addAll(body.reversed);
   }
 
   final String id;
@@ -258,7 +258,7 @@ class SnakeState {
       );
     movementTrail
       ..clear()
-      ..addAll(body);
+      ..addAll(body.reversed);
     heading = const Vec2(1, 0);
     _logicalLength = spawnLength;
     _growthExpressionRemaining = 0;

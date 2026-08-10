@@ -1507,6 +1507,56 @@ void main() {
       expect(bot.length, lessThanOrEqualTo(config.botAdaptiveMaximumLength));
     });
 
+    test('movement trail appends in time order without losing the live head',
+        () {
+      const config = SimulationConfig(
+        botCount: 0,
+        initialPellets: 0,
+        playerSpeed: 180,
+        movementTrailTrimSlackSegments: 8,
+      );
+      final simulation = GameSimulation(config: config);
+
+      simulation.update(2, const Vec2(1, 0));
+
+      expect(simulation.player.movementTrail.last, simulation.player.head);
+      expect(simulation.player.body.first, simulation.player.head);
+      expect(
+        simulation.player.movementTrail.first.distanceTo(
+          simulation.player.movementTrail.last,
+        ),
+        greaterThan(simulation.player.segmentSpacing),
+      );
+    });
+
+    test('urgent player turns invalidate a cached bot plan immediately', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 100,
+        botSpeed: 100,
+        botTurnRate: 20,
+        botTacticalDecisionInterval: 1.0,
+        botTacticDecisionMin: 2,
+        botTacticDecisionMax: 2,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 260);
+      bot.heading = const Vec2(0, -1);
+      simulation.player.heading = const Vec2(1, 0);
+
+      simulation.update(0.1, Vec2.zero);
+      final firstHeading = bot.heading;
+
+      simulation.player.heading = const Vec2(-1, 0);
+      simulation.update(0.1, Vec2.zero);
+
+      expect(bot.heading, isNot(firstHeading));
+      expect(bot.movementCommitment, lessThan(1));
+    });
+
     test('restart reproduces the seeded opening state', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(botCount: 1, initialPellets: 4),
