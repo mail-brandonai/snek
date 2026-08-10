@@ -66,7 +66,9 @@ class SimulationConfig {
     this.botBaitDistance = 135,
     this.botEngagementRadius = 1150,
     this.botEngagementLeadTime = 2.75,
-    this.botEngagementWeight = 2.8,
+    this.botEngagementWeight = 4.2,
+    this.botEngagementLaneDistance = 240,
+    this.botEngagementSafetyRadius = 170,
     this.botCollisionLookahead = 1.2,
     this.botCollisionSampleCount = 6,
     this.botCollisionAvoidanceRadius = 150,
@@ -153,6 +155,8 @@ class SimulationConfig {
   final double botEngagementRadius;
   final double botEngagementLeadTime;
   final double botEngagementWeight;
+  final double botEngagementLaneDistance;
+  final double botEngagementSafetyRadius;
   final double botCollisionLookahead;
   final int botCollisionSampleCount;
   final double botCollisionAvoidanceRadius;
@@ -198,6 +202,18 @@ class _BotRouteRisk {
 
   final Vec2 escape;
   final double urgency;
+}
+
+class _BotEngagementPlan {
+  const _BotEngagementPlan({
+    required this.target,
+    required this.rank,
+    required this.safety,
+  });
+
+  final Vec2 target;
+  final int rank;
+  final double safety;
 }
 
 class _DroppedMassCluster {
@@ -508,7 +524,7 @@ class GameSimulation {
       if (!bot.retreating && bot.length >= config.botRetreatLength) {
         bot.retreating = true;
       }
-      if (bot.retreating) {
+      if (_shouldPrioritizeRetreat(bot)) {
         _turnBotToward(bot, _retreatDirection(bot), dt);
         _decideBotSprint(bot);
         continue;
@@ -593,7 +609,7 @@ class GameSimulation {
   }
 
   _BotTactic _selectBotTactic(SnakeState bot) {
-    if (bot.retreating) return _BotTactic.disengage;
+    if (_shouldPrioritizeRetreat(bot)) return _BotTactic.disengage;
     if (!player.alive) return _BotTactic.weave;
 
     final playerDistance = bot.head.distanceTo(player.head);
@@ -640,6 +656,7 @@ class GameSimulation {
     switch (tactic) {
       case _BotTactic.cutoff:
       case _BotTactic.flank:
+        targetMultiplier = config.botTacticSpeedBoost;
       case _BotTactic.encircle:
         targetMultiplier = config.botTacticSpeedBoost;
       case _BotTactic.disengage:
@@ -666,6 +683,7 @@ class GameSimulation {
     final playerLateral = Vec2(-player.heading.y, player.heading.x);
     final playerDistance = bot.head.distanceTo(player.head);
     final lead = player.heading * config.botCutoffLeadTime * player.speed;
+    final plan = _playerEngagementPlan(bot);
 
     switch (tactic) {
       case _BotTactic.feint:
@@ -675,14 +693,19 @@ class GameSimulation {
             player.head + lead + playerLateral * (oscillation + sign * 70);
         return target - bot.head;
       case _BotTactic.cutoff:
-        return player.head +
-            lead +
-            playerLateral * (sign * config.botFlankDistance * 0.55) -
-            bot.head;
+        final target = plan.rank < 100
+            ? plan.target
+            : player.head +
+                lead +
+                playerLateral * (sign * config.botFlankDistance * 0.55);
+        return target - bot.head;
       case _BotTactic.flank:
-        final target = player.head +
-            player.heading * (config.botCutoffLeadTime * player.speed * 0.55) +
-            playerLateral * (sign * config.botFlankDistance);
+        final target = plan.rank < 100
+            ? plan.target
+            : player.head +
+                player.heading *
+                    (config.botCutoffLeadTime * player.speed * 0.55) +
+                playerLateral * (sign * config.botFlankDistance);
         return target - bot.head;
       case _BotTactic.encircle:
         final index = math.min(
@@ -803,6 +826,19 @@ class GameSimulation {
     state.mode = _BotTactic.disengage;
     state.remaining = math.min(state.remaining, 0.35).toDouble();
     state.sign = bot.id.hashCode.isEven ? 1 : -1;
+  }
+
+  bool _shouldPrioritizeRetreat(SnakeState bot) {
+    if (!bot.retreating) return false;
+
+    final boundaryStart = config.arenaRadius - config.botRetreatBoundaryBuffer;
+    final atBoundary = bot.head.length >= boundaryStart;
+    if (atBoundary) return true;
+
+    final nearbyThreat = _nearbyThreat(bot).length;
+    if (nearbyThreat >= 1.15) return true;
+
+    return _playerRouteRisk(bot).urgency >= 0.72;
   }
 
   void _turnBotToward(SnakeState bot, Vec2 intent, double dt) {
@@ -1097,7 +1133,7 @@ class GameSimulation {
           (candidate) =>
               candidate.kind == SnakeKind.bot &&
               candidate.alive &&
-              !candidate.retreating &&
+              !_shouldPrioritizeRetreat(candidate) &&
               candidate.head.distanceTo(cluster.center) <=
                   config.botDroppedMassSenseRadius,
         )
@@ -1121,28 +1157,17 @@ class GameSimulation {
     final distance = bot.head.distanceTo(player.head);
     if (distance > config.botEngagementRadius) return Vec2.zero;
 
-    final engagementRank = _playerEngagementRank(bot);
-    final leadTime = config.botEngagementLeadTime *
-        (1 + math.min(engagementRank, 2).toDouble() * 0.18);
-    final projectedPlayer =
-        player.head + player.heading * (player.speed * leadTime);
-    final lateral = Vec2(-player.heading.y, player.heading.x);
-    final laneOffset = engagementRank == 0
-        ? 0.0
-        : config.botFlankDistance *
-            (1 + math.min(engagementRank - 1, 2).toDouble() * 0.55);
-    final laneSign = bot.colorIndex.isEven ? 1.0 : -1.0;
-    final target = projectedPlayer + lateral * laneSign * laneOffset;
-    final direction = target - bot.head;
+    final plan = _playerEngagementPlan(bot);
+    final direction = plan.target - bot.head;
     if (direction.length == 0) return Vec2.zero;
 
     final proximity =
         ((config.botEngagementRadius - distance) / config.botEngagementRadius)
             .clamp(0.0, 1.0)
             .toDouble();
-    final roleWeight = engagementRank == 0
+    final roleWeight = plan.rank == 0
         ? 1.0
-        : engagementRank == 1
+        : plan.rank == 1
             ? 0.72
             : 0.42;
     final sizeFactor = bot.length >= player.length ? 1.25 : 0.9;
@@ -1150,7 +1175,121 @@ class GameSimulation {
         (config.botEngagementWeight *
             (0.7 + proximity * 0.3) *
             roleWeight *
-            sizeFactor);
+            sizeFactor *
+            (0.72 + plan.safety * 0.28));
+  }
+
+  _BotEngagementPlan _playerEngagementPlan(SnakeState bot) {
+    if (!player.alive ||
+        bot.head.distanceTo(player.head) > config.botEngagementRadius) {
+      return _BotEngagementPlan(
+        target: bot.head,
+        rank: 100,
+        safety: 0,
+      );
+    }
+
+    final rank = _playerEngagementRank(bot);
+    final lateral = Vec2(-player.heading.y, player.heading.x);
+    final lane = config.botEngagementLaneDistance;
+    final side = bot.colorIndex.isEven ? 1.0 : -1.0;
+    final leadTime = config.botEngagementLeadTime *
+        (1 + math.min(rank, 2).toDouble() * 0.18);
+    final preferredOffset =
+        rank == 0 ? side * lane * 0.35 : side * lane * (rank == 1 ? 1.0 : 1.35);
+    final offsets = rank == 0
+        ? <double>[preferredOffset, 0, -preferredOffset]
+        : <double>[
+            preferredOffset,
+            -preferredOffset,
+            side * lane * 0.55,
+          ];
+    var bestTarget = player.head +
+        player.heading * (player.speed * leadTime) +
+        lateral * preferredOffset;
+    var bestRisk = double.infinity;
+    for (final offset in offsets) {
+      final candidate = player.head +
+          player.heading * (player.speed * leadTime) +
+          lateral * offset;
+      final risk = _engagementLaneRisk(bot, candidate);
+      final preferencePenalty = (offset - preferredOffset).abs() / lane;
+      final score = risk * 8 + preferencePenalty * 0.12;
+      if (score < bestRisk) {
+        bestRisk = score;
+        bestTarget = candidate;
+      }
+    }
+
+    final safety = (1 - bestRisk.clamp(0.0, 1.0)).toDouble();
+    return _BotEngagementPlan(
+      target: bestTarget,
+      rank: rank,
+      safety: safety,
+    );
+  }
+
+  double _engagementLaneRisk(SnakeState bot, Vec2 target) {
+    final toTarget = target - bot.head;
+    if (toTarget.length == 0) return 1;
+
+    final direction = toTarget.normalized();
+    final speed = _effectiveSpeed(bot);
+    final lookahead = math.max(config.botAdaptiveLeadTime, 1.0).toDouble();
+    final samples = math.max(2, config.botCollisionSampleCount).toInt();
+    var maximumRisk = 0.0;
+    final bodyRadius = math
+        .max(
+          config.botEngagementSafetyRadius,
+          bot.radius + player.radius + 24,
+        )
+        .toDouble();
+
+    for (var sample = 1; sample <= samples; sample++) {
+      final progress = sample / samples;
+      final travel = math
+          .min(
+            toTarget.length * progress,
+            speed * lookahead * progress,
+          )
+          .toDouble();
+      final future = bot.head + direction * travel;
+      final playerTravel =
+          player.heading * (_effectiveSpeed(player) * lookahead * progress);
+      for (final segment in player.body.skip(2)) {
+        final distance = future.distanceTo(segment + playerTravel);
+        if (distance >= bodyRadius) continue;
+        maximumRisk = math
+            .max(
+              maximumRisk,
+              ((bodyRadius - distance) / bodyRadius).clamp(0.0, 1.0).toDouble(),
+            )
+            .toDouble();
+      }
+
+      for (final other in snakes.where(
+        (candidate) =>
+            candidate.kind == SnakeKind.bot &&
+            candidate.id != bot.id &&
+            candidate.alive,
+      )) {
+        final otherFuture = other.head +
+            other.heading * (_effectiveSpeed(other) * lookahead * progress);
+        final distance = future.distanceTo(otherFuture);
+        final peerRadius = bot.radius + other.radius + 52;
+        if (distance >= peerRadius) continue;
+        maximumRisk = math
+            .max(
+              maximumRisk,
+              ((peerRadius - distance) / peerRadius).clamp(0.0, 1.0).toDouble(),
+            )
+            .toDouble();
+      }
+    }
+
+    final boundary =
+        target.length >= config.arenaRadius - config.botBoundaryBuffer * 0.5;
+    return boundary ? math.max(maximumRisk, 0.75).toDouble() : maximumRisk;
   }
 
   int _playerEngagementRank(SnakeState bot) {
@@ -1161,7 +1300,7 @@ class GameSimulation {
           (candidate) =>
               candidate.kind == SnakeKind.bot &&
               candidate.alive &&
-              !candidate.retreating &&
+              !_shouldPrioritizeRetreat(candidate) &&
               candidate.head.distanceTo(player.head) <=
                   config.botEngagementRadius,
         )

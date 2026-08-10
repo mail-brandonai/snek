@@ -209,3 +209,19 @@ an intercept lane becomes unsafe, the bot cancels its sprint, takes a bounded
 side-step, and briefly disengages before selecting a new approach. This keeps
 aggressive pressure possible while preventing the kamikaze behavior where a
 bot continues through the player's defensive body position.
+
+## V1.15 adaptive engagement and arena denial
+
+Bot pursuit now uses a continuously recomputed engagement plan rather than a
+stale tactical lane. Eligible bots receive separated public roles: one can
+claim a safe projected intercept, others use lateral flank or denial lanes,
+and each candidate is rejected when its projected route crosses the player's
+body or another bot's route. This lets bots react to gradual as well as sharp
+player evasions while preserving visible, actor-neutral movement.
+
+Large bots no longer retire permanently when they cross the retreat length.
+Retreat is a situational safety response used near the boundary, under body
+pressure, or on an unsafe player crossing; otherwise the bot can re-enter
+engagement, contest a defeat field, and help deny the player's feeding route.
+The result is stronger pressure without making bots collision-immune or
+granting them hidden information.
