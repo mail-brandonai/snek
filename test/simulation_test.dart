@@ -857,6 +857,96 @@ void main() {
       expect(first.heading.y * second.heading.y, lessThan(0));
     });
 
+    test('geometry pressure selects a body lane instead of a blind charge', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 120,
+        botTurnRate: 20,
+        botEngagementRadius: 1000,
+        botPressureWeight: 0,
+        botClosedLoopWeight: 0,
+        botGeometryPressureWeight: 16,
+        botTacticDecisionMin: 30,
+        botTacticDecisionMax: 30,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 420);
+      bot.heading = const Vec2(0, -1);
+      simulation.player.body
+        ..[0] = const Vec2(0, 0)
+        ..[1] = const Vec2(-12, 0)
+        ..[2] = const Vec2(-24, 0)
+        ..[3] = const Vec2(-36, 0);
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(bot.heading.x.abs(), greaterThan(0.01));
+    });
+
+    test('sprint-drop fields participate in bot denial planning', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 0,
+        botTurnRate: 20,
+        botDroppedMassControlWeight: 10,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 700);
+      bot.heading = const Vec2(0, 1);
+      simulation.droppedMass.addAll([
+        const FoodPellet(
+          position: Vec2(-24, 0),
+          value: 1,
+          kind: FoodPelletKind.sprintDrop,
+        ),
+        const FoodPellet(
+          position: Vec2(0, 0),
+          value: 1,
+          kind: FoodPelletKind.sprintDrop,
+        ),
+        const FoodPellet(
+          position: Vec2(24, 0),
+          value: 1,
+          kind: FoodPelletKind.sprintDrop,
+        ),
+      ]);
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(bot.heading.y, lessThan(1));
+      expect(bot.heading.y, greaterThan(-1));
+    });
+
+    test('bots scale growth when the player creates a large size gap', () {
+      const config = SimulationConfig(
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 0,
+        botMaximumLength: 120,
+        botAdaptiveMaximumLength: 260,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      simulation.player.grow(400);
+      simulation.pellets.add(
+        FoodPellet(position: bot.head, value: 100),
+      );
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(bot.length, greaterThan(config.botMaximumLength));
+      expect(bot.length, lessThanOrEqualTo(config.botAdaptiveMaximumLength));
+    });
+
     test('collecting a pellet increases score and length', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(

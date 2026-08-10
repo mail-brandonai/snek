@@ -90,6 +90,11 @@ class SimulationConfig {
     this.botEvasionReplanDistance = 120,
     this.botScreenDistance = 220,
     this.botDenyDistance = 170,
+    this.botGeometryPressureWeight = 9.2,
+    this.botAttackAbortDistance = 230,
+    this.botAttackAbortSafety = 0.34,
+    this.botAdaptiveMaximumLength = 280,
+    this.botAdaptiveGrowthGap = 180,
   });
 
   final double arenaRadius;
@@ -183,6 +188,11 @@ class SimulationConfig {
   final double botEvasionReplanDistance;
   final double botScreenDistance;
   final double botDenyDistance;
+  final double botGeometryPressureWeight;
+  final double botAttackAbortDistance;
+  final double botAttackAbortSafety;
+  final int botAdaptiveMaximumLength;
+  final double botAdaptiveGrowthGap;
 }
 
 class _BotProfile {
@@ -242,6 +252,20 @@ class _BotEngagementPlan {
   final Vec2 target;
   final int rank;
   final double safety;
+}
+
+class _BotGeometryPlan {
+  const _BotGeometryPlan({
+    required this.target,
+    required this.safety,
+    required this.abortRoute,
+  });
+
+  final Vec2 target;
+  final double safety;
+  final Vec2 abortRoute;
+
+  bool get attack => safety >= 0.34 && abortRoute.length >= 0.34;
 }
 
 class _DroppedMassCluster {
@@ -595,7 +619,12 @@ class GameSimulation {
       final routeRisk = _playerRouteRisk(bot);
       final closedLoop = _closedLoopEngagement(bot, dt);
       final closedLoopIntent = _closedLoopIntent(bot, closedLoop);
-      if (routeRisk.urgency >= 0.58) {
+      final geometryPlan = _geometryAttackPlan(bot);
+      final geometryPressure = _geometryPressure(bot, geometryPlan);
+      final safeAttack = geometryPlan.attack &&
+          geometryPlan.safety >= config.botAttackAbortSafety;
+      if (routeRisk.urgency >= 0.58 &&
+          (!safeAttack || routeRisk.urgency >= 0.86)) {
         _interruptBotPursuit(bot);
       }
       final baseIntent = wander * _wanderWeight(bot) +
@@ -612,16 +641,20 @@ class GameSimulation {
               ) +
           peerSeparation * config.botPeerSeparationWeight +
           droppedMassControl * config.botDroppedMassControlWeight +
-          closedLoopIntent * config.botClosedLoopWeight;
+          closedLoopIntent * config.botClosedLoopWeight +
+          geometryPressure * config.botGeometryPressureWeight;
       final intent = routeRisk.urgency >= 0.58
           ? (routeRisk.escape *
                       (config.botDefensiveAvoidanceWeight +
                           routeRisk.urgency * 5) +
-                  baseIntent * 0.3)
+                  baseIntent * (safeAttack ? 0.72 : 0.3) +
+                  (safeAttack ? geometryPressure * 2.0 : Vec2.zero))
               .normalized()
           : (baseIntent +
                   routeRisk.escape *
-                      (routeRisk.urgency * config.botDefensiveAvoidanceWeight))
+                      (routeRisk.urgency *
+                          config.botDefensiveAvoidanceWeight *
+                          (safeAttack ? 0.45 : 1.0)))
               .normalized();
       _turnBotToward(bot, intent, dt);
       _decideBotSprint(bot);
@@ -994,7 +1027,12 @@ class GameSimulation {
       return;
     }
 
-    if (_playerRouteRisk(bot).urgency >= 0.48) return;
+    final routeRisk = _playerRouteRisk(bot);
+    final geometryPlan = _geometryAttackPlan(bot);
+    final canSprintThroughLane = geometryPlan.attack &&
+        geometryPlan.safety >= config.botAttackAbortSafety &&
+        routeRisk.urgency < 0.8;
+    if (routeRisk.urgency >= 0.48 && !canSprintThroughLane) return;
 
     final playerDistance = bot.head.distanceTo(player.head);
     final droppedMassCluster = _bestDroppedMassCluster(bot);
@@ -1301,15 +1339,13 @@ class GameSimulation {
   }
 
   _DroppedMassCluster? _bestDroppedMassCluster(SnakeState bot) {
-    final defeatDrops = droppedMass
-        .where((pellet) => pellet.kind == FoodPelletKind.defeatDrop)
-        .toList();
-    if (defeatDrops.isEmpty) return null;
+    final strategicDrops = droppedMass.toList();
+    if (strategicDrops.isEmpty) return null;
 
     _DroppedMassCluster? best;
     var bestScore = 0.0;
-    for (final seed in defeatDrops) {
-      final members = defeatDrops
+    for (final seed in strategicDrops) {
+      final members = strategicDrops
           .where(
             (pellet) =>
                 pellet.position.distanceTo(seed.position) <=
@@ -1461,6 +1497,98 @@ class GameSimulation {
       rank: rank,
       safety: safety,
     );
+  }
+
+  _BotGeometryPlan _geometryAttackPlan(SnakeState bot) {
+    if (!player.alive ||
+        bot.head.distanceTo(player.head) > config.botEngagementRadius) {
+      return const _BotGeometryPlan(
+        target: Vec2.zero,
+        safety: 0,
+        abortRoute: Vec2.zero,
+      );
+    }
+
+    final lateral = Vec2(-player.heading.y, player.heading.x);
+    final side = bot.colorIndex.isEven ? 1.0 : -1.0;
+    final midpoint = player.body[
+        math.min(player.body.length - 1, math.max(1, player.body.length ~/ 2))];
+    final tail = player.body.last;
+    final routeLead = _playerRoutePoint(config.botEngagementLeadTime);
+    final gapDirection =
+        (player.heading + (player.head - tail).normalized()).normalized();
+    final candidates = <Vec2>[
+      routeLead + lateral * side * config.botEngagementLaneDistance * 0.35,
+      routeLead + lateral * -side * config.botEngagementLaneDistance * 0.8,
+      player.head + lateral * side * (player.radius + bot.radius + 82),
+      midpoint + lateral * side * config.botEncircleGapDistance,
+      midpoint + lateral * -side * config.botEncircleGapDistance,
+      tail +
+          gapDirection * config.botFlankDistance +
+          lateral * side * config.botFlankDistance * 0.45,
+    ];
+
+    var bestTarget = candidates.first;
+    var bestScore = double.infinity;
+    var bestLaneSafety = 0.0;
+    var bestAbortSafety = 0.0;
+    var bestAbort = Vec2.zero;
+    for (var index = 0; index < candidates.length; index++) {
+      final candidate = candidates[index];
+      final laneRisk = _engagementLaneRisk(bot, candidate);
+      final approach = (candidate - bot.head).normalized();
+      if (approach.length == 0) continue;
+      final approachLateral = Vec2(-approach.y, approach.x);
+      final abortCandidates = <Vec2>[
+        bot.head + approachLateral * side * config.botAttackAbortDistance,
+        bot.head - approachLateral * side * config.botAttackAbortDistance,
+        bot.head +
+            (bot.head - player.head).normalized() *
+                config.botAttackAbortDistance,
+      ];
+      var abortSafety = 0.0;
+      var abortVector = Vec2.zero;
+      for (final abortTarget in abortCandidates) {
+        final safety =
+            (1 - _engagementLaneRisk(bot, abortTarget).clamp(0.0, 1.0))
+                .toDouble();
+        if (safety > abortSafety) {
+          abortSafety = safety;
+          abortVector = (abortTarget - bot.head).normalized();
+        }
+      }
+      final laneSafety = (1 - laneRisk.clamp(0.0, 1.0)).toDouble();
+      final preferredPenalty = index == 0 ? 0.0 : 0.06;
+      final geometryReward = index >= 2 ? 0.18 : 0.0;
+      final score = laneRisk * 8 +
+          (1 - abortSafety) * 2.4 +
+          preferredPenalty -
+          geometryReward *
+              (bot.disposition == BotDisposition.aggressive ? 1.3 : 1.0);
+      if (score < bestScore) {
+        bestScore = score;
+        bestTarget = candidate;
+        bestLaneSafety = laneSafety;
+        bestAbortSafety = abortSafety;
+        bestAbort = abortVector * abortSafety;
+      }
+    }
+
+    return _BotGeometryPlan(
+      target: bestTarget,
+      safety: bestLaneSafety * 0.7 + bestAbortSafety * 0.3,
+      abortRoute: bestAbort,
+    );
+  }
+
+  Vec2 _geometryPressure(SnakeState bot, _BotGeometryPlan plan) {
+    if (!player.alive || !plan.attack || plan.target == bot.head) {
+      return Vec2.zero;
+    }
+    final approach = (plan.target - bot.head).normalized();
+    final routeBias = plan.abortRoute * (1 - plan.safety).clamp(0.0, 1.0);
+    return (approach * (0.65 + plan.safety * 0.35) + routeBias * 0.22)
+        .normalized();
   }
 
   double _engagementLaneRisk(SnakeState bot, Vec2 target) {
@@ -1986,16 +2114,21 @@ class GameSimulation {
       if (snake.head.distanceTo(pellet.position) <= snake.radius + 6) {
         source.removeAt(index);
         final requestedGrowth = snake.kind == SnakeKind.bot
-            ? (pellet.value * config.botGrowthMultiplier)
+            ? (pellet.value *
+                    config.botGrowthMultiplier *
+                    _botAdaptiveGrowthMultiplier(snake))
                 .round()
                 .clamp(1, double.infinity)
                 .toInt()
             : pellet.value;
+        final adaptiveMaximum = snake.kind == SnakeKind.bot
+            ? _botAdaptiveMaximumLength(snake)
+            : double.infinity;
         final growth = snake.kind == SnakeKind.bot
             ? math
                 .min(
                   requestedGrowth,
-                  math.max(0, config.botMaximumLength - snake.length),
+                  math.max(0, adaptiveMaximum - snake.length),
                 )
                 .toInt()
             : requestedGrowth;
@@ -2003,6 +2136,23 @@ class GameSimulation {
         if (snake.kind == SnakeKind.player) score += pellet.value;
       }
     }
+  }
+
+  double _botAdaptiveGrowthMultiplier(SnakeState bot) {
+    if (!player.alive || config.botAdaptiveGrowthGap <= 0) return 1;
+    final gap = math.max(0, player.length - bot.length).toDouble();
+    final catchUp =
+        (gap / config.botAdaptiveGrowthGap).clamp(0.0, 1.0).toDouble();
+    return 1 + catchUp * 0.85;
+  }
+
+  double _botAdaptiveMaximumLength(SnakeState bot) {
+    if (!player.alive || config.botAdaptiveMaximumLength <= 0) {
+      return config.botMaximumLength.toDouble();
+    }
+    final gap = math.max(0, player.length - bot.length).toDouble();
+    final scaledMaximum = config.botMaximumLength + (gap * 0.35).round();
+    return math.min(config.botAdaptiveMaximumLength, scaledMaximum).toDouble();
   }
 
   void _resolveCollisions() {

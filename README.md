@@ -244,3 +244,22 @@ The planner remains deterministic, candidate-scored, and actor-neutral. It
 uses only positions, headings, bodies, speeds, food fields, and collision risk
 already available to the simulation; it does not grant bots hidden warnings or
 future player input.
+
+## V1.17 geometry-aware pressure
+
+Bot engagement now scores explicit geometry around the player's head, body
+midpoint, tail, and head-to-tail gap. Bots can approach a side lane, screen an
+exit, or pressure the gap rather than repeatedly aiming at the same projected
+head point. Each attack candidate is also scored for a lateral or retreating
+abort route, so defensive avoidance can interrupt a genuinely unsafe attack
+without cancelling every offensive approach.
+
+All dropped mass is now eligible for strategic field control, including sprint
+trails as well as defeat drops. Dense fields can therefore become contested
+resource zones even when no snake has recently died there; bots assign approach,
+harvest, and denial lanes around the same public field.
+
+When the player creates a large size gap, bot food growth and effective growth
+capacity scale within bounded limits. This keeps the opposition capable of
+catching up during a long run without removing the deterministic roster,
+collision rules, or actor-neutral public telegraphing.
