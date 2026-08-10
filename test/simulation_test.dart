@@ -409,6 +409,57 @@ void main() {
       );
     });
 
+    test('bots bend away from a predicted occupied route', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 120,
+        botTurnRate: 20,
+        botEngagementRadius: 0,
+        botCollisionLookahead: 1.2,
+        botCollisionSampleCount: 6,
+        botCollisionAvoidanceRadius: 220,
+        botCollisionAvoidanceWeight: 10,
+        botTacticDecisionMin: 30,
+        botTacticDecisionMax: 30,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      bot.resetAt(const Vec2(-260, 0));
+      bot.heading = const Vec2(1, 0);
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(bot.heading.y.abs(), greaterThan(0.01));
+    });
+
+    test('the closest eligible bot claims the projected player lane', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 100,
+        botSpeed: 0,
+        botTurnRate: 20,
+        botEngagementRadius: 1000,
+        botEngagementLeadTime: 2.75,
+        botEngagementWeight: 8,
+        botTacticDecisionMin: 30,
+        botTacticDecisionMax: 30,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 300);
+      bot.heading = const Vec2(0, 1);
+      simulation.player.heading = const Vec2(1, 0);
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(bot.heading.x, greaterThan(0));
+      expect(bot.heading.y, lessThan(1));
+    });
     test('bot tactics vary turn commitment and movement speed over time', () {
       const config = SimulationConfig(
         arenaRadius: 4000,

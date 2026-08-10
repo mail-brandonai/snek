@@ -64,6 +64,15 @@ class SimulationConfig {
     this.botFlankDistance = 180,
     this.botEncircleGapDistance = 110,
     this.botBaitDistance = 135,
+    this.botEngagementRadius = 1150,
+    this.botEngagementLeadTime = 2.75,
+    this.botEngagementWeight = 2.8,
+    this.botCollisionLookahead = 1.2,
+    this.botCollisionSampleCount = 6,
+    this.botCollisionAvoidanceRadius = 150,
+    this.botCollisionAvoidanceWeight = 4.8,
+    this.botPeerSeparationRadius = 260,
+    this.botPeerSeparationWeight = 2.4,
   });
 
   final double arenaRadius;
@@ -131,6 +140,15 @@ class SimulationConfig {
   final double botFlankDistance;
   final double botEncircleGapDistance;
   final double botBaitDistance;
+  final double botEngagementRadius;
+  final double botEngagementLeadTime;
+  final double botEngagementWeight;
+  final double botCollisionLookahead;
+  final int botCollisionSampleCount;
+  final double botCollisionAvoidanceRadius;
+  final double botCollisionAvoidanceWeight;
+  final double botPeerSeparationRadius;
+  final double botPeerSeparationWeight;
 }
 
 class _BotProfile {
@@ -465,13 +483,17 @@ class GameSimulation {
       final droppedMassInterest = _nearestDroppedMass(bot);
       final pressure = _playerPressure(bot);
       final tactical = _tacticalIntent(bot, tactic);
+      final predictiveAvoidance = _predictiveCollisionAvoidance(bot);
+      final peerSeparation = _peerSeparation(bot);
       final intent = (wander * _wanderWeight(bot) +
               boundary * _boundaryWeight(bot) +
               threat * _threatWeight(bot) +
               interest * _foodWeight(bot) +
               droppedMassInterest * _droppedMassWeight(bot) +
               pressure * _pressureWeight(bot) +
-              tactical * 1.55)
+              tactical * 1.55 +
+              predictiveAvoidance * config.botCollisionAvoidanceWeight +
+              peerSeparation * config.botPeerSeparationWeight)
           .normalized();
       _turnBotToward(bot, intent, dt);
       _decideBotSprint(bot);
@@ -499,7 +521,17 @@ class GameSimulation {
     if (!player.alive) return _BotTactic.weave;
 
     final playerDistance = bot.head.distanceTo(player.head);
-    final nearDanger = playerDistance <= config.botPressureRadius * 0.72;
+    final nearDanger = playerDistance <= config.botEngagementRadius * 0.72;
+    final engagementRank = _playerEngagementRank(bot);
+    if (engagementRank == 0 &&
+        playerDistance <= config.botEngagementRadius &&
+        (bot.disposition == BotDisposition.aggressive ||
+            bot.disposition == BotDisposition.opportunistic)) {
+      return _BotTactic.cutoff;
+    }
+    if (engagementRank == 1 && playerDistance <= config.botEngagementRadius) {
+      return _BotTactic.flank;
+    }
     final roll = _random.nextDouble();
     switch (bot.disposition) {
       case BotDisposition.defensive:
@@ -766,11 +798,11 @@ class GameSimulation {
       case BotDisposition.defensive:
         return 0.25;
       case BotDisposition.aggressive:
-        return 1.7;
+        return 2.6;
       case BotDisposition.opportunistic:
-        return 0.8;
+        return 1.2;
       case BotDisposition.wanderer:
-        return 0.4;
+        return 0.65;
     }
   }
 
@@ -855,20 +887,120 @@ class GameSimulation {
     if (!player.alive) return Vec2.zero;
 
     final distance = bot.head.distanceTo(player.head);
-    if (distance > config.botPressureRadius) return Vec2.zero;
+    if (distance > config.botEngagementRadius) return Vec2.zero;
 
-    final leadDistance = player.speed * config.botInterceptLeadTime;
-    final interceptPoint = player.head + player.heading * leadDistance;
-    final direction = interceptPoint - bot.head;
+    final engagementRank = _playerEngagementRank(bot);
+    final leadTime = config.botEngagementLeadTime *
+        (1 + math.min(engagementRank, 2).toDouble() * 0.18);
+    final projectedPlayer =
+        player.head + player.heading * (player.speed * leadTime);
+    final lateral = Vec2(-player.heading.y, player.heading.x);
+    final laneOffset = engagementRank == 0
+        ? 0.0
+        : config.botFlankDistance *
+            (1 + math.min(engagementRank - 1, 2).toDouble() * 0.55);
+    final laneSign = bot.colorIndex.isEven ? 1.0 : -1.0;
+    final target = projectedPlayer + lateral * laneSign * laneOffset;
+    final direction = target - bot.head;
     if (direction.length == 0) return Vec2.zero;
 
     final proximity =
-        ((config.botPressureRadius - distance) / config.botPressureRadius)
+        ((config.botEngagementRadius - distance) / config.botEngagementRadius)
             .clamp(0.0, 1.0)
             .toDouble();
-    final sizeFactor = bot.length >= player.length ? 1.25 : 0.8;
+    final roleWeight = engagementRank == 0
+        ? 1.0
+        : engagementRank == 1
+            ? 0.72
+            : 0.42;
+    final sizeFactor = bot.length >= player.length ? 1.25 : 0.9;
     return direction.normalized() *
-        (config.botPressureWeight * (0.65 + proximity * 0.35) * sizeFactor);
+        (config.botEngagementWeight *
+            (0.7 + proximity * 0.3) *
+            roleWeight *
+            sizeFactor);
+  }
+
+  int _playerEngagementRank(SnakeState bot) {
+    final target = player.head +
+        player.heading * (player.speed * config.botEngagementLeadTime);
+    final candidates = snakes
+        .where(
+          (candidate) =>
+              candidate.kind == SnakeKind.bot &&
+              candidate.alive &&
+              !candidate.retreating &&
+              candidate.head.distanceTo(player.head) <=
+                  config.botEngagementRadius,
+        )
+        .toList()
+      ..sort((left, right) {
+        final leftArrival =
+            left.head.distanceTo(target) / math.max(1.0, _effectiveSpeed(left));
+        final rightArrival = right.head.distanceTo(target) /
+            math.max(1.0, _effectiveSpeed(right));
+        final arrivalOrder = leftArrival.compareTo(rightArrival);
+        if (arrivalOrder != 0) return arrivalOrder;
+        return left.id.compareTo(right.id);
+      });
+    final rank = candidates.indexWhere((candidate) => candidate.id == bot.id);
+    return rank < 0 ? candidates.length : rank;
+  }
+
+  Vec2 _predictiveCollisionAvoidance(SnakeState snake) {
+    var avoidance = Vec2.zero;
+    final speed = _effectiveSpeed(snake);
+    final samples = math.max(1, config.botCollisionSampleCount).toInt();
+    if (speed <= 0 || samples <= 0) return avoidance;
+
+    for (final other in snakes.where(
+      (candidate) => candidate.id != snake.id && candidate.alive,
+    )) {
+      for (var sample = 1; sample <= samples; sample++) {
+        final progress = sample / samples;
+        final future = snake.head +
+            snake.heading * (speed * config.botCollisionLookahead * progress);
+        for (final segment in other.body.skip(1)) {
+          final offset = future - segment;
+          final distance = offset.length;
+          if (distance <= 0 || distance >= config.botCollisionAvoidanceRadius) {
+            continue;
+          }
+
+          final urgency = (config.botCollisionAvoidanceRadius - distance) /
+              config.botCollisionAvoidanceRadius;
+          var escape = offset.normalized();
+          if (_alignment(snake.heading, segment - future) > 0.15) {
+            final side = Vec2(-snake.heading.y, snake.heading.x) *
+                (snake.id.compareTo(other.id) <= 0 ? 1.0 : -1.0);
+            escape = (escape * 0.35 + side * 0.9).normalized();
+          }
+          avoidance += escape * (urgency * urgency);
+        }
+      }
+    }
+    return avoidance.normalized();
+  }
+
+  Vec2 _peerSeparation(SnakeState bot) {
+    var separation = Vec2.zero;
+    for (final other in snakes.where(
+      (candidate) =>
+          candidate.kind == SnakeKind.bot &&
+          candidate.id != bot.id &&
+          candidate.alive,
+    )) {
+      final offset = bot.head - other.head;
+      final distance = offset.length;
+      if (distance <= 0 || distance >= config.botPeerSeparationRadius) {
+        continue;
+      }
+
+      final urgency = (config.botPeerSeparationRadius - distance) /
+          config.botPeerSeparationRadius;
+      separation += offset.normalized() * (urgency * urgency);
+    }
+    return separation.normalized();
   }
 
   ActorTelegraph _telegraphFor(SnakeState actor) => ActorTelegraph(

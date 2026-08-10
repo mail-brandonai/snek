@@ -167,3 +167,18 @@ The tactical HUD is optional and disabled by default. The base score, rank,
 leaderboard, minimap, boundary, collision, and restart feedback remain visible;
 the player can enable the extra threat and tactical minimap signals with the
 `TACTICS HUD` control.
+
+## V1.12 reactive bot defense
+
+Bots now share a bounded engagement model around the player's publicly visible
+heading and position. The fastest eligible rival claims the primary projected
+intercept lane, while additional rivals approach from separated flank lanes
+instead of converging on the same point. This makes a long, passive player path
+a usable opportunity rather than a low-priority background signal.
+
+Bot steering also samples its own short future route against nearby actor bodies
+and applies an early side-step when that route is converging with another snake.
+Peer separation reduces same-cluster head approaches before they become
+collision events, while the ordinary collision rules and visible actor
+telegraphs remain unchanged. These changes reduce accidental bot-on-bot and
+bot-on-player deaths without making bots immune to deliberate body traps.
