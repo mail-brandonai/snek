@@ -764,6 +764,72 @@ void main() {
       expect(first.heading.x * second.heading.x, lessThan(0));
     });
 
+    test('peer collision risk cancels bot sprint commitments', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 2,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 120,
+        botTurnRate: 20,
+        botEngagementRadius: 0,
+        sprintAnticipationDuration: 0,
+      );
+      final simulation = GameSimulation(config: config);
+      final first = simulation.snakes[1];
+      final second = simulation.snakes[2];
+      first.body[0] = const Vec2(0, -70);
+      first.heading = const Vec2(0, 1);
+      second.body[0] = const Vec2(0, 70);
+      second.heading = const Vec2(0, -1);
+      first.sprintRequested = true;
+      first.sprinting = true;
+      first.botSprintRemaining = 1;
+      second.sprintRequested = true;
+      second.sprinting = true;
+      second.botSprintRemaining = 1;
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(first.alive, isTrue);
+      expect(second.alive, isTrue);
+      expect(first.sprinting, isFalse);
+      expect(second.sprinting, isFalse);
+      expect(first.heading.x * second.heading.x, lessThan(0));
+    });
+
+    test('persistent formation gives engaged bots separate pressure lanes', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 2,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 120,
+        botTurnRate: 20,
+        botEngagementRadius: 1000,
+        botPressureWeight: 0,
+        botClosedLoopWeight: 0,
+        botGeometryPressureWeight: 0,
+        botFormationPressureWeight: 16,
+        botTacticDecisionMin: 30,
+        botTacticDecisionMax: 30,
+      );
+      final simulation = GameSimulation(config: config);
+      final first = simulation.snakes[1];
+      final second = simulation.snakes[2];
+      first.body[0] = const Vec2(0, 300);
+      first.heading = const Vec2(0, -1);
+      second.body[0] = const Vec2(0, -300);
+      second.heading = const Vec2(0, 1);
+      simulation.player.heading = const Vec2(1, 0);
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(first.heading.y * second.heading.y, lessThan(0));
+      expect(first.alive, isTrue);
+      expect(second.alive, isTrue);
+    });
+
     test('player engagement assigns separated safe lanes', () {
       const config = SimulationConfig(
         arenaRadius: 2000,

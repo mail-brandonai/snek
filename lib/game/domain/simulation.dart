@@ -93,7 +93,14 @@ class SimulationConfig {
     this.botGeometryPressureWeight = 9.2,
     this.botAttackAbortDistance = 230,
     this.botAttackAbortSafety = 0.34,
-    this.botAdaptiveMaximumLength = 280,
+    this.botFormationCommitmentDuration = 1.35,
+    this.botFormationReplanDistance = 210,
+    this.botFormationSeparationDistance = 210,
+    this.botFormationPressureWeight = 5.4,
+    this.botPeerHardAvoidanceRadius = 210,
+    this.botPeerHardAvoidanceThreshold = 0.28,
+    this.botPeerAbortThreshold = 0.32,
+    this.botAdaptiveMaximumLength = 420,
     this.botAdaptiveGrowthGap = 180,
   });
 
@@ -191,6 +198,13 @@ class SimulationConfig {
   final double botGeometryPressureWeight;
   final double botAttackAbortDistance;
   final double botAttackAbortSafety;
+  final double botFormationCommitmentDuration;
+  final double botFormationReplanDistance;
+  final double botFormationSeparationDistance;
+  final double botFormationPressureWeight;
+  final double botPeerHardAvoidanceRadius;
+  final double botPeerHardAvoidanceThreshold;
+  final double botPeerAbortThreshold;
   final int botAdaptiveMaximumLength;
   final double botAdaptiveGrowthGap;
 }
@@ -235,8 +249,28 @@ class _BotClosedLoopState {
   Vec2? expectedPlayerPosition;
 }
 
+enum _BotFormationRole {
+  leadCutoff,
+  leftScreen,
+  rightScreen,
+  resourceGuard,
+  reserve,
+}
+
+class _BotFormationState {
+  double remaining = 0;
+  Vec2? playerAnchor;
+}
+
 class _BotRouteRisk {
   const _BotRouteRisk({required this.escape, required this.urgency});
+
+  final Vec2 escape;
+  final double urgency;
+}
+
+class _BotPeerRisk {
+  const _BotPeerRisk({required this.escape, required this.urgency});
 
   final Vec2 escape;
   final double urgency;
@@ -299,6 +333,8 @@ class GameSimulation {
   final Map<String, double> _botRespawnTimers = {};
   final Map<String, _BotTacticState> _botTactics = {};
   final Map<String, _BotClosedLoopState> _botEngagementStates = {};
+  final Map<String, _BotFormationRole> _botFormationRoles = {};
+  final _BotFormationState _botFormation = _BotFormationState();
   Vec2 _observedPlayerHeading = const Vec2(1, 0);
   double _observedPlayerTurnRate = 0;
   double elapsed = 0;
@@ -434,6 +470,9 @@ class GameSimulation {
     _botRespawnTimers.clear();
     _botTactics.clear();
     _botEngagementStates.clear();
+    _botFormationRoles.clear();
+    _botFormation.remaining = 0;
+    _botFormation.playerAnchor = null;
     _observedPlayerHeading = const Vec2(1, 0);
     _observedPlayerTurnRate = 0;
     elapsed = 0;
@@ -588,6 +627,7 @@ class GameSimulation {
   }
 
   void _steerBots(double dt) {
+    _refreshBotFormation(dt);
     for (final bot in snakes.where(
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
     )) {
@@ -615,14 +655,19 @@ class GameSimulation {
       final tactical = _tacticalIntent(bot, tactic);
       final predictiveAvoidance = _predictiveCollisionAvoidance(bot);
       final peerSeparation = _peerSeparation(bot);
+      final peerRisk = _botPeerRouteRisk(bot);
       final droppedMassControl = _droppedMassControl(bot);
       final routeRisk = _playerRouteRisk(bot);
       final closedLoop = _closedLoopEngagement(bot, dt);
       final closedLoopIntent = _closedLoopIntent(bot, closedLoop);
       final geometryPlan = _geometryAttackPlan(bot);
       final geometryPressure = _geometryPressure(bot, geometryPlan);
+      final formationIntent = _formationIntent(bot);
       final safeAttack = geometryPlan.attack &&
           geometryPlan.safety >= config.botAttackAbortSafety;
+      if (peerRisk.urgency >= config.botPeerHardAvoidanceThreshold) {
+        _interruptBotPursuit(bot);
+      }
       if (routeRisk.urgency >= 0.58 &&
           (!safeAttack || routeRisk.urgency >= 0.86)) {
         _interruptBotPursuit(bot);
@@ -642,23 +687,154 @@ class GameSimulation {
           peerSeparation * config.botPeerSeparationWeight +
           droppedMassControl * config.botDroppedMassControlWeight +
           closedLoopIntent * config.botClosedLoopWeight +
-          geometryPressure * config.botGeometryPressureWeight;
-      final intent = routeRisk.urgency >= 0.58
-          ? (routeRisk.escape *
-                      (config.botDefensiveAvoidanceWeight +
-                          routeRisk.urgency * 5) +
-                  baseIntent * (safeAttack ? 0.72 : 0.3) +
-                  (safeAttack ? geometryPressure * 2.0 : Vec2.zero))
+          geometryPressure * config.botGeometryPressureWeight +
+          formationIntent * config.botFormationPressureWeight;
+      final intent = peerRisk.urgency >= config.botPeerAbortThreshold
+          ? (peerRisk.escape * (1.4 + peerRisk.urgency * 2) +
+                  boundary * _boundaryWeight(bot))
               .normalized()
-          : (baseIntent +
-                  routeRisk.escape *
-                      (routeRisk.urgency *
-                          config.botDefensiveAvoidanceWeight *
-                          (safeAttack ? 0.45 : 1.0)))
-              .normalized();
+          : routeRisk.urgency >= 0.58
+              ? (routeRisk.escape *
+                          (config.botDefensiveAvoidanceWeight +
+                              routeRisk.urgency * 5) +
+                      baseIntent * (safeAttack ? 0.72 : 0.3) +
+                      (safeAttack ? geometryPressure * 2.0 : Vec2.zero))
+                  .normalized()
+              : (baseIntent +
+                      peerRisk.escape *
+                          (peerRisk.urgency *
+                              config.botPeerSeparationWeight *
+                              2.6) +
+                      routeRisk.escape *
+                          (routeRisk.urgency *
+                              config.botDefensiveAvoidanceWeight *
+                              (safeAttack ? 0.45 : 1.0)))
+                  .normalized();
       _turnBotToward(bot, intent, dt);
       _decideBotSprint(bot);
     }
+  }
+
+  void _refreshBotFormation(double dt) {
+    _botFormation.remaining =
+        math.max(0, _botFormation.remaining - dt).toDouble();
+    final active = snakes
+        .where(
+          (snake) =>
+              snake.kind == SnakeKind.bot &&
+              snake.alive &&
+              !_shouldPrioritizeRetreat(snake),
+        )
+        .toList();
+    if (!player.alive || active.isEmpty) {
+      _botFormationRoles.clear();
+      _botFormation.playerAnchor = null;
+      _botFormation.remaining = 0;
+      return;
+    }
+
+    final anchor = player.head;
+    if (_botFormation.playerAnchor != null &&
+        _botFormation.playerAnchor!.distanceTo(anchor) >=
+            config.botFormationReplanDistance) {
+      _botFormation.remaining = 0;
+    }
+    if (_botFormation.remaining > 0) return;
+
+    final engaged = active
+        .where(
+          (bot) =>
+              bot.head.distanceTo(player.head) <= config.botEngagementRadius,
+        )
+        .toList()
+      ..sort((left, right) {
+        final leftArrival =
+            left.head.distanceTo(anchor) / math.max(1.0, _effectiveSpeed(left));
+        final rightArrival = right.head.distanceTo(anchor) /
+            math.max(1.0, _effectiveSpeed(right));
+        final order = leftArrival.compareTo(rightArrival);
+        return order == 0 ? left.id.compareTo(right.id) : order;
+      });
+
+    _botFormationRoles
+      ..clear()
+      ..addEntries(
+        active.map(
+          (bot) => MapEntry(bot.id, _BotFormationRole.reserve),
+        ),
+      );
+    if (engaged.isEmpty) {
+      _botFormation.playerAnchor = anchor;
+      _botFormation.remaining = config.botFormationCommitmentDuration;
+      return;
+    }
+
+    final cluster = _bestDroppedMassCluster(engaged.first);
+    final contestedField = cluster != null &&
+        player.head.distanceTo(cluster.center) <=
+            config.botDroppedMassGuardRadius;
+    final roles = contestedField
+        ? <_BotFormationRole>[
+            _BotFormationRole.leadCutoff,
+            _BotFormationRole.resourceGuard,
+            _BotFormationRole.leftScreen,
+            _BotFormationRole.rightScreen,
+            _BotFormationRole.reserve,
+          ]
+        : <_BotFormationRole>[
+            _BotFormationRole.leadCutoff,
+            _BotFormationRole.leftScreen,
+            _BotFormationRole.rightScreen,
+            _BotFormationRole.resourceGuard,
+            _BotFormationRole.reserve,
+          ];
+    for (var index = 0; index < engaged.length; index++) {
+      _botFormationRoles[engaged[index].id] =
+          roles[math.min(index, roles.length - 1)];
+    }
+    _botFormation.playerAnchor = anchor;
+    _botFormation.remaining = config.botFormationCommitmentDuration;
+  }
+
+  Vec2 _formationIntent(SnakeState bot) {
+    final role = _botFormationRoles[bot.id];
+    if (!player.alive || role == null || role == _BotFormationRole.reserve) {
+      return Vec2.zero;
+    }
+
+    final lateral = Vec2(-player.heading.y, player.heading.x);
+    final side = bot.colorIndex.isEven ? 1.0 : -1.0;
+    final route = _playerRoutePoint(
+      role == _BotFormationRole.leadCutoff ? 2.1 : 1.55,
+    );
+    Vec2 target;
+    switch (role) {
+      case _BotFormationRole.leadCutoff:
+        target = route +
+            lateral * side * config.botFormationSeparationDistance * 0.28;
+      case _BotFormationRole.leftScreen:
+        target = route + lateral * config.botFormationSeparationDistance;
+      case _BotFormationRole.rightScreen:
+        target = route - lateral * config.botFormationSeparationDistance;
+      case _BotFormationRole.resourceGuard:
+        final cluster = _bestDroppedMassCluster(bot);
+        if (cluster != null &&
+            player.head.distanceTo(cluster.center) <=
+                config.botDroppedMassGuardRadius) {
+          final approach = (cluster.center - player.head).normalized();
+          final fieldLateral = Vec2(-approach.y, approach.x);
+          target = player.head +
+              approach * config.botDroppedMassGuardDistance +
+              fieldLateral * side * config.botFormationSeparationDistance;
+        } else {
+          target = route +
+              lateral * side * config.botFormationSeparationDistance * 1.25;
+        }
+      case _BotFormationRole.reserve:
+        return Vec2.zero;
+    }
+    final direction = target - bot.head;
+    return direction.length == 0 ? Vec2.zero : direction.normalized();
   }
 
   _BotEngagementMode _closedLoopEngagement(SnakeState bot, double dt) {
@@ -1779,6 +1955,82 @@ class GameSimulation {
     );
   }
 
+  _BotPeerRisk _botPeerRouteRisk(SnakeState bot) {
+    final speed = _effectiveSpeed(bot);
+    if (speed <= 0) {
+      return const _BotPeerRisk(escape: Vec2.zero, urgency: 0);
+    }
+
+    final lookahead = math.max(
+      config.botCollisionLookahead,
+      config.botAdaptiveLeadTime,
+    );
+    final samples = math.max(2, config.botCollisionSampleCount).toInt();
+    var escape = Vec2.zero;
+    var maximumUrgency = 0.0;
+    for (final other in snakes.where(
+      (candidate) =>
+          candidate.kind == SnakeKind.bot &&
+          candidate.id != bot.id &&
+          candidate.alive,
+    )) {
+      for (var sample = 1; sample <= samples; sample++) {
+        final progress = sample / samples;
+        final future = bot.head + bot.heading * (speed * lookahead * progress);
+        final otherTravel =
+            other.heading * (_effectiveSpeed(other) * lookahead * progress);
+        final peerRadius = math.max(
+          config.botPeerHardAvoidanceRadius,
+          bot.radius + other.radius + 42,
+        );
+        final peerHead = other.head + otherTravel;
+        final headOffset = future - peerHead;
+        final headDistance = headOffset.length;
+        if (headDistance < peerRadius) {
+          final urgency = ((peerRadius - headDistance) / peerRadius)
+              .clamp(0.0, 1.0)
+              .toDouble();
+          maximumUrgency = math.max(maximumUrgency, urgency).toDouble();
+          final side = _peerYieldSide(bot, other);
+          final away = headDistance == 0 ? side : headOffset.normalized();
+          escape +=
+              (away * 0.35 + side * 0.95).normalized() * (urgency * urgency);
+        }
+
+        for (final segment in other.body.skip(1)) {
+          final projectedSegment = segment + otherTravel;
+          final offset = future - projectedSegment;
+          final distance = offset.length;
+          final bodyRadius = bot.radius + other.radius + 24;
+          if (distance >= bodyRadius) continue;
+
+          final urgency =
+              ((bodyRadius - distance) / bodyRadius).clamp(0.0, 1.0).toDouble();
+          maximumUrgency = math.max(maximumUrgency, urgency).toDouble();
+          final side = _peerYieldSide(bot, other);
+          final away = distance == 0 ? side : offset.normalized();
+          escape +=
+              (away * 0.45 + side * 0.85).normalized() * (urgency * urgency);
+        }
+      }
+    }
+    return _BotPeerRisk(
+      escape: escape.normalized(),
+      urgency: maximumUrgency,
+    );
+  }
+
+  Vec2 _peerYieldSide(SnakeState bot, SnakeState other) {
+    final lowerId = bot.id.compareTo(other.id) <= 0;
+    final lowerHead = lowerId ? bot.head : other.head;
+    final higherHead = lowerId ? other.head : bot.head;
+    final axis = higherHead - lowerHead;
+    final basis = axis.length == 0
+        ? const Vec2(0, 1)
+        : Vec2(-axis.y, axis.x).normalized();
+    return basis * (lowerId ? 1.0 : -1.0);
+  }
+
   Vec2 _peerSeparation(SnakeState bot) {
     var separation = Vec2.zero;
     final samples = math.max(1, config.botCollisionSampleCount).toInt();
@@ -2143,7 +2395,7 @@ class GameSimulation {
     final gap = math.max(0, player.length - bot.length).toDouble();
     final catchUp =
         (gap / config.botAdaptiveGrowthGap).clamp(0.0, 1.0).toDouble();
-    return 1 + catchUp * 0.85;
+    return 1 + catchUp * 1.25;
   }
 
   double _botAdaptiveMaximumLength(SnakeState bot) {
@@ -2151,7 +2403,7 @@ class GameSimulation {
       return config.botMaximumLength.toDouble();
     }
     final gap = math.max(0, player.length - bot.length).toDouble();
-    final scaledMaximum = config.botMaximumLength + (gap * 0.35).round();
+    final scaledMaximum = config.botMaximumLength + (gap * 0.5).round();
     return math.min(config.botAdaptiveMaximumLength, scaledMaximum).toDouble();
   }
 

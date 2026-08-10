@@ -263,3 +263,24 @@ When the player creates a large size gap, bot food growth and effective growth
 capacity scale within bounded limits. This keeps the opposition capable of
 catching up during a long run without removing the deterministic roster,
 collision rules, or actor-neutral public telegraphing.
+
+## V1.18 formation pressure and collision discipline
+
+Engaged bots now receive a persistent, deterministic formation lease instead
+of independently recomputing the same approach. The formation assigns a lead
+cutoff, left and right screen lanes, and a resource guard around contested
+dropped-mass fields. Each lane is continuously recomputed from the player's
+public route, but the role remains stable long enough to produce visible
+pressure and a usable attack/abort sequence.
+
+Peer collision risk is now a hard safety decision rather than another additive
+steering term. Bots project peer heads and bodies, cancel sprint or attack
+commitments when a crossing becomes unsafe, and yield through deterministic
+side-steps before ordinary collision resolution. Deliberate body traps remain
+possible because the safety layer uses bounded public projections and does not
+make bots collision-immune.
+
+The adaptive growth response is stronger but bounded, allowing bots to recover
+some size parity when the player has created a large lead. The player can still
+outmaneuver or defeat bots; the intended change is that bot-on-bot deaths no
+longer become a free food strategy for a waiting player.
