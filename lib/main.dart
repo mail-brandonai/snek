@@ -416,6 +416,7 @@ class SlitherGame extends FlameGame {
     required bool dropped,
   }) {
     for (final pellet in items) {
+      if (!_isVisible(pellet.position, dropped ? 28 : 12)) continue;
       final colour = dropped
           ? _snakeColour(pellet.sourceColorIndex ?? 0)
           : const Color(0xff54e8d1);
@@ -439,6 +440,9 @@ class SlitherGame extends FlameGame {
   }
 
   void _drawSnake(ui.Canvas canvas, SnakeState snake) {
+    if (!snake.body.any((segment) => _isVisible(segment, snake.radius + 12))) {
+      return;
+    }
     final colour = _snakeColour(snake.colorIndex);
     if (snake.sprintAnticipating || snake.sprinting) {
       final double pulse = (snake.sprinting
@@ -494,6 +498,7 @@ class SlitherGame extends FlameGame {
     // of making every snake appear one segment longer at spawn.
     for (var index = snake.body.length - 1; index >= 1; index--) {
       final segment = snake.body[index];
+      if (!_isVisible(segment, snake.radius + 12)) continue;
       final double taper =
           (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0).toDouble();
       canvas.drawCircle(
@@ -519,6 +524,12 @@ class SlitherGame extends FlameGame {
         pupilPaint,
       );
     }
+  }
+
+  bool _isVisible(Vec2 position, double padding) {
+    final centre = simulation.player.head;
+    return (position.x - centre.x).abs() <= size.x / 2 + padding &&
+        (position.y - centre.y).abs() <= size.y / 2 + padding;
   }
 }
 

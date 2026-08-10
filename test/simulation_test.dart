@@ -1463,6 +1463,50 @@ void main() {
       expect(simulation.droppedMass, isEmpty);
     });
 
+    test('dropped mass is bounded and expires after its lifetime', () {
+      const config = SimulationConfig(
+        botCount: 0,
+        initialPellets: 0,
+        playerSpeed: 0,
+        maxDroppedMass: 3,
+        droppedMassLifetime: 0.5,
+      );
+      final simulation = GameSimulation(config: config);
+      for (var index = 0; index < 5; index++) {
+        simulation.droppedMass.add(
+          FoodPellet(position: Vec2(100 + index * 20, 100), value: 1),
+        );
+      }
+
+      simulation.update(1 / 60, Vec2.zero);
+      expect(simulation.droppedMass, hasLength(3));
+
+      simulation.update(0.5, Vec2.zero);
+      expect(simulation.droppedMass, isEmpty);
+    });
+
+    test('bots receive bounded catch-up growth when the player pulls ahead',
+        () {
+      const config = SimulationConfig(
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 0,
+        botCatchUpDelay: 0,
+        botCatchUpRate: 10,
+        botCatchUpTargetFraction: 0.5,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      final initialLength = bot.length;
+      simulation.player.grow(100);
+
+      simulation.update(1, Vec2.zero);
+
+      expect(bot.length, greaterThan(initialLength));
+      expect(bot.length, lessThanOrEqualTo(config.botAdaptiveMaximumLength));
+    });
+
     test('restart reproduces the seeded opening state', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(botCount: 1, initialPellets: 4),

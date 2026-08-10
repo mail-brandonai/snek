@@ -102,6 +102,11 @@ class SimulationConfig {
     this.botPeerAbortThreshold = 0.32,
     this.botAdaptiveMaximumLength = 420,
     this.botAdaptiveGrowthGap = 180,
+    this.maxDroppedMass = 480,
+    this.droppedMassLifetime = 24,
+    this.botCatchUpDelay = 18,
+    this.botCatchUpRate = 1.4,
+    this.botCatchUpTargetFraction = 0.58,
   });
 
   final double arenaRadius;
@@ -207,6 +212,11 @@ class SimulationConfig {
   final double botPeerAbortThreshold;
   final int botAdaptiveMaximumLength;
   final double botAdaptiveGrowthGap;
+  final int maxDroppedMass;
+  final double droppedMassLifetime;
+  final double botCatchUpDelay;
+  final double botCatchUpRate;
+  final double botCatchUpTargetFraction;
 }
 
 class _BotProfile {
@@ -307,11 +317,20 @@ class _DroppedMassCluster {
     required this.center,
     required this.value,
     required this.radius,
+    required this.memberCount,
   });
 
   final Vec2 center;
   final int value;
   final double radius;
+  final int memberCount;
+}
+
+class _DroppedMassBucket {
+  int value = 0;
+  int count = 0;
+  double weightedX = 0;
+  double weightedY = 0;
 }
 
 class GameSimulation {
@@ -331,6 +350,9 @@ class GameSimulation {
   final List<CollisionPing> collisionPings = [];
   final List<TelegraphEvent> telegraphEvents = [];
   final Map<String, double> _botRespawnTimers = {};
+  final Map<String, double> _botCatchUpCredits = {};
+  final Map<FoodPellet, double> _droppedMassAges = {};
+  final List<_DroppedMassCluster> _droppedMassClusters = [];
   final Map<String, _BotTacticState> _botTactics = {};
   final Map<String, _BotClosedLoopState> _botEngagementStates = {};
   final Map<String, _BotFormationRole> _botFormationRoles = {};
@@ -468,6 +490,9 @@ class GameSimulation {
     collisionPings.clear();
     telegraphEvents.clear();
     _botRespawnTimers.clear();
+    _botCatchUpCredits.clear();
+    _droppedMassAges.clear();
+    _droppedMassClusters.clear();
     _botTactics.clear();
     _botEngagementStates.clear();
     _botFormationRoles.clear();
@@ -526,6 +551,7 @@ class GameSimulation {
       _advanceCollisionPings(step);
       _advanceTelegraphEvents(step);
       elapsed += step;
+      _advanceDroppedMass(step);
       _advancePlayerSprint(step);
       _steerPlayer(steering, step);
       _observePlayerRoute(step);
@@ -539,6 +565,7 @@ class GameSimulation {
       }
       _resolveCollisions();
       _refreshPublicTelegraphs();
+      _advanceBotCatchUp(step);
       _advanceBotRespawns(step);
       _advanceBotPopulation(step);
       _maintainPelletDensity(step);
@@ -627,6 +654,7 @@ class GameSimulation {
   }
 
   void _steerBots(double dt) {
+    _rebuildDroppedMassClusters();
     _refreshBotFormation(dt);
     for (final bot in snakes.where(
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
@@ -1515,56 +1543,26 @@ class GameSimulation {
   }
 
   _DroppedMassCluster? _bestDroppedMassCluster(SnakeState bot) {
-    final strategicDrops = droppedMass.toList();
-    if (strategicDrops.isEmpty) return null;
+    if (_droppedMassClusters.isEmpty) return null;
 
     _DroppedMassCluster? best;
     var bestScore = 0.0;
-    for (final seed in strategicDrops) {
-      final members = strategicDrops
-          .where(
-            (pellet) =>
-                pellet.position.distanceTo(seed.position) <=
-                config.botDroppedMassClusterRadius,
-          )
-          .toList();
-      var totalValue = 0;
-      var totalX = 0.0;
-      var totalY = 0.0;
-      var radius = 0.0;
-      for (final member in members) {
-        totalValue += member.value;
-        totalX += member.position.x * member.value;
-        totalY += member.position.y * member.value;
-        radius = math
-            .max(
-              radius,
-              member.position.distanceTo(seed.position),
-            )
-            .toDouble();
-      }
-      final center = Vec2(
-        totalX / math.max(1, totalValue).toDouble(),
-        totalY / math.max(1, totalValue).toDouble(),
-      );
-      final distance = bot.head.distanceTo(center);
+    for (final cluster in _droppedMassClusters) {
+      final distance = bot.head.distanceTo(cluster.center);
       if (distance > config.botDroppedMassSenseRadius) continue;
 
-      final playerDistance = player.head.distanceTo(center);
+      final playerDistance = player.head.distanceTo(cluster.center);
       final contested =
           player.alive && playerDistance <= config.botDroppedMassGuardRadius
               ? 1.9
               : 1.0;
-      final score =
-          (totalValue * (1 + math.min(members.length, 8) * 0.3) * contested) /
-              math.max(140.0, distance).toDouble();
+      final score = (cluster.value *
+              (1 + math.min(cluster.memberCount, 8) * 0.3) *
+              contested) /
+          math.max(140.0, distance).toDouble();
       if (score > bestScore) {
         bestScore = score;
-        best = _DroppedMassCluster(
-          center: center,
-          value: totalValue,
-          radius: radius,
-        );
+        best = cluster;
       }
     }
     return best;
@@ -2242,18 +2240,42 @@ class GameSimulation {
     );
 
     final visibleBody = <Vec2>[];
+    final trail = snake.movementTrail;
+    var trailIndex = 0;
+    var travelled = 0.0;
+
+    Vec2 sampleAt(double distance) {
+      while (trailIndex < trail.length - 1) {
+        final start = trail[trailIndex];
+        final end = trail[trailIndex + 1];
+        final segmentLength = start.distanceTo(end);
+        if (segmentLength == 0) {
+          trailIndex++;
+          continue;
+        }
+        if (travelled + segmentLength >= distance) {
+          final fraction = (distance - travelled) / segmentLength;
+          return start + (end - start) * fraction;
+        }
+        travelled += segmentLength;
+        trailIndex++;
+      }
+
+      final last = trail.last;
+      if (trail.length < 2) return last;
+      final tailDirection = last - trail[trail.length - 2];
+      final normalized = tailDirection.length == 0
+          ? snake.heading * -1
+          : tailDirection.normalized();
+      return last + normalized * (distance - travelled);
+    }
+
     for (var index = 0; index < fullLength; index++) {
-      visibleBody.add(
-        _sampleMovementTrail(snake, index * snake.segmentSpacing),
-      );
+      visibleBody.add(sampleAt(index * snake.segmentSpacing));
     }
     if (extension > 0.0001 && visibleBody.isNotEmpty) {
-      visibleBody.add(
-        _sampleMovementTrail(
-          snake,
-          (fullLength - 1) * snake.segmentSpacing + extension,
-        ),
-      );
+      visibleBody
+          .add(sampleAt((fullLength - 1) * snake.segmentSpacing + extension));
     }
     snake.body
       ..clear()
@@ -2281,31 +2303,6 @@ class GameSimulation {
     }
   }
 
-  Vec2 _sampleMovementTrail(SnakeState snake, double distance) {
-    var travelled = 0.0;
-    final trail = snake.movementTrail;
-    for (var index = 0; index < trail.length - 1; index++) {
-      final start = trail[index];
-      final end = trail[index + 1];
-      final segmentLength = start.distanceTo(end);
-      if (segmentLength == 0) continue;
-      if (travelled + segmentLength >= distance) {
-        final fraction = (distance - travelled) / segmentLength;
-        return start + (end - start) * fraction;
-      }
-      travelled += segmentLength;
-    }
-
-    final last = trail.last;
-    if (trail.length < 2) return last;
-
-    final tailDirection = last - trail[trail.length - 2];
-    final normalized = tailDirection.length == 0
-        ? snake.heading * -1
-        : tailDirection.normalized();
-    return last + normalized * (distance - travelled);
-  }
-
   void _drainSprint(SnakeState snake, double dt) {
     final minimumLength = snake.kind == SnakeKind.bot
         ? config.botSprintMinimumLength
@@ -2324,7 +2321,7 @@ class GameSimulation {
         }
         return;
       }
-      droppedMass.add(
+      _addDroppedMass(
         FoodPellet(
           position: position,
           value: config.sprintDropValue,
@@ -2365,6 +2362,7 @@ class GameSimulation {
       final pellet = source[index];
       if (snake.head.distanceTo(pellet.position) <= snake.radius + 6) {
         source.removeAt(index);
+        _droppedMassAges.remove(pellet);
         final requestedGrowth = snake.kind == SnakeKind.bot
             ? (pellet.value *
                     config.botGrowthMultiplier *
@@ -2405,6 +2403,42 @@ class GameSimulation {
     final gap = math.max(0, player.length - bot.length).toDouble();
     final scaledMaximum = config.botMaximumLength + (gap * 0.5).round();
     return math.min(config.botAdaptiveMaximumLength, scaledMaximum).toDouble();
+  }
+
+  void _advanceBotCatchUp(double dt) {
+    if (!player.alive || elapsed < config.botCatchUpDelay) return;
+    for (final bot in snakes.where(
+      (snake) => snake.kind == SnakeKind.bot && snake.alive,
+    )) {
+      final target = math
+          .min(
+            _botAdaptiveMaximumLength(bot),
+            math.max(
+              bot.spawnLength,
+              (player.length * config.botCatchUpTargetFraction).round(),
+            ),
+          )
+          .toInt();
+      final gap = target - bot.length;
+      final credit = _botCatchUpCredits[bot.id] ?? 0;
+      if (gap <= 0) {
+        _botCatchUpCredits[bot.id] = math.max(0, credit - dt).toDouble();
+        continue;
+      }
+
+      final pressure = (gap / math.max(1, config.botAdaptiveGrowthGap))
+          .clamp(0.0, 1.0)
+          .toDouble();
+      final nextCredit =
+          credit + dt * config.botCatchUpRate * (0.55 + pressure * 0.9);
+      final growth = math.min(gap, nextCredit.floor()).toInt();
+      if (growth > 0) {
+        bot.grow(growth);
+        _botCatchUpCredits[bot.id] = nextCredit - growth;
+      } else {
+        _botCatchUpCredits[bot.id] = nextCredit;
+      }
+    }
   }
 
   void _resolveCollisions() {
@@ -2448,7 +2482,7 @@ class GameSimulation {
     }
     if (reason == GameOverReason.bodyCollision) {
       for (var index = 0; index < snake.body.length; index += 3) {
-        droppedMass.add(
+        _addDroppedMass(
           FoodPellet(
             position: snake.body[index],
             value: config.defeatDropValue,
@@ -2465,6 +2499,84 @@ class GameSimulation {
       ping.remainingSeconds -= dt;
     }
     collisionPings.removeWhere((ping) => ping.remainingSeconds <= 0);
+  }
+
+  void _addDroppedMass(FoodPellet pellet) {
+    if (config.maxDroppedMass <= 0) return;
+    droppedMass.add(pellet);
+    _droppedMassAges[pellet] = 0;
+    _enforceDroppedMassLimit();
+  }
+
+  void _advanceDroppedMass(double dt) {
+    if (droppedMass.isEmpty) return;
+    if (config.droppedMassLifetime <= 0 || config.maxDroppedMass <= 0) {
+      droppedMass.clear();
+      _droppedMassAges.clear();
+      _droppedMassClusters.clear();
+      return;
+    }
+
+    for (final pellet in droppedMass) {
+      _droppedMassAges[pellet] = (_droppedMassAges[pellet] ?? 0) + dt;
+    }
+    droppedMass.removeWhere((pellet) {
+      final expired =
+          (_droppedMassAges[pellet] ?? 0) >= config.droppedMassLifetime;
+      if (expired) _droppedMassAges.remove(pellet);
+      return expired;
+    });
+    _enforceDroppedMassLimit();
+  }
+
+  void _enforceDroppedMassLimit() {
+    while (droppedMass.length > config.maxDroppedMass) {
+      FoodPellet? oldest;
+      var oldestAge = -1.0;
+      for (final pellet in droppedMass) {
+        final age = _droppedMassAges[pellet] ?? 0;
+        if (age > oldestAge) {
+          oldest = pellet;
+          oldestAge = age;
+        }
+      }
+      if (oldest == null) break;
+      droppedMass.remove(oldest);
+      _droppedMassAges.remove(oldest);
+    }
+  }
+
+  void _rebuildDroppedMassClusters() {
+    _droppedMassClusters.clear();
+    if (droppedMass.isEmpty) return;
+
+    final bucketSize = math.max(1.0, config.botDroppedMassClusterRadius);
+    final buckets = <String, _DroppedMassBucket>{};
+    for (final pellet in droppedMass) {
+      final bucketX = (pellet.position.x / bucketSize).floor();
+      final bucketY = (pellet.position.y / bucketSize).floor();
+      final key = '$bucketX:$bucketY';
+      final bucket = buckets.putIfAbsent(key, _DroppedMassBucket.new);
+      bucket.value += pellet.value;
+      bucket.count++;
+      bucket.weightedX += pellet.position.x * pellet.value;
+      bucket.weightedY += pellet.position.y * pellet.value;
+    }
+
+    for (final bucket in buckets.values) {
+      final value = math.max(1, bucket.value);
+      _droppedMassClusters.add(
+        _DroppedMassCluster(
+          center: Vec2(
+            bucket.weightedX / value,
+            bucket.weightedY / value,
+          ),
+          value: bucket.value,
+          radius: config.botDroppedMassClusterRadius,
+          memberCount: bucket.count,
+        ),
+      );
+    }
   }
 
   void _spawnPellets(int count) {

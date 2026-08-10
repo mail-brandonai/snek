@@ -284,3 +284,23 @@ The adaptive growth response is stronger but bounded, allowing bots to recover
 some size parity when the player has created a large lead. The player can still
 outmaneuver or defeat bots; the intended change is that bot-on-bot deaths no
 longer become a free food strategy for a waiting player.
+
+## V1.19 performance and opposition balance
+
+Body reconstruction now samples the movement trail in one forward pass per
+actor instead of rescanning the trail for every visible segment. This keeps
+growth and long turns from creating a quadratic per-frame geometry cost.
+
+Dropped mass is bounded by a configurable population cap and lifetime. The
+strategic field index is rebuilt from spatial buckets once per simulation step,
+so bot planning no longer recomputes an all-pairs cluster search for every bot.
+Expired or excess drops are removed before they can accumulate into an
+unbounded render and planning workload.
+
+When the player maintains a large size lead after the opening phase, living
+bots receive bounded catch-up growth toward a fraction of the player's public
+length. This gives the opposition a real predator-capable size floor while
+preserving the existing maximum, movement penalties, collision rules, and
+actor-neutral telegraphing. Bots can still be outmaneuvered or defeated; the
+player can no longer win indefinitely by waiting for undersized bots to fail
+nearby.
