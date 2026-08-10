@@ -73,6 +73,13 @@ class SimulationConfig {
     this.botCollisionAvoidanceWeight = 4.8,
     this.botPeerSeparationRadius = 260,
     this.botPeerSeparationWeight = 2.4,
+    this.botDroppedMassSenseRadius = 1400,
+    this.botDroppedMassClusterRadius = 150,
+    this.botDroppedMassControlWeight = 5.8,
+    this.botDroppedMassGuardDistance = 190,
+    this.botDroppedMassGuardRadius = 720,
+    this.botRouteAvoidanceRadius = 210,
+    this.botRouteAvoidanceWeight = 6.4,
   });
 
   final double arenaRadius;
@@ -149,6 +156,13 @@ class SimulationConfig {
   final double botCollisionAvoidanceWeight;
   final double botPeerSeparationRadius;
   final double botPeerSeparationWeight;
+  final double botDroppedMassSenseRadius;
+  final double botDroppedMassClusterRadius;
+  final double botDroppedMassControlWeight;
+  final double botDroppedMassGuardDistance;
+  final double botDroppedMassGuardRadius;
+  final double botRouteAvoidanceRadius;
+  final double botRouteAvoidanceWeight;
 }
 
 class _BotProfile {
@@ -169,6 +183,18 @@ class _BotTacticState {
   _BotTactic mode = _BotTactic.weave;
   double remaining = 0;
   double sign = 1;
+}
+
+class _DroppedMassCluster {
+  const _DroppedMassCluster({
+    required this.center,
+    required this.value,
+    required this.radius,
+  });
+
+  final Vec2 center;
+  final int value;
+  final double radius;
 }
 
 class GameSimulation {
@@ -485,6 +511,7 @@ class GameSimulation {
       final tactical = _tacticalIntent(bot, tactic);
       final predictiveAvoidance = _predictiveCollisionAvoidance(bot);
       final peerSeparation = _peerSeparation(bot);
+      final droppedMassControl = _droppedMassControl(bot);
       final intent = (wander * _wanderWeight(bot) +
               boundary * _boundaryWeight(bot) +
               threat * _threatWeight(bot) +
@@ -492,8 +519,13 @@ class GameSimulation {
               droppedMassInterest * _droppedMassWeight(bot) +
               pressure * _pressureWeight(bot) +
               tactical * 1.55 +
-              predictiveAvoidance * config.botCollisionAvoidanceWeight +
-              peerSeparation * config.botPeerSeparationWeight)
+              predictiveAvoidance *
+                  math.max(
+                    config.botCollisionAvoidanceWeight,
+                    config.botRouteAvoidanceWeight,
+                  ) +
+              peerSeparation * config.botPeerSeparationWeight +
+              droppedMassControl * config.botDroppedMassControlWeight)
           .normalized();
       _turnBotToward(bot, intent, dt);
       _decideBotSprint(bot);
@@ -662,10 +694,20 @@ class GameSimulation {
     }
 
     final playerDistance = bot.head.distanceTo(player.head);
-    final droppedMassDistance = _nearestDroppedMassDistance(bot);
+    final droppedMassCluster = _bestDroppedMassCluster(bot);
+    final droppedMassDistance = math.min(
+      _nearestDroppedMassDistance(bot),
+      droppedMassCluster == null
+          ? double.infinity
+          : bot.head.distanceTo(droppedMassCluster.center),
+    );
     final naturalFoodDistance = _nearestNaturalFoodDistance(bot);
     final distanceLimit = config.botSprintTriggerDistance;
     var shouldSprint = false;
+    final playerNearCluster = droppedMassCluster != null &&
+        player.alive &&
+        player.head.distanceTo(droppedMassCluster.center) <=
+            config.botDroppedMassGuardRadius;
 
     switch (bot.disposition) {
       case BotDisposition.defensive:
@@ -674,12 +716,14 @@ class GameSimulation {
                 playerDistance <= distanceLimit * 0.8 &&
                 bot.length <= player.length * 1.2);
       case BotDisposition.aggressive:
-        shouldSprint = player.alive &&
-            playerDistance <= distanceLimit &&
-            bot.length >= player.length * 0.75 &&
-            bot.length <= player.length * 1.6;
+        shouldSprint = (player.alive &&
+                playerDistance <= distanceLimit &&
+                bot.length >= player.length * 0.75 &&
+                bot.length <= player.length * 1.6) ||
+            (playerNearCluster && droppedMassDistance <= distanceLimit * 1.5);
       case BotDisposition.opportunistic:
-        shouldSprint = droppedMassDistance <= distanceLimit;
+        shouldSprint = droppedMassDistance <= distanceLimit ||
+            (playerNearCluster && droppedMassDistance <= distanceLimit * 1.5);
       case BotDisposition.wanderer:
         shouldSprint = naturalFoodDistance <= distanceLimit * 0.7;
     }
@@ -883,6 +927,138 @@ class GameSimulation {
     return nearestDistance;
   }
 
+  Vec2 _droppedMassControl(SnakeState bot) {
+    final cluster = _bestDroppedMassCluster(bot);
+    if (cluster == null) return Vec2.zero;
+
+    final claimRank = _droppedMassClaimRank(bot, cluster);
+    final toCluster = cluster.center - bot.head;
+    if (toCluster.length == 0) return Vec2.zero;
+
+    final playerToCluster = cluster.center - player.head;
+    final playerDistance = player.head.distanceTo(cluster.center);
+    final playerApproaching = player.alive &&
+        playerDistance <= config.botDroppedMassGuardRadius &&
+        _alignment(player.heading, playerToCluster) >= 0.15;
+
+    Vec2 target;
+    if (playerApproaching && claimRank > 0) {
+      // The first claimant harvests. The next claimant blocks the public
+      // approach instead of joining the same pellet lane, giving the bots a
+      // way to deny a player access to a fresh defeat field.
+      final approach = playerToCluster.normalized();
+      final lateral = Vec2(-approach.y, approach.x);
+      final side = bot.colorIndex.isEven ? 1.0 : -1.0;
+      target = player.head +
+          approach * config.botDroppedMassGuardDistance +
+          lateral * (side * math.min(claimRank, 2).toDouble() * 95.0);
+    } else {
+      final toTarget = toCluster.normalized();
+      final lateral = Vec2(-toTarget.y, toTarget.x);
+      final side = bot.colorIndex.isEven ? 1.0 : -1.0;
+      final lane = claimRank == 0
+          ? 0.0
+          : side *
+              math.min(claimRank, 3).toDouble() *
+              config.botDroppedMassGuardDistance;
+      target = cluster.center + lateral * lane;
+    }
+
+    final distance = bot.head.distanceTo(target);
+    final proximity = (1 - distance / config.botDroppedMassSenseRadius)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final clusterValue = math.min(cluster.value, 12).toDouble();
+    return (target - bot.head).normalized() *
+        (0.55 + proximity * 0.45) *
+        (1 + clusterValue * 0.08);
+  }
+
+  _DroppedMassCluster? _bestDroppedMassCluster(SnakeState bot) {
+    final defeatDrops = droppedMass
+        .where((pellet) => pellet.kind == FoodPelletKind.defeatDrop)
+        .toList();
+    if (defeatDrops.isEmpty) return null;
+
+    _DroppedMassCluster? best;
+    var bestScore = 0.0;
+    for (final seed in defeatDrops) {
+      final members = defeatDrops
+          .where(
+            (pellet) =>
+                pellet.position.distanceTo(seed.position) <=
+                config.botDroppedMassClusterRadius,
+          )
+          .toList();
+      var totalValue = 0;
+      var totalX = 0.0;
+      var totalY = 0.0;
+      var radius = 0.0;
+      for (final member in members) {
+        totalValue += member.value;
+        totalX += member.position.x * member.value;
+        totalY += member.position.y * member.value;
+        radius = math
+            .max(
+              radius,
+              member.position.distanceTo(seed.position),
+            )
+            .toDouble();
+      }
+      final center = Vec2(
+        totalX / math.max(1, totalValue).toDouble(),
+        totalY / math.max(1, totalValue).toDouble(),
+      );
+      final distance = bot.head.distanceTo(center);
+      if (distance > config.botDroppedMassSenseRadius) continue;
+
+      final playerDistance = player.head.distanceTo(center);
+      final contested =
+          player.alive && playerDistance <= config.botDroppedMassGuardRadius
+              ? 1.9
+              : 1.0;
+      final score =
+          (totalValue * (1 + math.min(members.length, 8) * 0.3) * contested) /
+              math.max(140.0, distance).toDouble();
+      if (score > bestScore) {
+        bestScore = score;
+        best = _DroppedMassCluster(
+          center: center,
+          value: totalValue,
+          radius: radius,
+        );
+      }
+    }
+    return best;
+  }
+
+  int _droppedMassClaimRank(
+    SnakeState bot,
+    _DroppedMassCluster cluster,
+  ) {
+    final candidates = snakes
+        .where(
+          (candidate) =>
+              candidate.kind == SnakeKind.bot &&
+              candidate.alive &&
+              !candidate.retreating &&
+              candidate.head.distanceTo(cluster.center) <=
+                  config.botDroppedMassSenseRadius,
+        )
+        .toList()
+      ..sort((left, right) {
+        final leftArrival = left.head.distanceTo(cluster.center) /
+            math.max(1.0, _effectiveSpeed(left));
+        final rightArrival = right.head.distanceTo(cluster.center) /
+            math.max(1.0, _effectiveSpeed(right));
+        final arrivalOrder = leftArrival.compareTo(rightArrival);
+        if (arrivalOrder != 0) return arrivalOrder;
+        return left.id.compareTo(right.id);
+      });
+    final rank = candidates.indexWhere((candidate) => candidate.id == bot.id);
+    return rank < 0 ? candidates.length : rank;
+  }
+
   Vec2 _playerPressure(SnakeState bot) {
     if (!player.alive) return Vec2.zero;
 
@@ -950,27 +1126,40 @@ class GameSimulation {
   Vec2 _predictiveCollisionAvoidance(SnakeState snake) {
     var avoidance = Vec2.zero;
     final speed = _effectiveSpeed(snake);
+    final lookahead = config.botCollisionLookahead;
     final samples = math.max(1, config.botCollisionSampleCount).toInt();
     if (speed <= 0 || samples <= 0) return avoidance;
 
     for (final other in snakes.where(
       (candidate) => candidate.id != snake.id && candidate.alive,
     )) {
+      final otherSpeed = _effectiveSpeed(other);
       for (var sample = 1; sample <= samples; sample++) {
         final progress = sample / samples;
-        final future = snake.head +
-            snake.heading * (speed * config.botCollisionLookahead * progress);
+        final future =
+            snake.head + snake.heading * (speed * lookahead * progress);
+        final otherTravel = other.heading * (otherSpeed * lookahead * progress);
         for (final segment in other.body.skip(1)) {
-          final offset = future - segment;
+          // Treat the other body as moving with its current public heading.
+          // A static-body test reacts after two snakes have already selected
+          // the same lane; this projected body test creates room before the
+          // crossing occurs.
+          final projectedSegment = segment + otherTravel;
+          final offset = future - projectedSegment;
           final distance = offset.length;
-          if (distance <= 0 || distance >= config.botCollisionAvoidanceRadius) {
+          final avoidanceRadius = math
+              .max(
+                config.botCollisionAvoidanceRadius,
+                config.botRouteAvoidanceRadius,
+              )
+              .toDouble();
+          if (distance <= 0 || distance >= avoidanceRadius) {
             continue;
           }
 
-          final urgency = (config.botCollisionAvoidanceRadius - distance) /
-              config.botCollisionAvoidanceRadius;
+          final urgency = (avoidanceRadius - distance) / avoidanceRadius;
           var escape = offset.normalized();
-          if (_alignment(snake.heading, segment - future) > 0.15) {
+          if (_alignment(snake.heading, projectedSegment - future) > 0.15) {
             final side = Vec2(-snake.heading.y, snake.heading.x) *
                 (snake.id.compareTo(other.id) <= 0 ? 1.0 : -1.0);
             escape = (escape * 0.35 + side * 0.9).normalized();
@@ -984,6 +1173,8 @@ class GameSimulation {
 
   Vec2 _peerSeparation(SnakeState bot) {
     var separation = Vec2.zero;
+    final samples = math.max(1, config.botCollisionSampleCount).toInt();
+    final lookahead = config.botCollisionLookahead;
     for (final other in snakes.where(
       (candidate) =>
           candidate.kind == SnakeKind.bot &&
@@ -999,6 +1190,29 @@ class GameSimulation {
       final urgency = (config.botPeerSeparationRadius - distance) /
           config.botPeerSeparationRadius;
       separation += offset.normalized() * (urgency * urgency);
+
+      final botSpeed = _effectiveSpeed(bot);
+      final otherSpeed = _effectiveSpeed(other);
+      for (var sample = 1; sample <= samples; sample++) {
+        final progress = sample / samples;
+        final future =
+            bot.head + bot.heading * (botSpeed * lookahead * progress);
+        final otherFuture =
+            other.head + other.heading * (otherSpeed * lookahead * progress);
+        final routeOffset = future - otherFuture;
+        final routeDistance = routeOffset.length;
+        if (routeDistance <= 0 ||
+            routeDistance >= config.botPeerSeparationRadius) {
+          continue;
+        }
+        final routeUrgency = (config.botPeerSeparationRadius - routeDistance) /
+            config.botPeerSeparationRadius;
+        var escape = routeOffset.normalized();
+        final side = Vec2(-bot.heading.y, bot.heading.x) *
+            (bot.id.compareTo(other.id) <= 0 ? 1.0 : -1.0);
+        escape = (escape * 0.4 + side * 0.8).normalized();
+        separation += escape * (routeUrgency * routeUrgency);
+      }
     }
     return separation.normalized();
   }

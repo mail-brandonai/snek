@@ -629,6 +629,63 @@ void main() {
       expect(bot.heading.y, greaterThan(-1));
     });
 
+    test('bots react to large defeat fields beyond local food sense', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 2000,
+          botCount: 1,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 0,
+          botTurnRate: 20,
+          botDroppedMassControlWeight: 8,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 700);
+      bot.heading = const Vec2(0, 1);
+      for (var index = 0; index < 5; index++) {
+        simulation.droppedMass.add(
+          FoodPellet(
+            position: Vec2(index * 18.0, 0),
+            value: 3,
+            kind: FoodPelletKind.defeatDrop,
+          ),
+        );
+      }
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(bot.heading.y, lessThan(1));
+      expect(bot.heading.y, greaterThan(-1));
+    });
+
+    test('bots predict moving peer routes before they converge', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 2000,
+          botCount: 2,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 120,
+          botTurnRate: 20,
+          botEngagementRadius: 0,
+        ),
+      );
+      final first = simulation.snakes[1];
+      final second = simulation.snakes[2];
+      first.body[0] = const Vec2(0, -70);
+      first.heading = const Vec2(0, 1);
+      second.body[0] = const Vec2(0, 70);
+      second.heading = const Vec2(0, -1);
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(first.heading.x.abs(), greaterThan(0.01));
+      expect(second.heading.x.abs(), greaterThan(0.01));
+      expect(first.heading.x * second.heading.x, lessThan(0));
+    });
+
     test('collecting a pellet increases score and length', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(

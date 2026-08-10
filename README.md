@@ -163,6 +163,20 @@ interactions without granting hidden information or unlimited acceleration.
 The existing actor-neutral telegraph state continues to describe the movement
 that is actually visible in the arena.
 
+## V1.13 arena control
+
+Defeat drops are now treated as shared strategic objectives rather than only
+nearby food. Bots detect dense defeat fields at a longer range, assign a
+deterministic claimant, and use separated harvesting or blocking lanes when a
+player is approaching the field. Opportunistic and aggressive bots can sprint
+to contest a fresh collision field, while the remaining bots avoid piling into
+the same centre line.
+
+Bot route avoidance now projects nearby bodies and peer heads forward using
+their current public movement. This creates an early yield or side-step before
+two bots select intersecting lanes, while deliberate body traps and ordinary
+collision rules remain valid.
+
 The tactical HUD is optional and disabled by default. The base score, rank,
 leaderboard, minimap, boundary, collision, and restart feedback remain visible;
 the player can enable the extra threat and tactical minimap signals with the
