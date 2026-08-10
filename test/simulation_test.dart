@@ -605,6 +605,61 @@ void main() {
       expect(bot.heading.y, lessThan(1));
     });
 
+    test('bots abandon an unsafe player intercept and sidestep the body lane',
+        () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 2000,
+          botCount: 1,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 120,
+          botTurnRate: 20,
+          botDefensiveAvoidanceWeight: 14,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 150);
+      bot.heading = const Vec2(0, -1);
+      bot.sprinting = true;
+      bot.sprintRequested = true;
+      bot.botSprintRemaining = 0.8;
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(bot.heading.x.abs(), greaterThan(0.01));
+      expect(bot.sprinting, isFalse);
+      expect(bot.botSprintCooldownRemaining, greaterThan(0));
+    });
+
+    test('a sharp player evasion invalidates the bot tactical commitment', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 2000,
+          botCount: 1,
+          initialPellets: 0,
+          playerSpeed: 100,
+          botSpeed: 100,
+          botTurnRate: 20,
+          botTacticDecisionMin: 2,
+          botTacticDecisionMax: 2,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 260);
+      bot.heading = const Vec2(0, -1);
+      simulation.player.heading = const Vec2(1, 0);
+
+      simulation.update(0.1, Vec2.zero);
+      final firstHeading = bot.heading;
+
+      simulation.player.heading = const Vec2(-1, 0);
+      simulation.update(0.1, Vec2.zero);
+
+      expect(bot.heading, isNot(firstHeading));
+      expect(bot.movementCommitment, lessThan(1));
+    });
+
     test('bots prioritize nearby dropped mass as a reaction opportunity', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(

@@ -80,6 +80,9 @@ class SimulationConfig {
     this.botDroppedMassGuardRadius = 720,
     this.botRouteAvoidanceRadius = 210,
     this.botRouteAvoidanceWeight = 6.4,
+    this.botDefensiveAvoidanceRadius = 190,
+    this.botDefensiveAvoidanceWeight = 11.0,
+    this.botAdaptiveLeadTime = 1.2,
   });
 
   final double arenaRadius;
@@ -163,6 +166,9 @@ class SimulationConfig {
   final double botDroppedMassGuardRadius;
   final double botRouteAvoidanceRadius;
   final double botRouteAvoidanceWeight;
+  final double botDefensiveAvoidanceRadius;
+  final double botDefensiveAvoidanceWeight;
+  final double botAdaptiveLeadTime;
 }
 
 class _BotProfile {
@@ -183,6 +189,15 @@ class _BotTacticState {
   _BotTactic mode = _BotTactic.weave;
   double remaining = 0;
   double sign = 1;
+  Vec2? plannedPlayerHeading;
+  Vec2? plannedPlayerPosition;
+}
+
+class _BotRouteRisk {
+  const _BotRouteRisk({required this.escape, required this.urgency});
+
+  final Vec2 escape;
+  final double urgency;
 }
 
 class _DroppedMassCluster {
@@ -512,21 +527,34 @@ class GameSimulation {
       final predictiveAvoidance = _predictiveCollisionAvoidance(bot);
       final peerSeparation = _peerSeparation(bot);
       final droppedMassControl = _droppedMassControl(bot);
-      final intent = (wander * _wanderWeight(bot) +
-              boundary * _boundaryWeight(bot) +
-              threat * _threatWeight(bot) +
-              interest * _foodWeight(bot) +
-              droppedMassInterest * _droppedMassWeight(bot) +
-              pressure * _pressureWeight(bot) +
-              tactical * 1.55 +
-              predictiveAvoidance *
-                  math.max(
-                    config.botCollisionAvoidanceWeight,
-                    config.botRouteAvoidanceWeight,
-                  ) +
-              peerSeparation * config.botPeerSeparationWeight +
-              droppedMassControl * config.botDroppedMassControlWeight)
-          .normalized();
+      final routeRisk = _playerRouteRisk(bot);
+      if (routeRisk.urgency >= 0.58) {
+        _interruptBotPursuit(bot);
+      }
+      final baseIntent = wander * _wanderWeight(bot) +
+          boundary * _boundaryWeight(bot) +
+          threat * _threatWeight(bot) +
+          interest * _foodWeight(bot) +
+          droppedMassInterest * _droppedMassWeight(bot) +
+          pressure * _pressureWeight(bot) +
+          tactical * 1.55 +
+          predictiveAvoidance *
+              math.max(
+                config.botCollisionAvoidanceWeight,
+                config.botRouteAvoidanceWeight,
+              ) +
+          peerSeparation * config.botPeerSeparationWeight +
+          droppedMassControl * config.botDroppedMassControlWeight;
+      final intent = routeRisk.urgency >= 0.58
+          ? (routeRisk.escape *
+                      (config.botDefensiveAvoidanceWeight +
+                          routeRisk.urgency * 5) +
+                  baseIntent * 0.3)
+              .normalized()
+          : (baseIntent +
+                  routeRisk.escape *
+                      (routeRisk.urgency * config.botDefensiveAvoidanceWeight))
+              .normalized();
       _turnBotToward(bot, intent, dt);
       _decideBotSprint(bot);
     }
@@ -534,6 +562,20 @@ class GameSimulation {
 
   _BotTactic _advanceBotTactic(SnakeState bot, double dt) {
     final state = _botTactics.putIfAbsent(bot.id, _BotTacticState.new);
+    final headingChanged = state.plannedPlayerHeading != null &&
+        _alignment(state.plannedPlayerHeading!, player.heading) < 0.58;
+    final lateralReplan = state.plannedPlayerPosition != null &&
+        player.head.distanceTo(state.plannedPlayerPosition!) > 120 &&
+        _alignment(
+              player.heading,
+              player.head - state.plannedPlayerPosition!,
+            ) <
+            0.35;
+    if (headingChanged || lateralReplan) {
+      // A tactic is a short commitment, not a locked target. A sharp player
+      // turn or lateral escape invalidates the old intercept lane immediately.
+      state.remaining = 0;
+    }
     state.remaining -= dt;
     if (state.remaining > 0) return state.mode;
 
@@ -542,6 +584,8 @@ class GameSimulation {
     final maximum = math.max(minimum, config.botTacticDecisionMax);
     state.remaining = minimum + _random.nextDouble() * (maximum - minimum);
     state.sign = _random.nextBool() ? 1 : -1;
+    state.plannedPlayerHeading = player.heading;
+    state.plannedPlayerPosition = player.head;
     bot.tacticalTurnRateMultiplier = 1 -
         config.botTacticTurnVariance / 2 +
         _random.nextDouble() * config.botTacticTurnVariance;
@@ -693,6 +737,8 @@ class GameSimulation {
       return;
     }
 
+    if (_playerRouteRisk(bot).urgency >= 0.48) return;
+
     final playerDistance = bot.head.distanceTo(player.head);
     final droppedMassCluster = _bestDroppedMassCluster(bot);
     final droppedMassDistance = math.min(
@@ -747,6 +793,16 @@ class GameSimulation {
     bot.sprintDrainAccumulator = 0;
     bot.botSprintCooldownRemaining = config.botSprintCooldown;
     _recordTelegraphEvent(bot, TelegraphEventKind.sprintEnded);
+  }
+
+  void _interruptBotPursuit(SnakeState bot) {
+    if (bot.sprinting || bot.sprintRequested) {
+      _cancelSprintRequest(bot);
+    }
+    final state = _botTactics.putIfAbsent(bot.id, _BotTacticState.new);
+    state.mode = _BotTactic.disengage;
+    state.remaining = math.min(state.remaining, 0.35).toDouble();
+    state.sign = bot.id.hashCode.isEven ? 1 : -1;
   }
 
   void _turnBotToward(SnakeState bot, Vec2 intent, double dt) {
@@ -1169,6 +1225,59 @@ class GameSimulation {
       }
     }
     return avoidance.normalized();
+  }
+
+  _BotRouteRisk _playerRouteRisk(SnakeState bot) {
+    if (!player.alive || _effectiveSpeed(bot) <= 0) {
+      return const _BotRouteRisk(escape: Vec2.zero, urgency: 0);
+    }
+
+    final speed = _effectiveSpeed(bot);
+    final playerSpeed = _effectiveSpeed(player);
+    final lookahead = math.max(
+      config.botCollisionLookahead,
+      config.botAdaptiveLeadTime,
+    );
+    final samples = math.max(2, config.botCollisionSampleCount).toInt();
+    final radius = math
+        .max(
+          config.botDefensiveAvoidanceRadius,
+          bot.radius + player.radius + 26,
+        )
+        .toDouble();
+    var escape = Vec2.zero;
+    var maximumUrgency = 0.0;
+
+    for (var sample = 1; sample <= samples; sample++) {
+      final progress = sample / samples;
+      final future = bot.head + bot.heading * (speed * lookahead * progress);
+      final playerTravel =
+          player.heading * (playerSpeed * lookahead * progress);
+      for (final segment in player.body.skip(1)) {
+        final projectedSegment = segment + playerTravel;
+        final offset = future - projectedSegment;
+        final distance = offset.length;
+        if (distance >= radius) continue;
+
+        final urgency = ((radius - distance) / radius).clamp(0.0, 1.0);
+        maximumUrgency = math.max(maximumUrgency, urgency).toDouble();
+        final away = distance == 0
+            ? Vec2(-bot.heading.y, bot.heading.x) *
+                (bot.id.compareTo(player.id) <= 0 ? 1.0 : -1.0)
+            : offset.normalized();
+        final lateral = Vec2(-bot.heading.y, bot.heading.x) *
+            (bot.id.compareTo(player.id) <= 0 ? 1.0 : -1.0);
+        // Side-step first, then open distance. This avoids the common failure
+        // where a bot brakes toward the same player body it was pursuing.
+        escape +=
+            (away * 0.35 + lateral * 0.95).normalized() * (urgency * urgency);
+      }
+    }
+
+    return _BotRouteRisk(
+      escape: escape.normalized(),
+      urgency: maximumUrgency,
+    );
   }
 
   Vec2 _peerSeparation(SnakeState bot) {

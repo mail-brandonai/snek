@@ -196,3 +196,16 @@ Peer separation reduces same-cluster head approaches before they become
 collision events, while the ordinary collision rules and visible actor
 telegraphs remain unchanged. These changes reduce accidental bot-on-bot and
 bot-on-player deaths without making bots immune to deliberate body traps.
+
+## V1.14 adaptive pursuit defense
+
+Bot pursuit is now interruptible. Each bot continually re-plans from the
+player's current public heading and position; a sharp heading reversal or
+lateral evasion invalidates the previous tactical commitment instead of
+leaving the bot on a stale intercept lane.
+
+Projected player-body crossings have priority over pursuit and sprinting. When
+an intercept lane becomes unsafe, the bot cancels its sprint, takes a bounded
+side-step, and briefly disengages before selecting a new approach. This keeps
+aggressive pressure possible while preventing the kamikaze behavior where a
+bot continues through the player's defensive body position.
