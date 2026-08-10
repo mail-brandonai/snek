@@ -225,3 +225,22 @@ pressure, or on an unsafe player crossing; otherwise the bot can re-enter
 engagement, contest a defeat field, and help deny the player's feeding route.
 The result is stronger pressure without making bots collision-immune or
 granting them hidden information.
+
+## V1.16 closed-loop engagement
+
+Bot pursuit now closes the loop around the player's observed route. The
+simulation estimates recent heading change and projects a short curved route,
+so bots can choose an approach around a turn instead of repeatedly aiming at a
+stale straight-line intercept.
+
+Engagement is represented as bounded public-state modes: observe, intercept,
+screen, deny, harvest, abort, and re-plan. A player evasion advances the bot to
+a fresh lane, while unsafe projected body crossings still take precedence over
+attack pressure. Bots also coordinate around contested defeat fields by giving
+the nearest claimant a harvesting lane and assigning nearby rivals to deny or
+screen the player's approach.
+
+The planner remains deterministic, candidate-scored, and actor-neutral. It
+uses only positions, headings, bodies, speeds, food fields, and collision risk
+already available to the simulation; it does not grant bots hidden warnings or
+future player input.

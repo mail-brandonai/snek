@@ -85,6 +85,11 @@ class SimulationConfig {
     this.botDefensiveAvoidanceRadius = 190,
     this.botDefensiveAvoidanceWeight = 11.0,
     this.botAdaptiveLeadTime = 1.2,
+    this.botClosedLoopWeight = 8.0,
+    this.botCurvedRouteLeadTime = 2.8,
+    this.botEvasionReplanDistance = 120,
+    this.botScreenDistance = 220,
+    this.botDenyDistance = 170,
   });
 
   final double arenaRadius;
@@ -173,6 +178,11 @@ class SimulationConfig {
   final double botDefensiveAvoidanceRadius;
   final double botDefensiveAvoidanceWeight;
   final double botAdaptiveLeadTime;
+  final double botClosedLoopWeight;
+  final double botCurvedRouteLeadTime;
+  final double botEvasionReplanDistance;
+  final double botScreenDistance;
+  final double botDenyDistance;
 }
 
 class _BotProfile {
@@ -189,12 +199,30 @@ class _BotProfile {
 
 enum _BotTactic { feint, cutoff, flank, encircle, bait, disengage, weave }
 
+enum _BotEngagementMode {
+  observe,
+  intercept,
+  screen,
+  deny,
+  harvest,
+  abort,
+  replan,
+}
+
 class _BotTacticState {
   _BotTactic mode = _BotTactic.weave;
   double remaining = 0;
   double sign = 1;
   Vec2? plannedPlayerHeading;
   Vec2? plannedPlayerPosition;
+}
+
+class _BotClosedLoopState {
+  _BotEngagementMode mode = _BotEngagementMode.observe;
+  double remaining = 0;
+  double evasionCooldown = 0;
+  int lane = 0;
+  Vec2? expectedPlayerPosition;
 }
 
 class _BotRouteRisk {
@@ -246,6 +274,9 @@ class GameSimulation {
   final List<TelegraphEvent> telegraphEvents = [];
   final Map<String, double> _botRespawnTimers = {};
   final Map<String, _BotTacticState> _botTactics = {};
+  final Map<String, _BotClosedLoopState> _botEngagementStates = {};
+  Vec2 _observedPlayerHeading = const Vec2(1, 0);
+  double _observedPlayerTurnRate = 0;
   double elapsed = 0;
   double _pelletRefillAccumulator = 0;
   double _botPopulationAccumulator = 0;
@@ -378,6 +409,9 @@ class GameSimulation {
     telegraphEvents.clear();
     _botRespawnTimers.clear();
     _botTactics.clear();
+    _botEngagementStates.clear();
+    _observedPlayerHeading = const Vec2(1, 0);
+    _observedPlayerTurnRate = 0;
     elapsed = 0;
     _pelletRefillAccumulator = 0;
     _botPopulationAccumulator = 0;
@@ -431,6 +465,7 @@ class GameSimulation {
       elapsed += step;
       _advancePlayerSprint(step);
       _steerPlayer(steering, step);
+      _observePlayerRoute(step);
       _steerBots(step);
 
       for (final snake in snakes.where((item) => item.alive)) {
@@ -514,6 +549,20 @@ class GameSimulation {
     _recordTelegraphEvent(actor, TelegraphEventKind.sprintStarted);
   }
 
+  void _observePlayerRoute(double dt) {
+    final previousHeading = _observedPlayerHeading;
+    final currentHeading = player.heading;
+    final turn = _shortestAngle(
+      currentHeading.angle - previousHeading.angle,
+    );
+    final instantaneousTurnRate = dt <= 0 ? 0.0 : turn / dt;
+    _observedPlayerTurnRate = (_observedPlayerTurnRate * 0.65 +
+            instantaneousTurnRate.clamp(-8.0, 8.0).toDouble() * 0.35)
+        .clamp(-8.0, 8.0)
+        .toDouble();
+    _observedPlayerHeading = currentHeading;
+  }
+
   void _steerBots(double dt) {
     for (final bot in snakes.where(
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
@@ -544,6 +593,8 @@ class GameSimulation {
       final peerSeparation = _peerSeparation(bot);
       final droppedMassControl = _droppedMassControl(bot);
       final routeRisk = _playerRouteRisk(bot);
+      final closedLoop = _closedLoopEngagement(bot, dt);
+      final closedLoopIntent = _closedLoopIntent(bot, closedLoop);
       if (routeRisk.urgency >= 0.58) {
         _interruptBotPursuit(bot);
       }
@@ -560,7 +611,8 @@ class GameSimulation {
                 config.botRouteAvoidanceWeight,
               ) +
           peerSeparation * config.botPeerSeparationWeight +
-          droppedMassControl * config.botDroppedMassControlWeight;
+          droppedMassControl * config.botDroppedMassControlWeight +
+          closedLoopIntent * config.botClosedLoopWeight;
       final intent = routeRisk.urgency >= 0.58
           ? (routeRisk.escape *
                       (config.botDefensiveAvoidanceWeight +
@@ -574,6 +626,188 @@ class GameSimulation {
       _turnBotToward(bot, intent, dt);
       _decideBotSprint(bot);
     }
+  }
+
+  _BotEngagementMode _closedLoopEngagement(SnakeState bot, double dt) {
+    final state = _botEngagementStates.putIfAbsent(
+      bot.id,
+      _BotClosedLoopState.new,
+    );
+    state.remaining = math.max(0, state.remaining - dt).toDouble();
+    state.evasionCooldown = math.max(0, state.evasionCooldown - dt).toDouble();
+
+    final previousTarget = state.expectedPlayerPosition;
+    final playerTurned = _observedPlayerTurnRate.abs() >= 0.75;
+    final departedLane = previousTarget != null &&
+        _alignment(
+              player.heading,
+              previousTarget - player.head,
+            ) <
+            0.2 &&
+        player.head.distanceTo(previousTarget) >=
+            config.botEvasionReplanDistance;
+    final evaded = state.evasionCooldown <= 0 && (playerTurned || departedLane);
+    if (evaded) {
+      state.lane = (state.lane + 1) % 3;
+      state.evasionCooldown = 0.7;
+      state.mode = _BotEngagementMode.replan;
+      state.remaining = 0.35;
+    }
+
+    final routeRisk = _playerRouteRisk(bot);
+    if (routeRisk.urgency >= 0.72) {
+      state.mode = _BotEngagementMode.abort;
+      state.remaining = math.min(state.remaining, 0.35).toDouble();
+      state.expectedPlayerPosition = _playerRoutePoint(0.45);
+      return state.mode;
+    }
+
+    if (state.remaining > 0 && state.mode != _BotEngagementMode.replan) {
+      state.expectedPlayerPosition = _playerRoutePoint(0.45);
+      return state.mode;
+    }
+
+    final cluster = _bestDroppedMassCluster(bot);
+    final clusterContested = cluster != null &&
+        player.alive &&
+        player.head.distanceTo(cluster.center) <=
+            config.botDroppedMassGuardRadius;
+    if (clusterContested) {
+      final claimRank = _droppedMassClaimRank(bot, cluster);
+      state.mode = claimRank == 0
+          ? _BotEngagementMode.harvest
+          : claimRank == 1
+              ? _BotEngagementMode.deny
+              : _BotEngagementMode.screen;
+      state.remaining = state.mode == _BotEngagementMode.harvest ? 0.85 : 0.65;
+    } else if (player.alive &&
+        bot.head.distanceTo(player.head) <= config.botEngagementRadius) {
+      final rank = _playerEngagementRank(bot);
+      state.mode = rank == 0
+          ? _BotEngagementMode.intercept
+          : rank == 1
+              ? _BotEngagementMode.screen
+              : _BotEngagementMode.deny;
+      state.remaining = state.mode == _BotEngagementMode.intercept ? 0.75 : 0.6;
+    } else {
+      state.mode = _BotEngagementMode.observe;
+      state.remaining = 0.45;
+    }
+
+    state.expectedPlayerPosition = _playerRoutePoint(0.45);
+    return state.mode;
+  }
+
+  Vec2 _closedLoopIntent(
+    SnakeState bot,
+    _BotEngagementMode mode,
+  ) {
+    if (!player.alive) return Vec2.zero;
+    final state = _botEngagementStates[bot.id];
+    final side = bot.colorIndex.isEven ? 1.0 : -1.0;
+    final lateral = Vec2(-player.heading.y, player.heading.x);
+    final lead = math.max(config.botCurvedRouteLeadTime, 0.8).toDouble();
+
+    Vec2 target;
+    switch (mode) {
+      case _BotEngagementMode.observe:
+        return Vec2.zero;
+      case _BotEngagementMode.replan:
+      case _BotEngagementMode.intercept:
+        final lane = state?.lane ?? 0;
+        final offsets = <double>[
+          side * config.botEngagementLaneDistance * 0.35,
+          side * config.botEngagementLaneDistance,
+          -side * config.botEngagementLaneDistance * 0.7,
+        ];
+        target = _bestClosedLoopTarget(
+          bot,
+          lead,
+          offsets[(lane + 1) % offsets.length],
+          offsets,
+        );
+      case _BotEngagementMode.screen:
+        final lane = state?.lane ?? 0;
+        final offsets = <double>[
+          side * config.botScreenDistance,
+          -side * config.botScreenDistance,
+          side * config.botScreenDistance * 0.45,
+        ];
+        target = _bestClosedLoopTarget(
+          bot,
+          lead * 0.78,
+          offsets[lane % offsets.length],
+          offsets,
+        );
+      case _BotEngagementMode.deny:
+        final cluster = _bestDroppedMassCluster(bot);
+        if (cluster != null &&
+            player.head.distanceTo(cluster.center) <=
+                config.botDroppedMassGuardRadius) {
+          final approach = (cluster.center - player.head).normalized();
+          target = player.head +
+              approach * config.botDenyDistance +
+              lateral * side * config.botScreenDistance * 0.45;
+        } else {
+          target = _bestClosedLoopTarget(
+            bot,
+            lead * 0.9,
+            -side * config.botDenyDistance,
+            <double>[
+              -side * config.botDenyDistance,
+              side * config.botDenyDistance,
+            ],
+          );
+        }
+      case _BotEngagementMode.harvest:
+        final cluster = _bestDroppedMassCluster(bot);
+        if (cluster == null) return Vec2.zero;
+        target = cluster.center +
+            lateral * side * config.botEngagementLaneDistance * 0.3;
+      case _BotEngagementMode.abort:
+        final risk = _playerRouteRisk(bot);
+        final escape = risk.escape.length == 0
+            ? (bot.head - player.head).normalized()
+            : risk.escape;
+        target = bot.head + escape * config.botScreenDistance * 1.8;
+    }
+
+    final direction = target - bot.head;
+    return direction.length == 0 ? Vec2.zero : direction.normalized();
+  }
+
+  Vec2 _bestClosedLoopTarget(
+    SnakeState bot,
+    double lead,
+    double preferredOffset,
+    List<double> offsets,
+  ) {
+    var bestTarget = _playerRoutePoint(lead) +
+        Vec2(-player.heading.y, player.heading.x) * preferredOffset;
+    var bestScore = double.infinity;
+    for (final offset in offsets) {
+      final candidate = _playerRoutePoint(lead) +
+          Vec2(-player.heading.y, player.heading.x) * offset;
+      final risk = _engagementLaneRisk(bot, candidate);
+      final preferencePenalty = (offset - preferredOffset).abs() /
+          math.max(config.botEngagementLaneDistance, 1.0);
+      final score = risk * 8 + preferencePenalty * 0.16;
+      if (score < bestScore) {
+        bestScore = score;
+        bestTarget = candidate;
+      }
+    }
+    return bestTarget;
+  }
+
+  Vec2 _playerRoutePoint(double seconds) {
+    final speed = _effectiveSpeed(player);
+    final lateral = Vec2(-player.heading.y, player.heading.x);
+    final curveOffset =
+        speed * _observedPlayerTurnRate * seconds * seconds * 0.5;
+    return player.head +
+        player.heading * (speed * seconds) +
+        lateral * curveOffset;
   }
 
   _BotTactic _advanceBotTactic(SnakeState bot, double dt) {
@@ -1255,7 +1489,7 @@ class GameSimulation {
           .toDouble();
       final future = bot.head + direction * travel;
       final playerTravel =
-          player.heading * (_effectiveSpeed(player) * lookahead * progress);
+          _playerRoutePoint(lookahead * progress) - player.head;
       for (final segment in player.body.skip(2)) {
         final distance = future.distanceTo(segment + playerTravel);
         if (distance >= bodyRadius) continue;
@@ -1293,8 +1527,7 @@ class GameSimulation {
   }
 
   int _playerEngagementRank(SnakeState bot) {
-    final target = player.head +
-        player.heading * (player.speed * config.botEngagementLeadTime);
+    final target = _playerRoutePoint(config.botEngagementLeadTime);
     final candidates = snakes
         .where(
           (candidate) =>
@@ -1372,7 +1605,6 @@ class GameSimulation {
     }
 
     final speed = _effectiveSpeed(bot);
-    final playerSpeed = _effectiveSpeed(player);
     final lookahead = math.max(
       config.botCollisionLookahead,
       config.botAdaptiveLeadTime,
@@ -1391,7 +1623,7 @@ class GameSimulation {
       final progress = sample / samples;
       final future = bot.head + bot.heading * (speed * lookahead * progress);
       final playerTravel =
-          player.heading * (playerSpeed * lookahead * progress);
+          _playerRoutePoint(lookahead * progress) - player.head;
       for (final segment in player.body.skip(1)) {
         final projectedSegment = segment + playerTravel;
         final offset = future - projectedSegment;

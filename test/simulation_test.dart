@@ -791,6 +791,72 @@ void main() {
       expect(first.heading.y * second.heading.y, lessThan(0));
     });
 
+    test('closed-loop pursuit replans after a player route change', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 120,
+        botSpeed: 120,
+        botTurnRate: 20,
+        botEngagementRadius: 1000,
+        botEngagementWeight: 0,
+        botClosedLoopWeight: 12,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 360);
+      bot.heading = const Vec2(0, -1);
+      simulation.player.heading = const Vec2(1, 0);
+
+      simulation.update(0.1, Vec2.zero);
+      final firstHeading = bot.heading;
+
+      simulation.player.heading = const Vec2(0, 1);
+      simulation.update(0.1, Vec2.zero);
+
+      expect(
+        bot.heading.distanceTo(firstHeading),
+        greaterThan(0.01),
+      );
+    });
+
+    test('closed-loop drop control separates harvest and denial lanes', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 2,
+        initialPellets: 0,
+        playerSpeed: 100,
+        botSpeed: 100,
+        botTurnRate: 20,
+        botEngagementRadius: 1000,
+        botClosedLoopWeight: 12,
+      );
+      final simulation = GameSimulation(config: config);
+      final first = simulation.snakes[1];
+      final second = simulation.snakes[2];
+      first.body[0] = const Vec2(-260, 0);
+      second.body[0] = const Vec2(260, 0);
+      first.heading = const Vec2(1, 0);
+      second.heading = const Vec2(-1, 0);
+      simulation.droppedMass.addAll([
+        const FoodPellet(
+          position: Vec2(0, 160),
+          value: 3,
+          kind: FoodPelletKind.defeatDrop,
+        ),
+        const FoodPellet(
+          position: Vec2(24, 160),
+          value: 3,
+          kind: FoodPelletKind.defeatDrop,
+        ),
+      ]);
+
+      simulation.update(0.1, Vec2.zero);
+
+      expect(first.heading.y * second.heading.y, lessThan(0));
+    });
+
     test('collecting a pellet increases score and length', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(
