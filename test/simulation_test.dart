@@ -35,9 +35,7 @@ void main() {
       final simulation = GameSimulation(config: config);
       final bot = simulation.snakes[1];
       final initialLength = bot.length;
-      simulation.pellets.add(
-        FoodPellet(position: bot.head, value: 2),
-      );
+      simulation.pellets.add(FoodPellet(position: bot.head, value: 2));
 
       simulation.update(1 / 60, Vec2.zero);
 
@@ -52,10 +50,7 @@ void main() {
 
       expect(simulation.snakes.length, 3);
       expect(simulation.player.kind, SnakeKind.player);
-      expect(
-        simulation.player.length,
-        simulation.config.minimumSprintLength,
-      );
+      expect(simulation.player.length, simulation.config.minimumSprintLength);
       expect(
         simulation.player.body.length,
         simulation.config.minimumSprintLength,
@@ -78,10 +73,7 @@ void main() {
 
     test('player rank reflects longer living snakes', () {
       final simulation = GameSimulation(
-        config: const SimulationConfig(
-          botCount: 1,
-          initialPellets: 0,
-        ),
+        config: const SimulationConfig(botCount: 1, initialPellets: 0),
       );
       final bot = simulation.snakes[1];
       bot.grow(10);
@@ -92,30 +84,29 @@ void main() {
       expect(simulation.playerRank, 1);
     });
 
-    test('leaderboard returns the five longest living snakes in rank order',
-        () {
-      final simulation = GameSimulation(
-        config: const SimulationConfig(
-          botCount: 6,
-          initialPellets: 0,
-        ),
-      );
-      simulation.player.grow(88);
-      for (var index = 0; index < 6; index++) {
-        simulation.snakes[index + 1].grow(index * 3);
-      }
+    test(
+      'leaderboard returns the five longest living snakes in rank order',
+      () {
+        final simulation = GameSimulation(
+          config: const SimulationConfig(botCount: 6, initialPellets: 0),
+        );
+        simulation.player.grow(88);
+        for (var index = 0; index < 6; index++) {
+          simulation.snakes[index + 1].grow(index * 3);
+        }
 
-      final leaderboard = simulation.leaderboard;
+        final leaderboard = simulation.leaderboard;
 
-      expect(leaderboard, hasLength(5));
-      expect(leaderboard.map((entry) => entry.rank), [1, 2, 3, 4, 5]);
-      expect(
-        leaderboard.map((entry) => entry.length.toDouble()).toList(),
-        <double>[92, 63, 42, 42, 25],
-      );
-      expect(leaderboard.first.isPlayer, isTrue);
-      expect(leaderboard.where((entry) => entry.isPlayer), hasLength(1));
-    });
+        expect(leaderboard, hasLength(5));
+        expect(leaderboard.map((entry) => entry.rank), [1, 2, 3, 4, 5]);
+        expect(
+          leaderboard.map((entry) => entry.length.toDouble()).toList(),
+          <double>[92, 63, 42, 42, 25],
+        );
+        expect(leaderboard.first.isPlayer, isTrue);
+        expect(leaderboard.where((entry) => entry.isPlayer), hasLength(1));
+      },
+    );
 
     test('defeated bots respawn after a delay at a safe position', () {
       const config = SimulationConfig(
@@ -192,10 +183,7 @@ void main() {
 
     test('default bot roster varies size and disposition', () {
       final simulation = GameSimulation(
-        config: const SimulationConfig(
-          botCount: 6,
-          initialPellets: 0,
-        ),
+        config: const SimulationConfig(botCount: 6, initialPellets: 0),
       );
       final bots = simulation.snakes.skip(1).toList();
 
@@ -282,9 +270,7 @@ void main() {
           kind: FoodPelletKind.defeatDrop,
         ),
       );
-      simulation.pellets.add(
-        const FoodPellet(position: Vec2(300, 0)),
-      );
+      simulation.pellets.add(const FoodPellet(position: Vec2(300, 0)));
 
       simulation.update(1 / 60, Vec2.zero);
 
@@ -511,10 +497,7 @@ void main() {
       }
 
       expect(headings.toSet().length, greaterThan(3));
-      expect(
-        speeds.any((speed) => (speed - 1).abs() > 0.01),
-        isTrue,
-      );
+      expect(speeds.any((speed) => (speed - 1).abs() > 0.01), isTrue);
       expect(
         speeds.every((speed) => speed >= config.botTacticBrakeMultiplier),
         isTrue,
@@ -526,45 +509,46 @@ void main() {
     });
 
     test(
-        'bot growth is bounded while the disposition multiplier remains active',
-        () {
-      const config = SimulationConfig(
-        botCount: 1,
-        initialPellets: 0,
-        botSpeed: 0,
-        botMaximumLength: 20,
-      );
-      final simulation = GameSimulation(config: config);
-      final bot = simulation.snakes[1];
-      simulation.pellets.add(
-        FoodPellet(position: bot.head, value: 100),
-      );
+      'bot growth is bounded while the disposition multiplier remains active',
+      () {
+        const config = SimulationConfig(
+          botCount: 1,
+          initialPellets: 0,
+          botSpeed: 0,
+          botMaximumLength: 20,
+        );
+        final simulation = GameSimulation(config: config);
+        final bot = simulation.snakes[1];
+        simulation.pellets.add(FoodPellet(position: bot.head, value: 100));
 
-      simulation.update(1 / 60, Vec2.zero);
+        simulation.update(1 / 60, Vec2.zero);
 
-      expect(bot.length, config.botMaximumLength);
-    });
+        expect(bot.length, config.botMaximumLength);
+      },
+    );
 
-    test('pellet maintenance refills gradually below the density threshold',
-        () {
-      const config = SimulationConfig(
-        botCount: 0,
-        initialPellets: 10,
-        pelletRefillThreshold: 0.7,
-        pelletRefillRate: 4,
-        playerSpeed: 0,
-      );
-      final simulation = GameSimulation(config: config);
-      simulation.pellets.clear();
+    test(
+      'pellet maintenance refills gradually below the density threshold',
+      () {
+        const config = SimulationConfig(
+          botCount: 0,
+          initialPellets: 10,
+          pelletRefillThreshold: 0.7,
+          pelletRefillRate: 4,
+          playerSpeed: 0,
+        );
+        final simulation = GameSimulation(config: config);
+        simulation.pellets.clear();
 
-      simulation.update(0.5, Vec2.zero);
-      expect(simulation.pellets.length, 2);
-      expect(simulation.pellets.length, lessThan(config.initialPellets));
+        simulation.update(0.5, Vec2.zero);
+        expect(simulation.pellets.length, 2);
+        expect(simulation.pellets.length, lessThan(config.initialPellets));
 
-      simulation.update(0.5, Vec2.zero);
-      expect(simulation.pellets.length, 4);
-      expect(simulation.pellets.length, lessThanOrEqualTo(7));
-    });
+        simulation.update(0.5, Vec2.zero);
+        expect(simulation.pellets.length, 4);
+        expect(simulation.pellets.length, lessThanOrEqualTo(7));
+      },
+    );
 
     test('defeat captures final run statistics', () {
       final simulation = GameSimulation(
@@ -581,7 +565,9 @@ void main() {
       expect(simulation.finalStats, isNotNull);
       expect(simulation.finalStats!.score, simulation.score);
       expect(
-          simulation.finalStats!.length, simulation.config.minimumSprintLength);
+        simulation.finalStats!.length,
+        simulation.config.minimumSprintLength,
+      );
       expect(simulation.finalStats!.survivalSeconds, greaterThan(0));
       expect(simulation.finalStats!.rank, 1);
     });
@@ -628,32 +614,34 @@ void main() {
       expect(bot.heading.y, lessThan(1));
     });
 
-    test('bots abandon an unsafe player intercept and sidestep the body lane',
-        () {
-      final simulation = GameSimulation(
-        config: const SimulationConfig(
-          arenaRadius: 2000,
-          botCount: 1,
-          initialPellets: 0,
-          playerSpeed: 0,
-          botSpeed: 120,
-          botTurnRate: 20,
-          botDefensiveAvoidanceWeight: 14,
-        ),
-      );
-      final bot = simulation.snakes[1];
-      bot.body[0] = const Vec2(0, 150);
-      bot.heading = const Vec2(0, -1);
-      bot.sprinting = true;
-      bot.sprintRequested = true;
-      bot.botSprintRemaining = 0.8;
+    test(
+      'bots abandon an unsafe player intercept and sidestep the body lane',
+      () {
+        final simulation = GameSimulation(
+          config: const SimulationConfig(
+            arenaRadius: 2000,
+            botCount: 1,
+            initialPellets: 0,
+            playerSpeed: 0,
+            botSpeed: 120,
+            botTurnRate: 20,
+            botDefensiveAvoidanceWeight: 14,
+          ),
+        );
+        final bot = simulation.snakes[1];
+        bot.body[0] = const Vec2(0, 150);
+        bot.heading = const Vec2(0, -1);
+        bot.sprinting = true;
+        bot.sprintRequested = true;
+        bot.botSprintRemaining = 0.8;
 
-      simulation.update(0.1, Vec2.zero);
+        simulation.update(0.1, Vec2.zero);
 
-      expect(bot.heading.x.abs(), greaterThan(0.01));
-      expect(bot.sprinting, isFalse);
-      expect(bot.botSprintCooldownRemaining, greaterThan(0));
-    });
+        expect(bot.heading.x.abs(), greaterThan(0.01));
+        expect(bot.sprinting, isFalse);
+        expect(bot.botSprintCooldownRemaining, greaterThan(0));
+      },
+    );
 
     test('a sharp player evasion invalidates the bot tactical commitment', () {
       final simulation = GameSimulation(
@@ -881,10 +869,7 @@ void main() {
       simulation.player.heading = const Vec2(0, 1);
       simulation.update(0.1, Vec2.zero);
 
-      expect(
-        bot.heading.distanceTo(firstHeading),
-        greaterThan(0.01),
-      );
+      expect(bot.heading.distanceTo(firstHeading), greaterThan(0.01));
     });
 
     test('closed-loop drop control separates harvest and denial lanes', () {
@@ -1003,9 +988,7 @@ void main() {
       final simulation = GameSimulation(config: config);
       final bot = simulation.snakes[1];
       simulation.player.grow(400);
-      simulation.pellets.add(
-        FoodPellet(position: bot.head, value: 100),
-      );
+      simulation.pellets.add(FoodPellet(position: bot.head, value: 100));
 
       simulation.update(1 / 60, Vec2.zero);
 
@@ -1029,92 +1012,92 @@ void main() {
       simulation.update(1 / 60, Vec2.zero);
 
       expect(simulation.score, 3);
-      expect(
-        simulation.player.length,
-        greaterThanOrEqualTo(initialLength + 3),
-      );
+      expect(simulation.player.length, greaterThanOrEqualTo(initialLength + 3));
       expect(simulation.pellets, isEmpty);
     });
 
-    test('growth keeps existing spacing and extends only the terminal tail',
-        () {
-      const config = SimulationConfig(
-        botCount: 0,
-        initialPellets: 0,
-        playerSpeed: 120,
-        growthExpressionRate: 0.05,
-      );
-      final simulation = GameSimulation(config: config);
-      final pellet = FoodPellet(position: simulation.player.head, value: 1);
-      simulation.pellets.add(pellet);
-
-      simulation.update(1 / 60, const Vec2(1, 0));
-
-      final player = simulation.player;
-      final tailAtCollection = player.body.last;
-      final lengthAtCollection = player.length;
-      expect(player.growthExpressionRemaining, config.segmentSpacing);
-      expect(player.body.length, lengthAtCollection - 1);
-
-      simulation.update(0.05, const Vec2(1, 0));
-      expect(player.length, lengthAtCollection);
-      expect(player.body.length, lengthAtCollection);
-      expect(player.body.last.x, greaterThan(tailAtCollection.x));
-      expect(player.body.last.x, lessThan(tailAtCollection.x + 6));
-      for (var index = 1; index < player.body.length - 1; index++) {
-        expect(
-          player.body[index - 1].distanceTo(player.body[index]),
-          closeTo(config.segmentSpacing, 0.0001),
+    test(
+      'growth keeps existing spacing and extends only the terminal tail',
+      () {
+        const config = SimulationConfig(
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 120,
+          growthExpressionRate: 0.05,
         );
-      }
-      expect(
-        player.body[player.body.length - 2].distanceTo(player.body.last),
-        lessThan(config.segmentSpacing),
-      );
-      expect(
-        player.body.last.distanceTo(player.body[player.body.length - 2]),
-        greaterThan(0),
-      );
+        final simulation = GameSimulation(config: config);
+        final pellet = FoodPellet(position: simulation.player.head, value: 1);
+        simulation.pellets.add(pellet);
 
-      simulation.update(2.2, const Vec2(1, 0));
-      expect(player.growthExpressionRemaining, closeTo(0, 0.0001));
-      expect(player.body.length, player.length);
-      for (var index = 1; index < player.body.length; index++) {
+        simulation.update(1 / 60, const Vec2(1, 0));
+
+        final player = simulation.player;
+        final tailAtCollection = player.body.last;
+        final lengthAtCollection = player.length;
+        expect(player.growthExpressionRemaining, config.segmentSpacing);
+        expect(player.body.length, lengthAtCollection - 1);
+
+        simulation.update(0.05, const Vec2(1, 0));
+        expect(player.length, lengthAtCollection);
+        expect(player.body.length, lengthAtCollection);
+        expect(player.body.last.x, greaterThan(tailAtCollection.x));
+        expect(player.body.last.x, lessThan(tailAtCollection.x + 6));
+        for (var index = 1; index < player.body.length - 1; index++) {
+          expect(
+            player.body[index - 1].distanceTo(player.body[index]),
+            closeTo(config.segmentSpacing, 0.0001),
+          );
+        }
         expect(
-          player.body[index - 1].distanceTo(player.body[index]),
-          closeTo(config.segmentSpacing, 0.0001),
+          player.body[player.body.length - 2].distanceTo(player.body.last),
+          lessThan(config.segmentSpacing),
         );
-      }
-    });
+        expect(
+          player.body.last.distanceTo(player.body[player.body.length - 2]),
+          greaterThan(0),
+        );
+
+        simulation.update(2.2, const Vec2(1, 0));
+        expect(player.growthExpressionRemaining, closeTo(0, 0.0001));
+        expect(player.body.length, player.length);
+        for (var index = 1; index < player.body.length; index++) {
+          expect(
+            player.body[index - 1].distanceTo(player.body[index]),
+            closeTo(config.segmentSpacing, 0.0001),
+          );
+        }
+      },
+    );
 
     test(
-        'multiple queued growth events do not create hidden collision segments',
-        () {
-      const config = SimulationConfig(
-        botCount: 0,
-        initialPellets: 0,
-        playerSpeed: 120,
-        growthExpressionRate: 0.05,
-      );
-      final simulation = GameSimulation(config: config);
-      final player = simulation.player;
-      player.grow(3);
+      'multiple queued growth events do not create hidden collision segments',
+      () {
+        const config = SimulationConfig(
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 120,
+          growthExpressionRate: 0.05,
+        );
+        final simulation = GameSimulation(config: config);
+        final player = simulation.player;
+        player.grow(3);
 
-      expect(player.length, config.minimumSprintLength + 3);
-      expect(player.body.length, config.minimumSprintLength);
+        expect(player.length, config.minimumSprintLength + 3);
+        expect(player.body.length, config.minimumSprintLength);
 
-      simulation.update(0.05, const Vec2(1, 0));
+        simulation.update(0.05, const Vec2(1, 0));
 
-      expect(player.body.length, lessThan(player.length));
-      expect(player.pendingGrowthSegments, 3);
-      expect(player.body.length, player.fullyExpressedLength + 1);
+        expect(player.body.length, lessThan(player.length));
+        expect(player.pendingGrowthSegments, 3);
+        expect(player.body.length, player.fullyExpressedLength + 1);
 
-      simulation.update(8, const Vec2(1, 0));
+        simulation.update(8, const Vec2(1, 0));
 
-      expect(player.growthExpressionRemaining, closeTo(0, 0.0001));
-      expect(player.body.length, player.length);
-      expect(player.pendingGrowthSegments, 0);
-    });
+        expect(player.growthExpressionRemaining, closeTo(0, 0.0001));
+        expect(player.body.length, player.length);
+        expect(player.pendingGrowthSegments, 0);
+      },
+    );
 
     test('growth follows a turn without deforming established segments', () {
       const config = SimulationConfig(
@@ -1157,10 +1140,7 @@ void main() {
       simulation.restart();
 
       expect(simulation.player.growthExpressionRemaining, 0);
-      expect(
-        simulation.player.length,
-        simulation.config.minimumSprintLength,
-      );
+      expect(simulation.player.length, simulation.config.minimumSprintLength);
     });
 
     test('leaving the arena ends the player run', () {
@@ -1237,10 +1217,7 @@ void main() {
         isTrue,
       );
       expect(simulation.collisionPings, hasLength(1));
-      expect(
-        simulation.collisionPings.single.position,
-        simulation.player.head,
-      );
+      expect(simulation.collisionPings.single.position, simulation.player.head);
 
       simulation.update(0.45, Vec2.zero);
       expect(simulation.collisionPings, hasLength(1));
@@ -1456,10 +1433,7 @@ void main() {
       simulation.update(1 / 60, Vec2.zero);
 
       expect(simulation.score, 2);
-      expect(
-        simulation.player.length,
-        greaterThanOrEqualTo(initialLength + 2),
-      );
+      expect(simulation.player.length, greaterThanOrEqualTo(initialLength + 2));
       expect(simulation.droppedMass, isEmpty);
     });
 
@@ -1527,49 +1501,98 @@ void main() {
       expect(simulation.droppedMass, isNotEmpty);
     });
 
-    test('bots receive bounded catch-up growth when the player pulls ahead',
-        () {
-      const config = SimulationConfig(
-        botCount: 1,
-        initialPellets: 0,
-        playerSpeed: 0,
-        botSpeed: 0,
-        botCatchUpDelay: 0,
-        botCatchUpRate: 10,
-        botCatchUpTargetFraction: 0.5,
-      );
-      final simulation = GameSimulation(config: config);
-      final bot = simulation.snakes[1];
-      final initialLength = bot.length;
-      simulation.player.grow(100);
-
-      simulation.update(1, Vec2.zero);
-
-      expect(bot.length, greaterThan(initialLength));
-      expect(bot.length, lessThanOrEqualTo(config.botAdaptiveMaximumLength));
-    });
-
-    test('movement trail appends in time order without losing the live head',
-        () {
+    test('dropped mass merging preserves value instead of deleting dots', () {
       const config = SimulationConfig(
         botCount: 0,
         initialPellets: 0,
-        playerSpeed: 180,
-        movementTrailTrimSlackSegments: 8,
+        playerSpeed: 0,
+        maxDroppedMass: 3,
       );
       final simulation = GameSimulation(config: config);
+      simulation.droppedMass.addAll([
+        const FoodPellet(position: Vec2(300, 0), value: 2),
+        const FoodPellet(position: Vec2(308, 0), value: 3),
+        const FoodPellet(position: Vec2(316, 0), value: 4),
+        const FoodPellet(position: Vec2(324, 0), value: 5),
+      ]);
 
-      simulation.update(2, const Vec2(1, 0));
+      simulation.update(1 / 60, Vec2.zero);
 
-      expect(simulation.player.movementTrail.last, simulation.player.head);
-      expect(simulation.player.body.first, simulation.player.head);
+      expect(simulation.droppedMass, hasLength(3));
       expect(
-        simulation.player.movementTrail.first.distanceTo(
-          simulation.player.movementTrail.last,
+        simulation.droppedMass.fold<int>(
+          0,
+          (total, pellet) => total + pellet.value,
         ),
-        greaterThan(simulation.player.segmentSpacing),
+        14,
       );
     });
+
+    test(
+      'long updates advance wall time without replaying an unbounded backlog',
+      () {
+        const config = SimulationConfig(
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 100,
+          arenaRadius: 2000,
+        );
+        final simulation = GameSimulation(config: config);
+
+        simulation.update(2, const Vec2(1, 0));
+
+        expect(simulation.elapsed, closeTo(2, 0.0001));
+        expect(simulation.player.head.x, closeTo(200, 0.0001));
+      },
+    );
+
+    test(
+      'bots receive bounded catch-up growth when the player pulls ahead',
+      () {
+        const config = SimulationConfig(
+          botCount: 1,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 0,
+          botCatchUpDelay: 0,
+          botCatchUpRate: 10,
+          botCatchUpTargetFraction: 0.5,
+        );
+        final simulation = GameSimulation(config: config);
+        final bot = simulation.snakes[1];
+        final initialLength = bot.length;
+        simulation.player.grow(100);
+
+        simulation.update(1, Vec2.zero);
+
+        expect(bot.length, greaterThan(initialLength));
+        expect(bot.length, lessThanOrEqualTo(config.botAdaptiveMaximumLength));
+      },
+    );
+
+    test(
+      'movement trail appends in time order without losing the live head',
+      () {
+        const config = SimulationConfig(
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 180,
+          movementTrailTrimSlackSegments: 8,
+        );
+        final simulation = GameSimulation(config: config);
+
+        simulation.update(2, const Vec2(1, 0));
+
+        expect(simulation.player.movementTrail.last, simulation.player.head);
+        expect(simulation.player.body.first, simulation.player.head);
+        expect(
+          simulation.player.movementTrail.first.distanceTo(
+            simulation.player.movementTrail.last,
+          ),
+          greaterThan(simulation.player.segmentSpacing),
+        );
+      },
+    );
 
     test('urgent player turns invalidate a cached bot plan immediately', () {
       const config = SimulationConfig(
@@ -1641,10 +1664,7 @@ void main() {
 
   group('MinimapModel', () {
     test('projects arena coordinates into clamped unit coordinates', () {
-      expect(
-        MinimapModel.project(const Vec2(0, 0), 100),
-        const Vec2(0.5, 0.5),
-      );
+      expect(MinimapModel.project(const Vec2(0, 0), 100), const Vec2(0.5, 0.5));
       expect(
         MinimapModel.project(const Vec2(250, -250), 100),
         const Vec2(1, 0),

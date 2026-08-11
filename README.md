@@ -340,3 +340,22 @@ with overlapping-radius compensation preserving a continuous silhouette. The
 planner cancels a compromised pursuit earlier, resets the engagement state for
 a fresh lane, and retains the existing public telegraphs, deliberate attack
 routes, and ordinary collision rules.
+
+## V1.22 bounded frame time and value-preserving drops
+
+The simulation now uses a fixed-step accumulator with a hard per-update step
+budget. A delayed frame cannot replay an unlimited backlog and create a
+catch-up spiral; any remainder is advanced through one lightweight actor pass
+and one final collision/collection query. This keeps long-frame work bounded
+for both the local game loop and a future multiplayer server tick.
+
+Dropped mass no longer expires or disappears by default. When the configured
+population cap is reached, nearby drops merge into a value-preserving pile with
+a weighted position and the more valuable defeat-drop identity retained. A
+finite lifetime remains configurable for constrained deployments and tests.
+
+Long bodies use a bounded-stride spatial index and renderer visibility scan,
+reducing busy-state geometry work while preserving an expanded collision safety
+margin. Bot route reservations now compare swept corridors rather than only
+their projected endpoints, so committed attack and resource lanes deconflict
+before they cross.

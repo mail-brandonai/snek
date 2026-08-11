@@ -440,7 +440,18 @@ class SlitherGame extends FlameGame {
   }
 
   void _drawSnake(ui.Canvas canvas, SnakeState snake) {
-    if (!snake.body.any((segment) => _isVisible(segment, snake.radius + 12))) {
+    // Avoid a second full-body scan just to decide whether a long snake is
+    // visible. The same bounded stride used by the renderer is enough to
+    // detect a visible sample while preserving a continuous silhouette.
+    final renderStride = snake.body.length > 420 ? 2 : 1;
+    var hasVisibleSample = false;
+    for (var index = 0; index < snake.body.length; index += renderStride) {
+      if (_isVisible(snake.body[index], snake.radius + 12)) {
+        hasVisibleSample = true;
+        break;
+      }
+    }
+    if (!hasVisibleSample) {
       return;
     }
     final colour = _snakeColour(snake.colorIndex);
@@ -498,7 +509,6 @@ class SlitherGame extends FlameGame {
     // body[0] is the head position and is rendered separately below. Skipping
     // it here keeps the visible segment count equal to the HUD length instead
     // of making every snake appear one segment longer at spawn.
-    final renderStride = snake.body.length > 420 ? 2 : 1;
     for (var index = snake.body.length - 1; index >= 1; index -= renderStride) {
       final segment = snake.body[index];
       if (!_isVisible(segment, snake.radius + 12)) continue;
