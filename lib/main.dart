@@ -471,7 +471,9 @@ class SlitherGame extends FlameGame {
           alpha: 0.12 + pulse * 0.1,
         )
         ..style = ui.PaintingStyle.fill;
-      for (final segment in snake.body) {
+      final auraStride = snake.body.length > 420 ? 2 : 1;
+      for (var index = 0; index < snake.body.length; index += auraStride) {
+        final segment = snake.body[index];
         canvas.drawCircle(
           Offset(segment.x, segment.y),
           snake.radius * (1.45 + pulse * 0.18),
@@ -496,14 +498,15 @@ class SlitherGame extends FlameGame {
     // body[0] is the head position and is rendered separately below. Skipping
     // it here keeps the visible segment count equal to the HUD length instead
     // of making every snake appear one segment longer at spawn.
-    for (var index = snake.body.length - 1; index >= 1; index--) {
+    final renderStride = snake.body.length > 420 ? 2 : 1;
+    for (var index = snake.body.length - 1; index >= 1; index -= renderStride) {
       final segment = snake.body[index];
       if (!_isVisible(segment, snake.radius + 12)) continue;
       final double taper =
           (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0).toDouble();
       canvas.drawCircle(
         Offset(segment.x, segment.y),
-        snake.radius * taper,
+        snake.radius * taper * (renderStride == 1 ? 1 : 1.22),
         bodyPaint,
       );
     }

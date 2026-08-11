@@ -111,6 +111,9 @@ class SimulationConfig {
     this.botPlannerLookahead = 0.9,
     this.botRouteReservationDistance = 170,
     this.movementTrailTrimSlackSegments = 8,
+    this.spatialBucketSize = 180,
+    this.busyPlanningLoadThreshold = 1800,
+    this.busyPlanningIntervalMultiplier = 2.25,
   });
 
   final double arenaRadius;
@@ -225,6 +228,9 @@ class SimulationConfig {
   final double botPlannerLookahead;
   final double botRouteReservationDistance;
   final int movementTrailTrimSlackSegments;
+  final double spatialBucketSize;
+  final int busyPlanningLoadThreshold;
+  final double busyPlanningIntervalMultiplier;
 }
 
 class _BotProfile {
@@ -350,6 +356,18 @@ class _DroppedMassBucket {
   double weightedY = 0;
 }
 
+class _BodySample {
+  const _BodySample({
+    required this.owner,
+    required this.index,
+    required this.position,
+  });
+
+  final SnakeState owner;
+  final int index;
+  final Vec2 position;
+}
+
 class GameSimulation {
   GameSimulation({
     this.config = const SimulationConfig(),
@@ -370,6 +388,9 @@ class GameSimulation {
   final Map<String, double> _botCatchUpCredits = {};
   final Map<FoodPellet, double> _droppedMassAges = {};
   final List<_DroppedMassCluster> _droppedMassClusters = [];
+  final Map<int, List<_BodySample>> _bodyBuckets = {};
+  final Map<int, List<FoodPellet>> _pelletBuckets = {};
+  final Map<int, List<FoodPellet>> _droppedMassBuckets = {};
   final Map<String, _BotTacticState> _botTactics = {};
   final Map<String, _BotClosedLoopState> _botEngagementStates = {};
   final Map<String, _BotFormationRole> _botFormationRoles = {};
@@ -513,6 +534,9 @@ class GameSimulation {
     _botCatchUpCredits.clear();
     _droppedMassAges.clear();
     _droppedMassClusters.clear();
+    _bodyBuckets.clear();
+    _pelletBuckets.clear();
+    _droppedMassBuckets.clear();
     _botTactics.clear();
     _botEngagementStates.clear();
     _botFormationRoles.clear();
@@ -578,11 +602,18 @@ class GameSimulation {
       _advancePlayerSprint(step);
       _steerPlayer(steering, step);
       _observePlayerRoute(step);
+      if (_botTacticalDecisionRemaining <= 0) {
+        // Tests and debug tooling may reposition public body points directly;
+        // refresh before a new plan so those edits cannot use stale buckets.
+        _rebuildSpatialIndexes();
+      }
       _steerBots(step);
 
       for (final snake in snakes.where((item) => item.alive)) {
         _moveSnake(snake, step);
-        if (!snake.alive) continue;
+      }
+      _rebuildSpatialIndexes();
+      for (final snake in snakes.where((item) => item.alive)) {
         _collectPellets(snake);
         _collectDroppedMass(snake);
       }
@@ -676,6 +707,88 @@ class GameSimulation {
     _observedPlayerHeading = currentHeading;
   }
 
+  int _spatialKey(int x, int y) => x * 1000003 + y;
+
+  int _spatialCoordinate(double value) =>
+      (value / math.max(1.0, config.spatialBucketSize)).floor();
+
+  void _rebuildSpatialIndexes() {
+    _bodyBuckets.clear();
+    _pelletBuckets.clear();
+    _droppedMassBuckets.clear();
+
+    for (final snake in snakes.where((item) => item.alive)) {
+      for (var index = 0; index < snake.body.length; index++) {
+        final position = snake.body[index];
+        final key = _spatialKey(
+          _spatialCoordinate(position.x),
+          _spatialCoordinate(position.y),
+        );
+        _bodyBuckets.putIfAbsent(key, () => <_BodySample>[]).add(
+              _BodySample(
+                owner: snake,
+                index: index,
+                position: position,
+              ),
+            );
+      }
+    }
+
+    _indexFood(pellets, _pelletBuckets);
+    _indexFood(droppedMass, _droppedMassBuckets);
+  }
+
+  void _indexFood(
+    List<FoodPellet> source,
+    Map<int, List<FoodPellet>> index,
+  ) {
+    for (final pellet in source) {
+      final key = _spatialKey(
+        _spatialCoordinate(pellet.position.x),
+        _spatialCoordinate(pellet.position.y),
+      );
+      index.putIfAbsent(key, () => <FoodPellet>[]).add(pellet);
+    }
+  }
+
+  List<FoodPellet> _nearbyFood(
+    Vec2 position,
+    double radius,
+    Map<int, List<FoodPellet>> index,
+  ) {
+    if (index.isEmpty) return const <FoodPellet>[];
+    final bucketSize = math.max(1.0, config.spatialBucketSize);
+    final minimumX = ((position.x - radius) / bucketSize).floor();
+    final maximumX = ((position.x + radius) / bucketSize).floor();
+    final minimumY = ((position.y - radius) / bucketSize).floor();
+    final maximumY = ((position.y + radius) / bucketSize).floor();
+    final result = <FoodPellet>[];
+    for (var x = minimumX; x <= maximumX; x++) {
+      for (var y = minimumY; y <= maximumY; y++) {
+        final bucket = index[_spatialKey(x, y)];
+        if (bucket != null) result.addAll(bucket);
+      }
+    }
+    return result;
+  }
+
+  List<_BodySample> _nearbyBodySamples(Vec2 position, double radius) {
+    if (_bodyBuckets.isEmpty) return const <_BodySample>[];
+    final bucketSize = math.max(1.0, config.spatialBucketSize);
+    final minimumX = ((position.x - radius) / bucketSize).floor();
+    final maximumX = ((position.x + radius) / bucketSize).floor();
+    final minimumY = ((position.y - radius) / bucketSize).floor();
+    final maximumY = ((position.y + radius) / bucketSize).floor();
+    final result = <_BodySample>[];
+    for (var x = minimumX; x <= maximumX; x++) {
+      for (var y = minimumY; y <= maximumY; y++) {
+        final bucket = _bodyBuckets[_spatialKey(x, y)];
+        if (bucket != null) result.addAll(bucket);
+      }
+    }
+    return result;
+  }
+
   void _steerBots(double dt) {
     for (final bot in snakes.where(
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
@@ -690,12 +803,7 @@ class GameSimulation {
       _botTacticalDecisionRemaining = 0;
     }
     if (_botTacticalDecisionRemaining <= 0) {
-      _botTacticalDecisionRemaining = math
-          .max(
-            0.04,
-            config.botTacticalDecisionInterval,
-          )
-          .toDouble();
+      _botTacticalDecisionRemaining = _botPlanningInterval();
       _replanBotPlans(dt);
     }
 
@@ -711,6 +819,23 @@ class GameSimulation {
       }
       _turnBotToward(bot, plan.intent, dt);
     }
+  }
+
+  double _botPlanningInterval() {
+    final bodyLoad = snakes.fold<int>(
+      0,
+      (total, snake) => total + (snake.alive ? snake.body.length : 0),
+    );
+    final worldLoad = bodyLoad + pellets.length + droppedMass.length;
+    final busyMultiplier = worldLoad <= config.busyPlanningLoadThreshold
+        ? 1.0
+        : config.busyPlanningIntervalMultiplier.clamp(1.0, 4.0).toDouble();
+    return math
+        .max(
+          0.04,
+          config.botTacticalDecisionInterval * busyMultiplier,
+        )
+        .toDouble();
   }
 
   void _replanBotPlans(double dt) {
@@ -767,12 +892,19 @@ class GameSimulation {
       final formationIntent = _formationIntent(bot);
       final safeAttack = geometryPlan.attack &&
           geometryPlan.safety >= config.botAttackAbortSafety;
+      final routeAbortThreshold =
+          (config.botAttackAbortSafety + 0.14).clamp(0.42, 0.58).toDouble();
       if (peerRisk.urgency >= config.botPeerHardAvoidanceThreshold) {
         _interruptBotPursuit(bot);
       }
-      if (routeRisk.urgency >= 0.58 &&
+      if (routeRisk.urgency >= routeAbortThreshold &&
           (!safeAttack || routeRisk.urgency >= 0.86)) {
         _interruptBotPursuit(bot);
+        final engagement = _botEngagementStates[bot.id];
+        if (engagement != null) {
+          engagement.mode = _BotEngagementMode.replan;
+          engagement.remaining = 0;
+        }
       }
       final baseIntent = wander * _wanderWeight(bot) +
           boundary * _boundaryWeight(bot) +
@@ -795,7 +927,7 @@ class GameSimulation {
           ? (peerRisk.escape * (1.4 + peerRisk.urgency * 2) +
                   boundary * _boundaryWeight(bot))
               .normalized()
-          : routeRisk.urgency >= 0.58
+          : routeRisk.urgency >= routeAbortThreshold
               ? (routeRisk.escape *
                           (config.botDefensiveAvoidanceWeight +
                               routeRisk.urgency * 5) +
@@ -814,7 +946,7 @@ class GameSimulation {
                   .normalized();
       final mode = peerRisk.urgency >= config.botPeerAbortThreshold
           ? _BotPlanMode.evadePeer
-          : routeRisk.urgency >= 0.58 && !safeAttack
+          : routeRisk.urgency >= routeAbortThreshold && !safeAttack
               ? _BotPlanMode.evadePlayer
               : safeAttack
                   ? _BotPlanMode.attack
@@ -1572,17 +1704,15 @@ class GameSimulation {
 
   Vec2 _nearbyThreat(SnakeState snake) {
     var avoidance = Vec2.zero;
-    for (final other in snakes.where(
-      (candidate) => candidate.id != snake.id && candidate.alive,
-    )) {
-      for (final segment in other.body.skip(1)) {
-        final offset = snake.head - segment;
-        final distance = offset.length;
-        if (distance == 0 || distance > config.botSenseRadius) continue;
-        final double urgency =
-            (config.botSenseRadius - distance) / config.botSenseRadius;
-        avoidance += offset.normalized() * (urgency * urgency * 4);
-      }
+    for (final sample
+        in _nearbyBodySamples(snake.head, config.botSenseRadius)) {
+      if (sample.owner.id == snake.id || sample.index == 0) continue;
+      final offset = snake.head - sample.position;
+      final distance = offset.length;
+      if (distance == 0 || distance > config.botSenseRadius) continue;
+      final double urgency =
+          (config.botSenseRadius - distance) / config.botSenseRadius;
+      avoidance += offset.normalized() * (urgency * urgency * 4);
     }
     return avoidance;
   }
@@ -1590,13 +1720,14 @@ class GameSimulation {
   Vec2 _nearestFood(SnakeState snake) {
     FoodPellet? nearest;
     var nearestDistance = config.botSenseRadius;
-    for (final source in [droppedMass, pellets]) {
-      for (final pellet in source) {
-        final distance = snake.head.distanceTo(pellet.position);
-        if (distance < nearestDistance) {
-          nearest = pellet;
-          nearestDistance = distance;
-        }
+    for (final pellet in [
+      ..._nearbyFood(snake.head, config.botSenseRadius, _droppedMassBuckets),
+      ..._nearbyFood(snake.head, config.botSenseRadius, _pelletBuckets),
+    ]) {
+      final distance = snake.head.distanceTo(pellet.position);
+      if (distance < nearestDistance) {
+        nearest = pellet;
+        nearestDistance = distance;
       }
     }
     if (nearest == null) return Vec2.zero;
@@ -1605,7 +1736,11 @@ class GameSimulation {
 
   double _nearestNaturalFoodDistance(SnakeState snake) {
     var nearestDistance = double.infinity;
-    for (final pellet in pellets) {
+    for (final pellet in _nearbyFood(
+      snake.head,
+      config.botSenseRadius,
+      _pelletBuckets,
+    )) {
       final distance = snake.head.distanceTo(pellet.position);
       if (distance < nearestDistance) nearestDistance = distance;
     }
@@ -1615,7 +1750,11 @@ class GameSimulation {
   Vec2 _nearestDroppedMass(SnakeState snake) {
     FoodPellet? nearest;
     var nearestDistance = config.botSenseRadius;
-    for (final pellet in droppedMass) {
+    for (final pellet in _nearbyFood(
+      snake.head,
+      config.botSenseRadius,
+      _droppedMassBuckets,
+    )) {
       final distance = snake.head.distanceTo(pellet.position);
       if (distance < nearestDistance) {
         nearest = pellet;
@@ -1629,7 +1768,11 @@ class GameSimulation {
 
   double _nearestDroppedMassDistance(SnakeState snake) {
     var nearestDistance = double.infinity;
-    for (final pellet in droppedMass) {
+    for (final pellet in _nearbyFood(
+      snake.head,
+      config.botDroppedMassSenseRadius,
+      _droppedMassBuckets,
+    )) {
       final distance = snake.head.distanceTo(pellet.position);
       if (distance < nearestDistance) nearestDistance = distance;
     }
@@ -1933,8 +2076,12 @@ class GameSimulation {
       final future = bot.head + direction * travel;
       final playerTravel =
           _playerRoutePoint(lookahead * progress) - player.head;
-      for (final segment in player.body.skip(2)) {
-        final distance = future.distanceTo(segment + playerTravel);
+      for (final sample in _nearbyBodySamples(
+        future - playerTravel,
+        bodyRadius,
+      )) {
+        if (sample.owner.id != player.id || sample.index < 2) continue;
+        final distance = future.distanceTo(sample.position + playerTravel);
         if (distance >= bodyRadius) continue;
         maximumRisk = math
             .max(
@@ -2001,42 +2148,41 @@ class GameSimulation {
     final samples = math.max(1, config.botCollisionSampleCount).toInt();
     if (speed <= 0 || samples <= 0) return avoidance;
 
-    for (final other in snakes.where(
-      (candidate) => candidate.id != snake.id && candidate.alive,
-    )) {
-      final otherSpeed = _effectiveSpeed(other);
-      for (var sample = 1; sample <= samples; sample++) {
-        final progress = sample / samples;
-        final future =
-            snake.head + snake.heading * (speed * lookahead * progress);
-        final otherTravel = other.heading * (otherSpeed * lookahead * progress);
-        for (final segment in other.body.skip(1)) {
-          // Treat the other body as moving with its current public heading.
-          // A static-body test reacts after two snakes have already selected
-          // the same lane; this projected body test creates room before the
-          // crossing occurs.
-          final projectedSegment = segment + otherTravel;
-          final offset = future - projectedSegment;
-          final distance = offset.length;
-          final avoidanceRadius = math
-              .max(
-                config.botCollisionAvoidanceRadius,
-                config.botRouteAvoidanceRadius,
-              )
-              .toDouble();
-          if (distance <= 0 || distance >= avoidanceRadius) {
-            continue;
-          }
-
-          final urgency = (avoidanceRadius - distance) / avoidanceRadius;
-          var escape = offset.normalized();
-          if (_alignment(snake.heading, projectedSegment - future) > 0.15) {
-            final side = Vec2(-snake.heading.y, snake.heading.x) *
-                (snake.id.compareTo(other.id) <= 0 ? 1.0 : -1.0);
-            escape = (escape * 0.35 + side * 0.9).normalized();
-          }
-          avoidance += escape * (urgency * urgency);
+    final avoidanceRadius = math
+        .max(
+          config.botCollisionAvoidanceRadius,
+          config.botRouteAvoidanceRadius,
+        )
+        .toDouble();
+    for (var sample = 1; sample <= samples; sample++) {
+      final progress = sample / samples;
+      final future =
+          snake.head + snake.heading * (speed * lookahead * progress);
+      final projectedTravel = speed * lookahead * progress;
+      for (final bodySample in _nearbyBodySamples(
+        future,
+        avoidanceRadius + projectedTravel,
+      )) {
+        final other = bodySample.owner;
+        if (other.id == snake.id || !other.alive || bodySample.index == 0) {
+          continue;
         }
+        // Treat the other body as moving with its current public heading.
+        // The bucket limits the candidates before this projection is tested.
+        final projectedSegment = bodySample.position +
+            other.heading * (_effectiveSpeed(other) * lookahead * progress);
+        final offset = future - projectedSegment;
+        final distance = offset.length;
+        if (distance <= 0 || distance >= avoidanceRadius) continue;
+
+        final urgency = (avoidanceRadius - distance) / avoidanceRadius;
+        var escape = offset.normalized();
+        if (_alignment(snake.heading, projectedSegment - future) > 0.15) {
+          final side = Vec2(-snake.heading.y, snake.heading.x) *
+              (snake.id.compareTo(other.id) <= 0 ? 1.0 : -1.0);
+          escape = (escape * 0.35 + side * 0.9).normalized();
+        }
+        avoidance += escape * (urgency * urgency);
       }
     }
     return avoidance.normalized();
@@ -2067,8 +2213,14 @@ class GameSimulation {
       final future = bot.head + bot.heading * (speed * lookahead * progress);
       final playerTravel =
           _playerRoutePoint(lookahead * progress) - player.head;
-      for (final segment in player.body.skip(1)) {
-        final projectedSegment = segment + playerTravel;
+      for (final samplePoint in _nearbyBodySamples(
+        future - playerTravel,
+        radius,
+      )) {
+        if (samplePoint.owner.id != player.id || samplePoint.index < 1) {
+          continue;
+        }
+        final projectedSegment = samplePoint.position + playerTravel;
         final offset = future - projectedSegment;
         final distance = offset.length;
         if (distance >= radius) continue;
@@ -2136,11 +2288,17 @@ class GameSimulation {
               (away * 0.35 + side * 0.95).normalized() * (urgency * urgency);
         }
 
-        for (final segment in other.body.skip(1)) {
-          final projectedSegment = segment + otherTravel;
+        final bodyRadius = bot.radius + other.radius + 24;
+        for (final samplePoint in _nearbyBodySamples(
+          future,
+          bodyRadius + otherTravel.length,
+        )) {
+          if (samplePoint.owner.id != other.id || samplePoint.index < 1) {
+            continue;
+          }
+          final projectedSegment = samplePoint.position + otherTravel;
           final offset = future - projectedSegment;
           final distance = offset.length;
-          final bodyRadius = bot.radius + other.radius + 24;
           if (distance >= bodyRadius) continue;
 
           final urgency =
@@ -2500,10 +2658,11 @@ class GameSimulation {
   }
 
   void _collectFood(SnakeState snake, List<FoodPellet> source) {
-    for (var index = source.length - 1; index >= 0; index--) {
-      final pellet = source[index];
+    final index = source == droppedMass ? _droppedMassBuckets : _pelletBuckets;
+    final candidates = _nearbyFood(snake.head, snake.radius + 6, index);
+    for (final pellet in candidates) {
       if (snake.head.distanceTo(pellet.position) <= snake.radius + 6) {
-        source.removeAt(index);
+        if (!source.remove(pellet)) continue;
         _droppedMassAges.remove(pellet);
         final requestedGrowth = snake.kind == SnakeKind.bot
             ? (pellet.value *
@@ -2585,16 +2744,21 @@ class GameSimulation {
 
   void _resolveCollisions() {
     for (final snake in snakes.where((item) => item.alive)) {
-      for (final other in snakes.where(
-        (item) => item.id != snake.id && item.alive,
-      )) {
-        for (final segment in other.body.skip(2)) {
-          if (snake.head.distanceTo(segment) < snake.radius + other.radius) {
-            _defeat(snake, GameOverReason.bodyCollision);
-            break;
-          }
+      final searchRadius = snake.radius +
+          snakes.fold<double>(
+            0,
+            (maximum, other) => math.max(maximum, other.radius).toDouble(),
+          );
+      for (final sample in _nearbyBodySamples(snake.head, searchRadius)) {
+        final other = sample.owner;
+        if (other.id == snake.id || !other.alive || sample.index < 2) {
+          continue;
         }
-        if (!snake.alive) break;
+        if (snake.head.distanceTo(sample.position) <
+            snake.radius + other.radius) {
+          _defeat(snake, GameOverReason.bodyCollision);
+          break;
+        }
       }
     }
   }
@@ -2672,19 +2836,16 @@ class GameSimulation {
   }
 
   void _enforceDroppedMassLimit() {
-    while (droppedMass.length > config.maxDroppedMass) {
-      FoodPellet? oldest;
-      var oldestAge = -1.0;
-      for (final pellet in droppedMass) {
-        final age = _droppedMassAges[pellet] ?? 0;
-        if (age > oldestAge) {
-          oldest = pellet;
-          oldestAge = age;
-        }
-      }
-      if (oldest == null) break;
-      droppedMass.remove(oldest);
-      _droppedMassAges.remove(oldest);
+    if (droppedMass.length <= config.maxDroppedMass) return;
+    final ordered = [...droppedMass]..sort(
+        (left, right) => (_droppedMassAges[right] ?? 0)
+            .compareTo(_droppedMassAges[left] ?? 0),
+      );
+    final removeCount = droppedMass.length - config.maxDroppedMass;
+    for (var index = 0; index < removeCount; index++) {
+      final pellet = ordered[index];
+      droppedMass.remove(pellet);
+      _droppedMassAges.remove(pellet);
     }
   }
 

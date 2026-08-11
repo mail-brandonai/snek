@@ -1485,6 +1485,48 @@ void main() {
       expect(simulation.droppedMass, isEmpty);
     });
 
+    test('nearby food remains collectible with a populated world index', () {
+      const config = SimulationConfig(
+        botCount: 0,
+        initialPellets: 0,
+        playerSpeed: 0,
+        arenaRadius: 2000,
+      );
+      final simulation = GameSimulation(config: config);
+      for (var index = 0; index < 400; index++) {
+        simulation.pellets.add(
+          FoodPellet(position: Vec2(1000 + index * 2.0, 1000)),
+        );
+      }
+      simulation.pellets.add(
+        FoodPellet(position: simulation.player.head, value: 2),
+      );
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(simulation.score, 2);
+      expect(simulation.pellets, hasLength(400));
+    });
+
+    test('spatial collision lookup still defeats a head entering a body', () {
+      const config = SimulationConfig(
+        botCount: 1,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 0,
+        arenaRadius: 2000,
+      );
+      final simulation = GameSimulation(config: config);
+      final bot = simulation.snakes[1];
+      bot.body[0] = const Vec2(0, 0);
+      simulation.player.body[3] = const Vec2(0, 0);
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(bot.alive, isFalse);
+      expect(simulation.droppedMass, isNotEmpty);
+    });
+
     test('bots receive bounded catch-up growth when the player pulls ahead',
         () {
       const config = SimulationConfig(

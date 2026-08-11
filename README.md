@@ -320,3 +320,23 @@ body evasion take precedence over attack, resource contest, and wandering, while
 attack candidates retain an explicit abort route. This keeps pursuit intentional
 without allowing food steering or another bot's approach to dilute a necessary
 evasion.
+
+## V1.21 indexed busy-state performance
+
+The simulation now builds shared spatial buckets after each movement substep for
+living body segments, natural pellets, and dropped mass. Food collection and
+nearby food queries use local buckets, while threat, predictive avoidance,
+player-route risk, peer-route risk, and body collision checks avoid walking the
+entire world when the relevant geometry is nearby.
+
+Bot planning cadence expands within a bounded interval when total body and food
+load becomes high. Existing plans continue to move the bots between planning
+passes, while sharp public player turns still force an immediate re-plan. This
+reduces synchronized tactical bursts without hiding information or weakening
+emergency evasion.
+
+Busy rendering also samples exceptionally long bodies at a bounded stride,
+with overlapping-radius compensation preserving a continuous silhouette. The
+planner cancels a compromised pursuit earlier, resets the engagement state for
+a fresh lane, and retains the existing public telegraphs, deliberate attack
+routes, and ordinary collision rules.
