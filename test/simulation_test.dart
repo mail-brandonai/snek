@@ -351,6 +351,147 @@ void main() {
       expect(simulation.botPeerCollisionDeaths, 0);
     });
 
+    test('bots detect and exploit a player enclosure within one plan', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 3000,
+          botCount: 3,
+          maxBotCount: 3,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 0,
+          botTurnRate: 20,
+          collisionCoreScale: 0,
+        ),
+      );
+      simulation.player.body
+        ..clear()
+        ..addAll(const <Vec2>[
+          Vec2(160, 0),
+          Vec2(148, 61),
+          Vec2(113, 113),
+          Vec2(61, 148),
+          Vec2(0, 160),
+          Vec2(-61, 148),
+          Vec2(-113, 113),
+          Vec2(-148, 61),
+          Vec2(-160, 0),
+          Vec2(-148, -61),
+          Vec2(-113, -113),
+          Vec2(-61, -148),
+          Vec2(0, -160),
+          Vec2(61, -148),
+          Vec2(113, -113),
+          Vec2(148, -61),
+        ]);
+      simulation.player.heading = const Vec2(0, 1);
+      simulation.player.rebuildBodyChunks();
+      final enclosed = simulation.snakes[1];
+      resetSnakeAlongHeading(enclosed, Vec2.zero, const Vec2(1, 0));
+      resetSnakeAlongHeading(
+        simulation.snakes[2],
+        const Vec2(-520, 320),
+        const Vec2(1, 0),
+      );
+      resetSnakeAlongHeading(
+        simulation.snakes[3],
+        const Vec2(520, 320),
+        const Vec2(-1, 0),
+      );
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(simulation.lastOpportunityAssessmentCount, 1);
+      expect(simulation.playerEnclosureOpportunity, isTrue);
+      expect(simulation.playerEnclosureConfidence, greaterThan(0.58));
+      expect(simulation.enclosedBotId, enclosed.id);
+      expect(simulation.botOpportunityRole(enclosed.id), 'innerSurvivor');
+      expect(simulation.activeOpportunityResponderCount, 2);
+      final outsideRoles = simulation.snakes
+          .where((snake) => snake.id != enclosed.id)
+          .map((snake) => simulation.botOpportunityRole(snake.id))
+          .whereType<String>()
+          .toSet();
+      expect(outsideRoles, contains('outerConstrictor'));
+      expect(
+        outsideRoles.any(
+          (role) => role == 'gapStriker' || role == 'exitCutter',
+        ),
+        isTrue,
+      );
+    });
+
+    test('natural and dropped food fields receive three control lanes', () {
+      GameSimulation resourceScenario({required bool dropped}) {
+        final simulation = GameSimulation(
+          config: const SimulationConfig(
+            arenaRadius: 3000,
+            botCount: 3,
+            maxBotCount: 3,
+            initialPellets: 0,
+            playerSpeed: 0,
+            botSpeed: 0,
+            botTurnRate: 20,
+            collisionCoreScale: 0,
+            botHunterInitialCount: 0,
+            botHunterMaximumCount: 0,
+          ),
+        );
+        simulation.player.heading = const Vec2(1, 0);
+        resetSnakeAlongHeading(
+          simulation.snakes[1],
+          const Vec2(620, 360),
+          const Vec2(-1, 0),
+        );
+        resetSnakeAlongHeading(
+          simulation.snakes[2],
+          const Vec2(680, 0),
+          const Vec2(-1, 0),
+        );
+        resetSnakeAlongHeading(
+          simulation.snakes[3],
+          const Vec2(620, -360),
+          const Vec2(-1, 0),
+        );
+        final target = dropped ? simulation.droppedMass : simulation.pellets;
+        final count = dropped ? 2 : 4;
+        for (var index = 0; index < count; index++) {
+          target.add(
+            FoodPellet(
+              position: Vec2(330 + index * 8.0, 48 + index * 4.0),
+              value: dropped ? 3 : 1,
+              kind:
+                  dropped ? FoodPelletKind.defeatDrop : FoodPelletKind.natural,
+            ),
+          );
+        }
+        simulation.update(1 / 60, Vec2.zero);
+        return simulation;
+      }
+
+      for (final simulation in <GameSimulation>[
+        resourceScenario(dropped: false),
+        resourceScenario(dropped: true),
+      ]) {
+        expect(simulation.playerResourceOpportunity, isTrue);
+        final roles = simulation.snakes
+            .where((snake) => snake.kind == SnakeKind.bot)
+            .map((bot) => simulation.botResourceRole(bot.id))
+            .whereType<String>()
+            .toSet();
+        expect(
+          roles,
+          containsAll(<String>[
+            'harvester',
+            'approachGuard',
+            'exitAmbusher',
+          ]),
+        );
+        expect(simulation.activeOpportunityResponderCount, 0);
+        expect(simulation.botPeerCollisionDeaths, 0);
+      }
+    });
+
     test('bot roster opens with distinct strategic maneuver portfolios', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(
@@ -1097,6 +1238,59 @@ void main() {
       expect(second.alive, isTrue);
       expect(simulation.botPeerCollisionDeaths, 0);
       expect(first.sprinting && second.sprinting, isFalse);
+    });
+
+    test('right of way holds one bot until the curved corridor clears', () {
+      const config = SimulationConfig(
+        arenaRadius: 3000,
+        botCount: 2,
+        maxBotCount: 2,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 175,
+        botTurnRate: 0.35,
+        botEngagementRadius: 0,
+        botTacticalDecisionInterval: 0.04,
+        botHunterInitialCount: 0,
+        botHunterMaximumCount: 0,
+      );
+      final simulation = GameSimulation(config: config);
+      simulation.player.resetAt(const Vec2(0, 1500));
+      final first = simulation.snakes[1];
+      final second = simulation.snakes[2];
+      resetSnakeAlongHeading(
+        first,
+        const Vec2(-170, -90),
+        const Vec2(1, 0.25),
+      );
+      resetSnakeAlongHeading(
+        second,
+        const Vec2(170, -90),
+        const Vec2(-1, 0.25),
+      );
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      final yielding = <SnakeState>[first, second]
+          .where((bot) => simulation.botYieldingTo(bot.id) != null)
+          .toList();
+      expect(yielding, hasLength(1));
+      final yieldingBot = yielding.single;
+      final ownerId = simulation.botYieldingTo(yieldingBot.id);
+      final owner = ownerId == first.id ? first : second;
+      expect(simulation.botPlanMode(yieldingBot.id), 'evadePeer');
+
+      resetSnakeAlongHeading(
+        owner,
+        const Vec2(0, 1200),
+        const Vec2(1, 0),
+      );
+      advanceSimulation(simulation, 0.12, Vec2.zero);
+
+      expect(simulation.botYieldingTo(yieldingBot.id), isNull);
+      expect(first.alive, isTrue);
+      expect(second.alive, isTrue);
+      expect(simulation.botPeerCollisionDeaths, 0);
     });
 
     test('persistent formation gives engaged bots separate pressure lanes', () {
@@ -2082,6 +2276,7 @@ void main() {
 
       expect(simulation.lastFixedStepCount, 2);
       expect(simulation.lastTacticalReplanCount, lessThanOrEqualTo(1));
+      expect(simulation.lastOpportunityAssessmentCount, lessThanOrEqualTo(1));
       expect(simulation.lastSpatialIndexBuildCount, lessThanOrEqualTo(3));
       expect(simulation.droppedMass.length, lessThanOrEqualTo(480));
     });

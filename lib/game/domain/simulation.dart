@@ -135,6 +135,13 @@ class SimulationConfig {
     this.collisionTailTaper = 0.72,
     this.botParallelAlignmentThreshold = 0.82,
     this.botParallelClosingThreshold = 0.1,
+    this.botOpportunitySenseRadius = 1500,
+    this.botOpportunityResponderLimit = 2,
+    this.botEnclosureSampleLimit = 24,
+    this.botEnclosureMinimumSweep = 4.1,
+    this.botResourceFieldRadius = 160,
+    this.botResourceFieldMinimumValue = 4,
+    this.botPlayerSprintRecoveryDuration = 0.9,
   });
 
   final double arenaRadius;
@@ -270,6 +277,13 @@ class SimulationConfig {
   final double collisionTailTaper;
   final double botParallelAlignmentThreshold;
   final double botParallelClosingThreshold;
+  final double botOpportunitySenseRadius;
+  final int botOpportunityResponderLimit;
+  final int botEnclosureSampleLimit;
+  final double botEnclosureMinimumSweep;
+  final double botResourceFieldRadius;
+  final int botResourceFieldMinimumValue;
+  final double botPlayerSprintRecoveryDuration;
 }
 
 class _BotProfile {
@@ -324,7 +338,10 @@ class _BotRouteReservation {
   const _BotRouteReservation({
     required this.ownerId,
     required this.start,
-    required this.end,
+    required this.startHeading,
+    required this.intent,
+    required this.speed,
+    required this.turnRate,
     required this.radius,
     required this.duration,
     required this.sprinting,
@@ -332,7 +349,10 @@ class _BotRouteReservation {
 
   final String ownerId;
   final Vec2 start;
-  final Vec2 end;
+  final Vec2 startHeading;
+  final Vec2 intent;
+  final double speed;
+  final double turnRate;
   final double radius;
   final double duration;
   final bool sprinting;
@@ -355,6 +375,96 @@ enum _BotHunterStyle {
   lateralHarrier,
   sprintBrakeTrap,
   patientConstrictor,
+}
+
+enum _TacticalOpportunityRole {
+  outerConstrictor,
+  gapStriker,
+  exitCutter,
+  innerSurvivor,
+}
+
+enum _ResourceControlRole { harvester, approachGuard, exitAmbusher }
+
+class _ResourceField {
+  _ResourceField({
+    required this.center,
+    required this.value,
+    required this.radius,
+    required this.memberCount,
+    required this.droppedMemberCount,
+  });
+
+  Vec2 center;
+  int value;
+  double radius;
+  int memberCount;
+  int droppedMemberCount;
+
+  void update({
+    required Vec2 center,
+    required int value,
+    required double radius,
+    required int memberCount,
+    required int droppedMemberCount,
+  }) {
+    this.center = center;
+    this.value = value;
+    this.radius = radius;
+    this.memberCount = memberCount;
+    this.droppedMemberCount = droppedMemberCount;
+  }
+}
+
+class _ResourceFieldBucket {
+  int value = 0;
+  int count = 0;
+  int droppedCount = 0;
+  double weightedX = 0;
+  double weightedY = 0;
+
+  void reset() {
+    value = 0;
+    count = 0;
+    droppedCount = 0;
+    weightedX = 0;
+    weightedY = 0;
+  }
+}
+
+class _TacticalOpportunitySnapshot {
+  bool playerEnclosing = false;
+  bool playerHarvesting = false;
+  bool playerBoundaryPinned = false;
+  bool playerSprintRecovering = false;
+  bool playerInNarrowCorridor = false;
+  Vec2 center = Vec2.zero;
+  Vec2 gap = Vec2.zero;
+  double radius = 0;
+  double enclosureConfidence = 0;
+  String? enclosedBotId;
+  _ResourceField? resourceField;
+
+  bool get active =>
+      playerEnclosing ||
+      playerHarvesting ||
+      playerBoundaryPinned ||
+      playerSprintRecovering ||
+      playerInNarrowCorridor;
+
+  void reset() {
+    playerEnclosing = false;
+    playerHarvesting = false;
+    playerBoundaryPinned = false;
+    playerSprintRecovering = false;
+    playerInNarrowCorridor = false;
+    center = Vec2.zero;
+    gap = Vec2.zero;
+    radius = 0;
+    enclosureConfidence = 0;
+    enclosedBotId = null;
+    resourceField = null;
+  }
 }
 
 class _BotHunterState {
@@ -397,6 +507,8 @@ class _PlayerBehaviorModel {
   double sprintTendency = 0;
   double resourceAttraction = 0;
   double gapCamping = 0;
+  double circularCommitment = 0;
+  double sprintRecoveryRemaining = 0;
   double previousTurnSign = 0;
   bool previousSprinting = false;
 
@@ -406,6 +518,8 @@ class _PlayerBehaviorModel {
     sprintTendency = 0;
     resourceAttraction = 0;
     gapCamping = 0;
+    circularCommitment = 0;
+    sprintRecoveryRemaining = 0;
     previousTurnSign = 0;
     previousSprinting = false;
   }
@@ -440,10 +554,15 @@ class _BotRouteRisk {
 }
 
 class _BotPeerRisk {
-  const _BotPeerRisk({required this.escape, required this.urgency});
+  const _BotPeerRisk({
+    required this.escape,
+    required this.urgency,
+    this.rightOfWayOwnerId,
+  });
 
   final Vec2 escape;
   final double urgency;
+  final String? rightOfWayOwnerId;
 }
 
 class _BotEngagementPlan {
@@ -571,6 +690,9 @@ class GameSimulation {
   final List<_DroppedMassCluster> _droppedMassClusters = [];
   final List<_DroppedMassCluster> _droppedMassClusterPool = [];
   final Map<int, _DroppedMassBucket> _droppedMassClusterBuckets = {};
+  final List<_ResourceField> _resourceFields = [];
+  final List<_ResourceField> _resourceFieldPool = [];
+  final Map<int, _ResourceFieldBucket> _resourceFieldBuckets = {};
   final Map<int, List<int>> _droppedMassMergeBuckets = {};
   final List<FoodPellet> _droppedMassMergeOutput = [];
   final List<bool> _droppedMassMergeUsed = [];
@@ -586,12 +708,17 @@ class GameSimulation {
   final Map<String, _BotFormationRole> _botFormationRoles = {};
   final Map<String, _BotManeuverState> _botManeuvers = {};
   final Map<String, _BotHunterState> _botHunters = {};
+  final Map<String, _TacticalOpportunityRole> _botOpportunityRoles = {};
+  final Map<String, _ResourceControlRole> _botResourceRoles = {};
   final Map<String, _BotPlan> _botPlans = {};
   final Map<String, double> _botSafetyHolds = {};
   final Map<String, Vec2> _botSafetyEscapes = {};
+  final Map<String, String> _botYieldingTo = {};
   final List<_BotRouteReservation> _botRouteReservations = [];
   final _BotFormationState _botFormation = _BotFormationState();
   final _PlayerBehaviorModel _playerBehavior = _PlayerBehaviorModel();
+  final _TacticalOpportunitySnapshot _opportunity =
+      _TacticalOpportunitySnapshot();
   Vec2 _observedPlayerHeading = const Vec2(1, 0);
   double _observedPlayerTurnRate = 0;
   double elapsed = 0;
@@ -609,6 +736,7 @@ class GameSimulation {
   int lastTacticalReplanCount = 0;
   int lastDroppedMassMergeCount = 0;
   int lastCrediblePlayerKillWindowCount = 0;
+  int lastOpportunityAssessmentCount = 0;
   int botPeerCollisionDeaths = 0;
   int score = 0;
   bool gameOver = false;
@@ -759,6 +887,24 @@ class GameSimulation {
 
   String? botPlanMode(String botId) => _botPlans[botId]?.mode.name;
 
+  String? botOpportunityRole(String botId) => _botOpportunityRoles[botId]?.name;
+
+  String? botResourceRole(String botId) => _botResourceRoles[botId]?.name;
+
+  String? botYieldingTo(String botId) => _botYieldingTo[botId];
+
+  int get activeOpportunityResponderCount => _botOpportunityRoles.entries
+      .where((entry) => entry.value != _TacticalOpportunityRole.innerSurvivor)
+      .length;
+
+  bool get playerEnclosureOpportunity => _opportunity.playerEnclosing;
+
+  bool get playerResourceOpportunity => _opportunity.playerHarvesting;
+
+  double get playerEnclosureConfidence => _opportunity.enclosureConfidence;
+
+  String? get enclosedBotId => _opportunity.enclosedBotId;
+
   double get observedPlayerEscapeSideBias => _playerBehavior.escapeSideBias;
 
   void reset() {
@@ -773,6 +919,10 @@ class GameSimulation {
     _droppedMassAges.clear();
     _droppedMassClusters.clear();
     for (final bucket in _droppedMassClusterBuckets.values) {
+      bucket.reset();
+    }
+    _resourceFields.clear();
+    for (final bucket in _resourceFieldBuckets.values) {
       bucket.reset();
     }
     for (final bucket in _droppedMassMergeBuckets.values) {
@@ -792,13 +942,17 @@ class GameSimulation {
     _botFormationRoles.clear();
     _botManeuvers.clear();
     _botHunters.clear();
+    _botOpportunityRoles.clear();
+    _botResourceRoles.clear();
     _botPlans.clear();
     _botSafetyHolds.clear();
     _botSafetyEscapes.clear();
+    _botYieldingTo.clear();
     _botRouteReservations.clear();
     _botFormation.remaining = 0;
     _botFormation.playerAnchor = null;
     _playerBehavior.reset();
+    _opportunity.reset();
     _observedPlayerHeading = const Vec2(1, 0);
     _observedPlayerTurnRate = 0;
     elapsed = 0;
@@ -816,6 +970,7 @@ class GameSimulation {
     lastTacticalReplanCount = 0;
     lastDroppedMassMergeCount = 0;
     lastCrediblePlayerKillWindowCount = 0;
+    lastOpportunityAssessmentCount = 0;
     botPeerCollisionDeaths = 0;
     score = 0;
     gameOver = false;
@@ -852,6 +1007,7 @@ class GameSimulation {
     lastTacticalReplanCount = 0;
     lastDroppedMassMergeCount = 0;
     lastCrediblePlayerKillWindowCount = 0;
+    lastOpportunityAssessmentCount = 0;
     if (gameOver) {
       _advanceCollisionPings(dt);
       _advanceTelegraphEvents(dt);
@@ -1213,6 +1369,7 @@ class GameSimulation {
       }
     }
     for (final id in _botSafetyHolds.keys.toList()) {
+      if (_botYieldingTo.containsKey(id)) continue;
       final remaining = (_botSafetyHolds[id] ?? 0) - dt;
       if (remaining <= 0) {
         _botSafetyHolds.remove(id);
@@ -1266,6 +1423,9 @@ class GameSimulation {
     _playerBehavior.sprintTendency *= decay;
     _playerBehavior.resourceAttraction *= decay;
     _playerBehavior.gapCamping *= decay;
+    _playerBehavior.circularCommitment *= decay;
+    _playerBehavior.sprintRecoveryRemaining =
+        math.max(0, _playerBehavior.sprintRecoveryRemaining - dt).toDouble();
 
     final turnSign = _observedPlayerTurnRate.abs() < 0.35
         ? 0.0
@@ -1285,15 +1445,18 @@ class GameSimulation {
       _playerBehavior.previousTurnSign = turnSign;
     }
 
-    if (player.sprinting ||
-        (player.sprintRequested && !_playerBehavior.previousSprinting)) {
+    final playerSprintActive = player.sprinting || player.sprintRequested;
+    if (playerSprintActive) {
       _playerBehavior.sprintTendency =
           (_playerBehavior.sprintTendency + dt * 1.4)
               .clamp(0.0, 1.0)
               .toDouble();
     }
-    _playerBehavior.previousSprinting =
-        player.sprinting || player.sprintRequested;
+    if (!playerSprintActive && _playerBehavior.previousSprinting) {
+      _playerBehavior.sprintRecoveryRemaining =
+          config.botPlayerSprintRecoveryDuration;
+    }
+    _playerBehavior.previousSprinting = playerSprintActive;
 
     for (final cluster in _droppedMassClusters) {
       final toCluster = cluster.center - player.head;
@@ -1345,14 +1508,15 @@ class GameSimulation {
           sample.index < 1) {
         continue;
       }
-      final offset = future - sample.position;
+      final projectedSegment = _projectBodySample(sample, lookahead);
+      final offset = future - projectedSegment;
       final distance = offset.length;
       if (distance >= radius) continue;
       final motionThreat = _relativeMotionThreat(
         bot,
         sample.owner,
         actorPosition: future,
-        otherPosition: sample.position,
+        otherPosition: projectedSegment,
         separation: distance,
       );
       if (motionThreat <= 0) continue;
@@ -1388,6 +1552,8 @@ class GameSimulation {
   void _replanBotPlans(double dt) {
     lastTacticalReplanCount++;
     _rebuildDroppedMassClusters();
+    _rebuildResourceFields();
+    _assessTacticalOpportunities();
     _refreshBotFormation();
     _botPlans.clear();
     _botRouteReservations.clear();
@@ -1415,6 +1581,7 @@ class GameSimulation {
           speedMultiplier: 1,
         );
         _decideBotSprint(bot, plan: plan, maneuverRequestsSprint: true);
+        _recheckCommittedBotPlan(bot);
         continue;
       }
 
@@ -1423,6 +1590,31 @@ class GameSimulation {
       final routeRisk = _playerRouteRisk(bot);
       final routeAbortThreshold =
           (config.botAttackAbortSafety + 0.14).clamp(0.42, 0.58).toDouble();
+      final rightOfWayOwner = _botYieldingTo[bot.id];
+      if (rightOfWayOwner != null) {
+        if (_yieldCorridorStillBlocked(bot, rightOfWayOwner)) {
+          final escape = peerRisk.escape.length == 0
+              ? _botSafetyEscapes[bot.id] ?? _peerYieldFallback(bot)
+              : peerRisk.escape;
+          _holdBotSafety(
+            bot,
+            escape,
+            yieldingTo: rightOfWayOwner,
+          );
+          _interruptBotPursuit(bot);
+          _commitBotPlan(
+            bot,
+            escape,
+            _BotPlanMode.evadePeer,
+            wantsSprint: false,
+            speedMultiplier: config.botYieldSpeedMultiplier,
+          );
+          continue;
+        }
+        _botYieldingTo.remove(bot.id);
+        _botSafetyHolds.remove(bot.id);
+        _botSafetyEscapes.remove(bot.id);
+      }
       final safetyHold = _botSafetyHolds[bot.id] ?? 0;
       if (safetyHold > 0) {
         final escape = peerRisk.urgency >= 0.1
@@ -1443,7 +1635,11 @@ class GameSimulation {
         continue;
       }
       if (peerRisk.urgency >= config.botPeerHardAvoidanceThreshold) {
-        _holdBotSafety(bot, peerRisk.escape);
+        _holdBotSafety(
+          bot,
+          peerRisk.escape,
+          yieldingTo: peerRisk.rightOfWayOwnerId,
+        );
         _interruptBotPursuit(bot);
         _commitBotPlan(
           bot,
@@ -1492,21 +1688,85 @@ class GameSimulation {
         plan: plan,
         maneuverRequestsSprint: maneuver.wantsSprint,
       );
-      if (plan.mode == _BotPlanMode.attack &&
-          _createsCrediblePlayerKillWindow(bot, plan)) {
+      _recheckCommittedBotPlan(bot);
+      final finalPlan = _botPlans[bot.id] ?? plan;
+      if (finalPlan.mode == _BotPlanMode.attack &&
+          _createsCrediblePlayerKillWindow(bot, finalPlan)) {
         lastCrediblePlayerKillWindowCount++;
       }
     }
   }
 
-  void _holdBotSafety(SnakeState bot, Vec2 escape) {
+  void _holdBotSafety(
+    SnakeState bot,
+    Vec2 escape, {
+    String? yieldingTo,
+  }) {
     _botSafetyHolds[bot.id] = 0.55;
+    if (yieldingTo != null) {
+      _botYieldingTo[bot.id] = yieldingTo;
+    }
     bot.tacticalSpeedMultiplier = math
         .min(bot.tacticalSpeedMultiplier, config.botYieldSpeedMultiplier)
         .toDouble();
     if (escape.length > 0) {
       _botSafetyEscapes[bot.id] = escape.normalized();
     }
+  }
+
+  Vec2 _peerYieldFallback(SnakeState bot) {
+    final side = Vec2(-bot.heading.y, bot.heading.x) *
+        (bot.id.hashCode.isEven ? 1.0 : -1.0);
+    return (bot.heading * 0.25 + side).normalized();
+  }
+
+  bool _yieldCorridorStillBlocked(SnakeState bot, String ownerId) {
+    SnakeState? owner;
+    for (final candidate in snakes) {
+      if (candidate.id == ownerId && candidate.alive) {
+        owner = candidate;
+        break;
+      }
+    }
+    if (owner == null) return false;
+    final ownerPlan = _botPlans[owner.id];
+    final ownerIntent = ownerPlan?.intent ?? owner.heading;
+    final botSpeed =
+        math.max(_effectiveSpeed(bot), bot.speed * 0.55).toDouble();
+    final ownerSpeed =
+        math.max(_effectiveSpeed(owner), owner.speed * 0.55).toDouble();
+    final horizon = math.max(0.4, config.botReservationHorizon).toDouble();
+    final samples = math.max(3, config.botCollisionSampleCount).toInt();
+    final clearance = math.max(
+      config.botPeerHardAvoidanceRadius * 0.72,
+      bot.radius + owner.radius + 30,
+    );
+    for (var index = 1; index <= samples; index++) {
+      final time = horizon * index / samples;
+      final botPoint = _projectBotRoutePoint(
+        bot,
+        bot.heading,
+        time,
+        speed: botSpeed,
+      );
+      final ownerPoint = _projectBotRoutePoint(
+        owner,
+        ownerIntent,
+        time,
+        speed: ownerSpeed,
+      );
+      if (botPoint.distanceTo(ownerPoint) < clearance) return true;
+      for (final sample in _nearbyBodySamples(
+        botPoint,
+        clearance + ownerSpeed * time,
+      )) {
+        if (sample.owner.id != owner.id || sample.index < 2) continue;
+        if (botPoint.distanceTo(_projectBodySample(sample, time)) < clearance) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   bool _createsCrediblePlayerKillWindow(SnakeState bot, _BotPlan plan) {
@@ -1519,7 +1779,12 @@ class GameSimulation {
     final collisionWindow = bot.radius + player.radius + 46;
     for (var index = 1; index <= samples; index++) {
       final time = horizon * index / samples;
-      final botPoint = bot.head + plan.intent.normalized() * (botSpeed * time);
+      final botPoint = _projectBotRoutePoint(
+        bot,
+        plan.intent,
+        time,
+        speed: botSpeed,
+      );
       final playerPoint = _playerRoutePoint(time);
       if (botPoint.distanceTo(playerPoint) <= collisionWindow) return true;
     }
@@ -1532,9 +1797,15 @@ class GameSimulation {
     final disposition =
         bot.disposition == BotDisposition.aggressive ? 1.4 : 1.0;
     final hunter = botIsHunter(bot.id) ? 2.5 : 1.0;
+    final opportunity = _botOpportunityRoles.containsKey(bot.id)
+        ? 2.2
+        : _playerBehavior.circularCommitment >= 0.45
+            ? 1.12
+            : 1.0;
     return sizePressure *
         disposition *
         hunter *
+        opportunity *
         (1 + config.botEngagementRadius / math.max(1.0, distance));
   }
 
@@ -1547,7 +1818,15 @@ class GameSimulation {
   }) {
     final requested = intent.length == 0 ? bot.heading : intent.normalized();
     final deconflicted = _deconflictBotIntent(bot, requested);
-    final safety = _finalRouteSafety(bot, deconflicted);
+    final sprintViable = wantsSprint &&
+        bot.botSprintCooldownRemaining <= 0 &&
+        bot.length > config.botSprintMinimumLength;
+    final safety = _finalRouteSafety(
+      bot,
+      deconflicted,
+      speedMultiplier: speedMultiplier,
+      sprinting: sprintViable,
+    );
     final unsafe = safety.risk >= 0.62;
     final finalIntent = unsafe ? safety.escape : deconflicted;
     final finalMode =
@@ -1563,36 +1842,103 @@ class GameSimulation {
       speedMultiplier: finalSpeedMultiplier,
     );
     _botPlans[bot.id] = plan;
+    _reserveBotPlan(bot, plan);
+    return plan;
+  }
+
+  void _reserveBotPlan(SnakeState bot, _BotPlan plan) {
+    _botRouteReservations.removeWhere(
+      (reservation) => reservation.ownerId == bot.id,
+    );
+    final finalIntent = plan.intent;
     if (finalIntent.length > 0) {
-      final projectedSpeed = math.max(1.0, bot.speed * finalSpeedMultiplier) *
-          (allowSprint ? config.botSprintMultiplier : 1.0);
+      final projectedSpeed = math.max(1.0, bot.speed * plan.speedMultiplier) *
+          (plan.allowSprint ? config.botSprintMultiplier : 1.0);
       final duration = math.max(0.2, config.botReservationHorizon).toDouble();
       _botRouteReservations.add(
         _BotRouteReservation(
           ownerId: bot.id,
           start: bot.head,
-          end:
-              bot.head + finalIntent.normalized() * (projectedSpeed * duration),
+          startHeading: bot.heading,
+          intent: finalIntent.normalized(),
+          speed: projectedSpeed,
+          turnRate: config.botTurnRate * bot.tacticalTurnRateMultiplier,
           radius: config.botRouteReservationDistance,
           duration: duration,
-          sprinting: allowSprint,
+          sprinting: plan.allowSprint,
         ),
       );
     }
-    return plan;
+  }
+
+  void _recheckCommittedBotPlan(SnakeState bot) {
+    final plan = _botPlans[bot.id];
+    if (plan == null) return;
+    final sprinting = bot.sprinting || bot.sprintRequested || plan.allowSprint;
+    final routeSpeed = math.max(1.0, bot.speed * plan.speedMultiplier) *
+        (sprinting ? config.botSprintMultiplier : 1.0);
+    final horizon = math.max(0.2, config.botReservationHorizon).toDouble();
+    final committedTarget = _projectBotRoutePoint(
+      bot,
+      plan.intent,
+      horizon,
+      speed: routeSpeed,
+    );
+    final committedRisk = _engagementLaneRisk(
+      bot,
+      committedTarget,
+      intendedDirection: plan.intent,
+      speedOverride: routeSpeed,
+      includePeerBodies: true,
+    );
+    if (committedRisk < 0.62) {
+      _reserveBotPlan(bot, plan);
+      return;
+    }
+    final safety = _finalRouteSafety(
+      bot,
+      plan.intent,
+      speedMultiplier: plan.speedMultiplier,
+      sprinting: sprinting,
+    );
+    if (bot.sprinting || bot.sprintRequested) {
+      _cancelSprintRequest(bot);
+    }
+    final safePlan = _BotPlan(
+      intent: safety.escape,
+      mode: _BotPlanMode.evadePeer,
+      allowSprint: false,
+      speedMultiplier: config.botYieldSpeedMultiplier,
+    );
+    _botPlans[bot.id] = safePlan;
+    _reserveBotPlan(bot, safePlan);
   }
 
   ({double risk, Vec2 escape}) _finalRouteSafety(
     SnakeState bot,
-    Vec2 intended,
-  ) {
+    Vec2 intended, {
+    required double speedMultiplier,
+    required bool sprinting,
+  }) {
     if (intended.length == 0) return (risk: 1.0, escape: bot.heading);
     final direction = intended.normalized();
     final horizon = math.max(0.2, config.botReservationHorizon).toDouble();
-    final distance = math.max(1.0, bot.speed) * horizon;
-    final target = bot.head + direction * distance;
+    final routeSpeed = math.max(1.0, bot.speed * speedMultiplier) *
+        (sprinting ? config.botSprintMultiplier : 1.0);
+    final target = _projectBotRoutePoint(
+      bot,
+      direction,
+      horizon,
+      speed: routeSpeed,
+    );
     var bestIntent = direction;
-    var bestRisk = _engagementLaneRisk(bot, target);
+    var bestRisk = _engagementLaneRisk(
+      bot,
+      target,
+      intendedDirection: direction,
+      speedOverride: routeSpeed,
+      includePeerBodies: true,
+    );
     final side = Vec2(-direction.y, direction.x);
     final predictive = _predictiveCollisionAvoidance(bot);
     final peerSeparation = _peerSeparation(bot);
@@ -1609,7 +1955,14 @@ class GameSimulation {
       final candidate = candidates[index];
       final risk = _engagementLaneRisk(
         bot,
-        bot.head + candidate * (distance * (index < 2 ? 1.0 : 0.72)),
+        _projectBotRoutePoint(
+          bot,
+          candidate,
+          horizon * (index < 2 ? 1.0 : 0.72),
+          speed: routeSpeed,
+        ),
+        intendedDirection: candidate,
+        speedOverride: routeSpeed,
       );
       final preferencePenalty = index < 2 ? 0.03 : 0.1 + index * 0.025;
       if (risk + preferencePenalty < bestRisk) {
@@ -1626,12 +1979,23 @@ class GameSimulation {
     }
     var result = intent.normalized();
     for (final reservation in _botRouteReservations) {
-      final projectedEnd = bot.head +
-          result * (_effectiveSpeed(bot) * config.botPlannerLookahead);
-      if (!_routeCorridorsConflict(bot.head, projectedEnd, reservation)) {
+      final projectedEnd = _projectBotRoutePoint(
+        bot,
+        result,
+        config.botPlannerLookahead,
+      );
+      if (!_routeCorridorsConflict(bot, result, reservation)) {
         continue;
       }
-      final axis = projectedEnd - reservation.end;
+      final reservationEnd = _projectTurningPoint(
+        start: reservation.start,
+        heading: reservation.startHeading,
+        intended: reservation.intent,
+        speed: reservation.speed,
+        turnRate: reservation.turnRate,
+        time: math.min(config.botPlannerLookahead, reservation.duration),
+      );
+      final axis = projectedEnd - reservationEnd;
       SnakeState? owner;
       for (final candidate in snakes) {
         if (candidate.kind == SnakeKind.bot &&
@@ -1647,13 +2011,18 @@ class GameSimulation {
               : _peerYieldSide(bot, owner)
           : axis.normalized();
       result = (result * 0.35 + separation * 1.15).normalized();
+      if (_routeCorridorsConflict(bot, result, reservation)) {
+        _botYieldingTo[bot.id] = reservation.ownerId;
+      } else if (_botYieldingTo[bot.id] == reservation.ownerId) {
+        _botYieldingTo.remove(bot.id);
+      }
     }
     return result;
   }
 
   bool _routeCorridorsConflict(
-    Vec2 start,
-    Vec2 end,
+    SnakeState bot,
+    Vec2 intended,
     _BotRouteReservation reservation,
   ) {
     const samples = 6;
@@ -1665,17 +2034,33 @@ class GameSimulation {
         .min(config.botReservationHorizon, reservation.duration)
         .clamp(0.01, double.infinity)
         .toDouble();
-    final ownTravel = end - start;
-    final otherTravel = reservation.end - reservation.start;
-    final ownDirection = ownTravel.normalized();
-    final otherDirection = otherTravel.normalized();
-    final startOffset = reservation.start - start;
-    final ownSpeed = ownTravel.length /
-        math.max(0.01, config.botReservationHorizon).toDouble();
-    final otherSpeed =
-        otherTravel.length / math.max(0.01, reservation.duration).toDouble();
+    final ownDirection = intended.normalized();
+    final otherDirection = reservation.intent.normalized();
+    final ownRouteEnd = _projectBotRoutePoint(
+      bot,
+      ownDirection,
+      sharedHorizon,
+    );
+    final otherRouteEnd = _projectTurningPoint(
+      start: reservation.start,
+      heading: reservation.startHeading,
+      intended: reservation.intent,
+      speed: reservation.speed,
+      turnRate: reservation.turnRate,
+      time: sharedHorizon,
+    );
+    final ownTravel = ownRouteEnd - bot.head;
+    final otherTravel = otherRouteEnd - reservation.start;
+    final ownRouteDirection =
+        ownTravel.length == 0 ? ownDirection : ownTravel.normalized();
+    final otherRouteDirection =
+        otherTravel.length == 0 ? otherDirection : otherTravel.normalized();
+    final startOffset = reservation.start - bot.head;
+    final ownSpeed =
+        math.max(_effectiveSpeed(bot), bot.speed * 0.55).toDouble();
+    final otherSpeed = reservation.speed;
     final relativeVelocity =
-        ownDirection * ownSpeed - otherDirection * otherSpeed;
+        ownRouteDirection * ownSpeed - otherRouteDirection * otherSpeed;
     final closingRatio = startOffset.length == 0
         ? 1.0
         : ((relativeVelocity.x * startOffset.normalized().x +
@@ -1683,10 +2068,18 @@ class GameSimulation {
                 math.max(1.0, ownSpeed + otherSpeed))
             .clamp(0.0, 1.0)
             .toDouble();
-    final parallel = _alignment(ownDirection, otherDirection) >=
+    final parallel = _alignment(ownRouteDirection, otherRouteDirection) >=
         config.botParallelAlignmentThreshold;
     final lethalCore =
         20 * config.collisionCoreScale.clamp(0.0, 1.0).toDouble();
+    final tightParallel = _alignment(ownRouteDirection, otherRouteDirection) >=
+        math.max(config.botParallelAlignmentThreshold, 0.96);
+    if (tightParallel) {
+      final lateralSeparation = (startOffset.x * ownRouteDirection.y -
+              startOffset.y * ownRouteDirection.x)
+          .abs();
+      if (lateralSeparation >= lethalCore) return false;
+    }
     if (parallel &&
         closingRatio <= config.botParallelClosingThreshold &&
         startOffset.length >= lethalCore) {
@@ -1694,14 +2087,431 @@ class GameSimulation {
     }
     for (var index = 0; index <= samples; index++) {
       final time = sharedHorizon * index / samples;
-      final progress = time / math.max(0.01, config.botReservationHorizon);
-      final otherProgress = time / math.max(0.01, reservation.duration);
-      final point = start + (end - start) * progress;
-      final otherPoint = reservation.start +
-          (reservation.end - reservation.start) * otherProgress;
+      final point = _projectBotRoutePoint(
+        bot,
+        ownDirection,
+        time,
+        speed: ownSpeed,
+      );
+      final otherPoint = _projectTurningPoint(
+        start: reservation.start,
+        heading: reservation.startHeading,
+        intended: reservation.intent,
+        speed: reservation.speed,
+        turnRate: reservation.turnRate,
+        time: time,
+      );
       if (point.distanceTo(otherPoint) < minimum) return true;
     }
     return false;
+  }
+
+  Vec2 _projectBotRoutePoint(
+    SnakeState bot,
+    Vec2 intended,
+    double time, {
+    double? speed,
+  }) {
+    return _projectTurningPoint(
+      start: bot.head,
+      heading: bot.heading,
+      intended: intended,
+      speed: speed ?? _effectiveSpeed(bot),
+      turnRate: config.botTurnRate * bot.tacticalTurnRateMultiplier,
+      time: time,
+    );
+  }
+
+  Vec2 _projectTurningPoint({
+    required Vec2 start,
+    required Vec2 heading,
+    required Vec2 intended,
+    required double speed,
+    required double turnRate,
+    required double time,
+  }) {
+    if (time <= 0 || speed <= 0) return start;
+    final desired = intended.length == 0 ? heading : intended.normalized();
+    final startAngle = heading.angle;
+    final turn = _shortestAngle(desired.angle - startAngle);
+    final boundedRate = math.max(0.001, turnRate.abs()).toDouble();
+    if (turn.abs() <= 0.001 || turnRate <= 0) {
+      return start + heading.normalized() * (speed * time);
+    }
+    final turnDuration = turn.abs() / boundedRate;
+    final arcTime = math.min(time, turnDuration).toDouble();
+    final angularVelocity = turn.sign * boundedRate;
+    final arcEndAngle = startAngle + angularVelocity * arcTime;
+    final arc = Vec2(
+      speed * (math.sin(arcEndAngle) - math.sin(startAngle)) / angularVelocity,
+      speed * (-math.cos(arcEndAngle) + math.cos(startAngle)) / angularVelocity,
+    );
+    if (time <= turnDuration) return start + arc;
+    return start + arc + desired * (speed * (time - turnDuration));
+  }
+
+  Vec2 _projectTurningDirection({
+    required Vec2 heading,
+    required Vec2 intended,
+    required double turnRate,
+    required double time,
+  }) {
+    final start = heading.length == 0 ? const Vec2(1, 0) : heading.normalized();
+    final desired = intended.length == 0 ? start : intended.normalized();
+    if (time <= 0 || turnRate <= 0) return start;
+    final turn = _shortestAngle(desired.angle - start.angle);
+    if (turn.abs() <= 0.001) return desired;
+    final applied = math.min(turn.abs(), turnRate.abs() * time) * turn.sign;
+    final angle = start.angle + applied;
+    return Vec2(math.cos(angle), math.sin(angle));
+  }
+
+  Vec2 _projectBodySample(_BodySample sample, double time) {
+    final owner = sample.owner;
+    if (time <= 0 || owner.body.isEmpty) return sample.position;
+    final speed = _effectiveSpeed(owner);
+    if (speed <= 0) return sample.position;
+    final spacing = math.max(1.0, owner.segmentSpacing).toDouble();
+    final sourceIndex = sample.index - speed * time / spacing;
+    if (sourceIndex <= 0) {
+      final headLead =
+          math.max(0.0, time - sample.index * spacing / speed).toDouble();
+      if (owner.kind == SnakeKind.player) return _playerRoutePoint(headLead);
+      final plan = _botPlans[owner.id];
+      final intent = plan?.intent ?? owner.heading;
+      final projectedSpeed = owner.speed *
+          (plan?.speedMultiplier ?? owner.tacticalSpeedMultiplier) *
+          ((owner.sprinting || owner.sprintRequested)
+              ? config.botSprintMultiplier
+              : 1.0);
+      return _projectBotRoutePoint(
+        owner,
+        intent,
+        headLead,
+        speed: projectedSpeed,
+      );
+    }
+    final lower = sourceIndex.floor().clamp(0, owner.body.length - 1).toInt();
+    final upper = math.min(lower + 1, owner.body.length - 1).toInt();
+    final fraction = (sourceIndex - lower).clamp(0.0, 1.0).toDouble();
+    return owner.body[lower] * (1 - fraction) + owner.body[upper] * fraction;
+  }
+
+  void _rebuildResourceFields() {
+    _resourceFields.clear();
+    for (final bucket in _resourceFieldBuckets.values) {
+      bucket.reset();
+    }
+    final bucketSize = math.max(40.0, config.botResourceFieldRadius);
+
+    void addFood(FoodPellet pellet, bool dropped) {
+      final x = (pellet.position.x / bucketSize).floor();
+      final y = (pellet.position.y / bucketSize).floor();
+      final bucket =
+          _resourceFieldBuckets[_spatialKey(x, y)] ??= _ResourceFieldBucket();
+      final value = math.max(1, pellet.value).toInt();
+      bucket.value += value;
+      bucket.count++;
+      if (dropped) bucket.droppedCount++;
+      bucket.weightedX += pellet.position.x * value;
+      bucket.weightedY += pellet.position.y * value;
+    }
+
+    for (final pellet in pellets) {
+      addFood(pellet, false);
+    }
+    for (final pellet in droppedMass) {
+      addFood(pellet, true);
+    }
+
+    for (final bucket in _resourceFieldBuckets.values) {
+      if (bucket.value < config.botResourceFieldMinimumValue ||
+          bucket.count < 2) {
+        continue;
+      }
+      final center = Vec2(
+        bucket.weightedX / bucket.value,
+        bucket.weightedY / bucket.value,
+      );
+      final radius = (42 + math.sqrt(bucket.count) * 18)
+          .clamp(42.0, config.botResourceFieldRadius)
+          .toDouble();
+      final index = _resourceFields.length;
+      if (index < _resourceFieldPool.length) {
+        final field = _resourceFieldPool[index];
+        field.update(
+          center: center,
+          value: bucket.value,
+          radius: radius,
+          memberCount: bucket.count,
+          droppedMemberCount: bucket.droppedCount,
+        );
+        _resourceFields.add(field);
+      } else {
+        final field = _ResourceField(
+          center: center,
+          value: bucket.value,
+          radius: radius,
+          memberCount: bucket.count,
+          droppedMemberCount: bucket.droppedCount,
+        );
+        _resourceFieldPool.add(field);
+        _resourceFields.add(field);
+      }
+    }
+  }
+
+  void _assessTacticalOpportunities() {
+    lastOpportunityAssessmentCount++;
+    _opportunity.reset();
+    if (!player.alive) return;
+
+    _assessPlayerEnclosure();
+    final resource = _bestContestedResourceField();
+    if (resource != null) {
+      _opportunity.resourceField = resource;
+      _opportunity.playerHarvesting = true;
+      if (!_opportunity.playerEnclosing) {
+        _opportunity.center = resource.center;
+        _opportunity.radius = resource.radius;
+      }
+    }
+
+    final boundaryDistance = player.head.length;
+    final boundaryThreshold =
+        config.arenaRadius - config.arenaBoundaryWarningBuffer * 0.72;
+    if (boundaryDistance >= boundaryThreshold && boundaryDistance > 0) {
+      final outward = player.head.normalized();
+      _opportunity.playerBoundaryPinned =
+          _alignment(player.heading, outward) >= -0.1;
+    }
+    _opportunity.playerSprintRecovering =
+        _playerBehavior.sprintRecoveryRemaining > 0;
+    _opportunity.playerInNarrowCorridor = _playerInNarrowBodyCorridor();
+    if (!_opportunity.playerEnclosing && resource == null) {
+      _opportunity.center = player.head;
+      _opportunity.radius = player.radius + 80;
+      _opportunity.gap = _playerRoutePoint(0.35);
+    }
+  }
+
+  void _assessPlayerEnclosure() {
+    final body = player.body;
+    final sampleLimit = math.max(8, config.botEnclosureSampleLimit).toInt();
+    if (body.length < 10 || sampleLimit <= 0) return;
+    final stride = math.max(1, (body.length / sampleLimit).ceil()).toInt();
+    var centerX = 0.0;
+    var centerY = 0.0;
+    var count = 0;
+    for (var index = 0; index < body.length; index += stride) {
+      centerX += body[index].x;
+      centerY += body[index].y;
+      count++;
+    }
+    if ((body.length - 1) % stride != 0) {
+      centerX += body.last.x;
+      centerY += body.last.y;
+      count++;
+    }
+    if (count < 4) return;
+    final center = Vec2(centerX / count, centerY / count);
+
+    var radiusTotal = 0.0;
+    var radiusMaximum = 0.0;
+    var sweep = 0.0;
+    double? previousAngle;
+    for (var index = 0; index < body.length; index += stride) {
+      final offset = body[index] - center;
+      final radius = offset.length;
+      radiusTotal += radius;
+      radiusMaximum = math.max(radiusMaximum, radius).toDouble();
+      final angle = offset.angle;
+      if (previousAngle != null) {
+        sweep += _shortestAngle(angle - previousAngle).abs();
+      }
+      previousAngle = angle;
+    }
+    final averageRadius = radiusTotal / math.max(1, count);
+    if (averageRadius < 48 || radiusMaximum < 60) return;
+    final closureGap = body.first.distanceTo(body.last);
+    final closureLimit = math.max(120.0, averageRadius * 1.05).toDouble();
+    final sweepScore = (sweep / math.max(0.1, config.botEnclosureMinimumSweep))
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final closureScore =
+        (1 - closureGap / closureLimit).clamp(0.0, 1.0).toDouble();
+    final confidence = sweepScore * 0.62 + closureScore * 0.38;
+    _playerBehavior.circularCommitment = math
+        .max(_playerBehavior.circularCommitment, confidence)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    if (sweep < config.botEnclosureMinimumSweep ||
+        closureGap > closureLimit ||
+        confidence < 0.58) {
+      return;
+    }
+
+    SnakeState? enclosed;
+    var enclosedDistance = double.infinity;
+    final innerRadius = averageRadius * 0.74;
+    for (final bot in snakes.where(
+      (snake) => snake.kind == SnakeKind.bot && snake.alive,
+    )) {
+      final distance = bot.head.distanceTo(center);
+      if (distance <= innerRadius && distance < enclosedDistance) {
+        enclosed = bot;
+        enclosedDistance = distance;
+      }
+    }
+    if (enclosed == null) return;
+
+    _opportunity.playerEnclosing = true;
+    _opportunity.center = center;
+    _opportunity.gap = (body.first + body.last) * 0.5;
+    _opportunity.radius = radiusMaximum + player.radius;
+    _opportunity.enclosureConfidence = confidence;
+    _opportunity.enclosedBotId = enclosed.id;
+  }
+
+  _ResourceField? _bestContestedResourceField() {
+    _ResourceField? best;
+    var bestScore = 0.0;
+    for (final field in _resourceFields) {
+      final distance = player.head.distanceTo(field.center);
+      if (distance > config.botOpportunitySenseRadius) continue;
+      final direction = field.center - player.head;
+      final approaching = direction.length == 0 ||
+          _alignment(player.heading, direction) >= 0.08;
+      final occupying = distance <= field.radius + 90;
+      if (!approaching && !occupying) continue;
+      final density = field.memberCount / math.max(1.0, field.radius / 40);
+      final droppedBonus = field.droppedMemberCount > 0 ? 1.35 : 1.0;
+      final score = (field.value + density * 1.8) *
+          droppedBonus /
+          math.max(90.0, distance);
+      if (score > bestScore) {
+        bestScore = score;
+        best = field;
+      }
+    }
+    return best;
+  }
+
+  bool _playerInNarrowBodyCorridor() {
+    final radius = math.min(240.0, config.botOpportunitySenseRadius).toDouble();
+    var leftDistance = double.infinity;
+    var rightDistance = double.infinity;
+    for (final sample in _nearbyBodySamples(player.head, radius)) {
+      if (!sample.owner.alive ||
+          sample.owner.id == player.id ||
+          sample.index < 2) {
+        continue;
+      }
+      final offset = sample.position - player.head;
+      final distance = offset.length;
+      if (distance <= 0 || distance > radius) continue;
+      final cross = player.heading.x * offset.y - player.heading.y * offset.x;
+      if (cross >= 0) {
+        leftDistance = math.min(leftDistance, distance).toDouble();
+      } else {
+        rightDistance = math.min(rightDistance, distance).toDouble();
+      }
+    }
+    return leftDistance < 175 && rightDistance < 175;
+  }
+
+  void _assignTacticalOpportunityRoles(List<SnakeState> active) {
+    _botOpportunityRoles.clear();
+    _botResourceRoles.clear();
+    if (!_opportunity.active) return;
+
+    final enclosedId = _opportunity.enclosedBotId;
+    if (_opportunity.playerEnclosing && enclosedId != null) {
+      _botOpportunityRoles[enclosedId] = _TacticalOpportunityRole.innerSurvivor;
+    }
+    final recruitTacticalResponders = _opportunity.playerEnclosing ||
+        _opportunity.playerBoundaryPinned ||
+        _opportunity.playerSprintRecovering ||
+        _opportunity.playerInNarrowCorridor;
+    final candidates = active
+        .where(
+          (bot) =>
+              bot.id != enclosedId &&
+              bot.head.distanceTo(_opportunity.center) <=
+                  config.botOpportunitySenseRadius,
+        )
+        .toList()
+      ..sort((left, right) {
+        final dispositionOrder = _opportunityDispositionPriority(left)
+            .compareTo(_opportunityDispositionPriority(right));
+        if (dispositionOrder != 0) return dispositionOrder;
+        final leftArrival = left.head.distanceTo(_opportunity.center) /
+            math.max(1.0, _effectiveSpeed(left));
+        final rightArrival = right.head.distanceTo(_opportunity.center) /
+            math.max(1.0, _effectiveSpeed(right));
+        final arrivalOrder = leftArrival.compareTo(rightArrival);
+        return arrivalOrder == 0 ? left.id.compareTo(right.id) : arrivalOrder;
+      });
+    final responderLimit = recruitTacticalResponders
+        ? math
+            .min(
+              math.max(0, config.botOpportunityResponderLimit),
+              candidates.length,
+            )
+            .toInt()
+        : 0;
+    for (var index = 0; index < responderLimit; index++) {
+      final bot = candidates[index];
+      if (_opportunity.playerEnclosing) {
+        _botOpportunityRoles[bot.id] = index == 0
+            ? _TacticalOpportunityRole.outerConstrictor
+            : bot.disposition == BotDisposition.aggressive
+                ? _TacticalOpportunityRole.exitCutter
+                : _TacticalOpportunityRole.gapStriker;
+      } else {
+        _botOpportunityRoles[bot.id] = index == 0
+            ? _TacticalOpportunityRole.exitCutter
+            : _TacticalOpportunityRole.gapStriker;
+      }
+    }
+
+    final field = _opportunity.resourceField;
+    if (field == null) return;
+    final resourceCandidates = active
+        .where(
+          (bot) =>
+              !_botOpportunityRoles.containsKey(bot.id) &&
+              bot.head.distanceTo(field.center) <=
+                  config.botOpportunitySenseRadius,
+        )
+        .toList()
+      ..sort((left, right) {
+        final leftArrival = left.head.distanceTo(field.center) /
+            math.max(1.0, _effectiveSpeed(left));
+        final rightArrival = right.head.distanceTo(field.center) /
+            math.max(1.0, _effectiveSpeed(right));
+        final order = leftArrival.compareTo(rightArrival);
+        return order == 0 ? left.id.compareTo(right.id) : order;
+      });
+    const roles = <_ResourceControlRole>[
+      _ResourceControlRole.harvester,
+      _ResourceControlRole.approachGuard,
+      _ResourceControlRole.exitAmbusher,
+    ];
+    for (var index = 0;
+        index < math.min(roles.length, resourceCandidates.length);
+        index++) {
+      _botResourceRoles[resourceCandidates[index].id] = roles[index];
+    }
+  }
+
+  int _opportunityDispositionPriority(SnakeState bot) {
+    return switch (bot.disposition) {
+      BotDisposition.aggressive => 0,
+      BotDisposition.opportunistic => 1,
+      BotDisposition.defensive => 2,
+      BotDisposition.wanderer => 3,
+    };
   }
 
   void _refreshBotFormation() {
@@ -1716,11 +2526,14 @@ class GameSimulation {
     if (!player.alive || active.isEmpty) {
       _botFormationRoles.clear();
       _botHunters.clear();
+      _botOpportunityRoles.clear();
+      _botResourceRoles.clear();
       _botFormation.playerAnchor = null;
       _botFormation.remaining = 0;
       return;
     }
     _refreshHunterAssignments(active);
+    _assignTacticalOpportunityRoles(active);
 
     final anchor = player.head;
     if (_botFormation.playerAnchor != null &&
@@ -2141,6 +2954,19 @@ class GameSimulation {
     SnakeState bot,
     _BotManeuverState state,
   ) {
+    final opportunityRole = _botOpportunityRoles[bot.id];
+    if (opportunityRole != null) {
+      return switch (opportunityRole) {
+        _TacticalOpportunityRole.outerConstrictor =>
+          _BotManeuverKind.constrictor,
+        _TacticalOpportunityRole.gapStriker => _BotManeuverKind.counterCut,
+        _TacticalOpportunityRole.exitCutter => _BotManeuverKind.laneExecution,
+        _TacticalOpportunityRole.innerSurvivor => _BotManeuverKind.counterCut,
+      };
+    }
+    if (_botResourceRoles.containsKey(bot.id)) {
+      return _BotManeuverKind.resourceDenial;
+    }
     final hunter = _botHunters[bot.id];
     if (hunter != null) {
       return _selectHunterManeuver(hunter.style, state);
@@ -2351,6 +3177,10 @@ class GameSimulation {
 
   _BotManeuverPlan _maneuverPlan(SnakeState bot) {
     final state = _ensureBotManeuver(bot);
+    final opportunityPlan = _tacticalOpportunityPlan(bot, state);
+    if (opportunityPlan != null) return opportunityPlan;
+    final resourcePlan = _resourceControlPlan(bot, state);
+    if (resourcePlan != null) return resourcePlan;
     final closedLoopMode = _closedLoopEngagement(bot);
     final closedLoop = _closedLoopIntent(bot, closedLoopMode);
     final lateral = Vec2(-player.heading.y, player.heading.x);
@@ -2486,6 +3316,116 @@ class GameSimulation {
     return _BotManeuverPlan(
       intent: direction.length == 0 ? bot.heading : direction.normalized(),
       mode: mode,
+      wantsSprint: wantsSprint,
+      speedMultiplier: speedMultiplier,
+    );
+  }
+
+  _BotManeuverPlan? _tacticalOpportunityPlan(
+    SnakeState bot,
+    _BotManeuverState state,
+  ) {
+    final role = _botOpportunityRoles[bot.id];
+    if (role == null || !_opportunity.active || !player.alive) return null;
+    final lateral = Vec2(-player.heading.y, player.heading.x);
+    Vec2 target;
+    var wantsSprint = false;
+    var speedMultiplier = 0.92;
+    switch (role) {
+      case _TacticalOpportunityRole.outerConstrictor:
+        state.kind = _BotManeuverKind.constrictor;
+        final fromCenter = bot.head - _opportunity.center;
+        final radial = fromCenter.length == 0
+            ? lateral * state.side
+            : fromCenter.normalized();
+        final tangent = Vec2(-radial.y, radial.x) * state.side;
+        final ringRadius = _opportunity.radius + bot.radius + 68;
+        final ringPoint = _opportunity.center + radial * ringRadius;
+        final ringError = bot.head.distanceTo(ringPoint);
+        target = ringError > 120
+            ? ringPoint + tangent * 90
+            : bot.head +
+                tangent * 210 +
+                radial * (ringRadius - fromCenter.length);
+        wantsSprint = ringError > 260;
+        speedMultiplier = ringError > 120 ? 1 : 0.78;
+      case _TacticalOpportunityRole.gapStriker:
+        state.kind = _BotManeuverKind.counterCut;
+        target =
+            _opportunity.gap + player.heading * 62 - lateral * state.side * 82;
+        wantsSprint = bot.head.distanceTo(target) <=
+            config.botSprintTriggerDistance * 1.45;
+        speedMultiplier = 1;
+      case _TacticalOpportunityRole.exitCutter:
+        state.kind = _BotManeuverKind.laneExecution;
+        final exit = _opportunity.playerEnclosing
+            ? _opportunity.gap + player.heading * 220
+            : _playerRoutePoint(0.72);
+        target = exit + lateral * state.side * 95;
+        wantsSprint = bot.head.distanceTo(target) <=
+            config.botSprintTriggerDistance * 1.7;
+        speedMultiplier = 1;
+      case _TacticalOpportunityRole.innerSurvivor:
+        state.kind = _BotManeuverKind.counterCut;
+        final pressure = _opportunity.gap - bot.head;
+        final pressureDirection =
+            pressure.length == 0 ? player.heading : pressure.normalized();
+        target = bot.head +
+            pressureDirection * 125 +
+            Vec2(-pressureDirection.y, pressureDirection.x) * state.side * 52;
+        speedMultiplier = 0.84;
+    }
+    final direction = target - bot.head;
+    return _BotManeuverPlan(
+      intent: direction.length == 0 ? bot.heading : direction.normalized(),
+      mode: _BotPlanMode.attack,
+      wantsSprint: wantsSprint,
+      speedMultiplier: speedMultiplier,
+    );
+  }
+
+  _BotManeuverPlan? _resourceControlPlan(
+    SnakeState bot,
+    _BotManeuverState state,
+  ) {
+    final role = _botResourceRoles[bot.id];
+    final field = _opportunity.resourceField;
+    if (role == null || field == null || !player.alive) return null;
+    state.kind = _BotManeuverKind.resourceDenial;
+    final playerApproach = field.center - player.head;
+    final approach = playerApproach.length == 0
+        ? player.heading
+        : playerApproach.normalized();
+    final lateral = Vec2(-approach.y, approach.x);
+    final side = state.side;
+    Vec2 target;
+    var wantsSprint = false;
+    var speedMultiplier = 0.9;
+    switch (role) {
+      case _ResourceControlRole.harvester:
+        target = field.center + lateral * side * field.radius * 0.24;
+        wantsSprint = bot.head.distanceTo(target) <=
+            config.botSprintTriggerDistance * 1.4;
+        speedMultiplier = 1;
+      case _ResourceControlRole.approachGuard:
+        target = player.head +
+            approach * config.botDroppedMassGuardDistance +
+            lateral * side * 74;
+        wantsSprint = player.head.distanceTo(field.center) <=
+            config.botDroppedMassGuardRadius * 0.8;
+        speedMultiplier = 0.92;
+      case _ResourceControlRole.exitAmbusher:
+        target = field.center +
+            approach * (field.radius + config.botDenyDistance) +
+            lateral * side * 96;
+        wantsSprint = player.head.distanceTo(field.center) <=
+            config.botDroppedMassGuardRadius * 0.62;
+        speedMultiplier = 0.88;
+    }
+    final direction = target - bot.head;
+    return _BotManeuverPlan(
+      intent: direction.length == 0 ? bot.heading : direction.normalized(),
+      mode: _BotPlanMode.contest,
       wantsSprint: wantsSprint,
       speedMultiplier: speedMultiplier,
     );
@@ -3235,12 +4175,18 @@ class GameSimulation {
         .normalized();
   }
 
-  double _engagementLaneRisk(SnakeState bot, Vec2 target) {
+  double _engagementLaneRisk(
+    SnakeState bot,
+    Vec2 target, {
+    Vec2? intendedDirection,
+    double? speedOverride,
+    bool includePeerBodies = false,
+  }) {
     final toTarget = target - bot.head;
     if (toTarget.length == 0) return 1;
 
-    final direction = toTarget.normalized();
-    final speed = _effectiveSpeed(bot);
+    final direction = intendedDirection?.normalized() ?? toTarget.normalized();
+    final speed = speedOverride ?? _effectiveSpeed(bot);
     final lookahead = math.max(config.botAdaptiveLeadTime, 1.0).toDouble();
     final samples = math.max(2, config.botCollisionSampleCount).toInt();
     var maximumRisk = 0.0;
@@ -3250,37 +4196,48 @@ class GameSimulation {
 
     for (var sample = 1; sample <= samples; sample++) {
       final progress = sample / samples;
-      final travel = math
-          .min(toTarget.length * progress, speed * lookahead * progress)
-          .toDouble();
-      final future = bot.head + direction * travel;
-      final playerTravel =
-          _playerRoutePoint(lookahead * progress) - player.head;
-      for (final sample in _nearbyBodySamples(
-        future - playerTravel,
-        bodyRadius,
-      )) {
-        if (sample.owner.id != player.id || sample.index < 2) continue;
-        final distance = future.distanceTo(sample.position + playerTravel);
-        if (distance >= bodyRadius) continue;
-        final motionThreat = _relativeMotionThreat(
-          bot,
-          player,
-          actorPosition: future,
-          otherPosition: sample.position + playerTravel,
-          separation: distance,
-          actorDirection: direction,
-          actorSpeed: speed,
-        );
-        if (motionThreat <= 0) continue;
-        maximumRisk = math
-            .max(
-              maximumRisk,
-              (((bodyRadius - distance) / bodyRadius) * motionThreat)
-                  .clamp(0.0, 1.0)
-                  .toDouble(),
-            )
-            .toDouble();
+      final time = lookahead * progress;
+      final future = _projectBotRoutePoint(
+        bot,
+        direction,
+        time,
+        speed: speed,
+      );
+      final routeDirection = _projectTurningDirection(
+        heading: bot.heading,
+        intended: direction,
+        turnRate: config.botTurnRate * bot.tacticalTurnRateMultiplier,
+        time: time,
+      );
+      if (player.alive) {
+        final playerTravel = _effectiveSpeed(player) * time;
+        for (final sample in _nearbyBodySamples(
+          future,
+          bodyRadius + playerTravel,
+        )) {
+          if (sample.owner.id != player.id || sample.index < 2) continue;
+          final projectedSegment = _projectBodySample(sample, time);
+          final distance = future.distanceTo(projectedSegment);
+          if (distance >= bodyRadius) continue;
+          final motionThreat = _relativeMotionThreat(
+            bot,
+            player,
+            actorPosition: future,
+            otherPosition: projectedSegment,
+            separation: distance,
+            actorDirection: routeDirection,
+            actorSpeed: speed,
+          );
+          if (motionThreat <= 0) continue;
+          maximumRisk = math
+              .max(
+                maximumRisk,
+                (((bodyRadius - distance) / bodyRadius) * motionThreat)
+                    .clamp(0.0, 1.0)
+                    .toDouble(),
+              )
+              .toDouble();
+        }
       }
 
       for (final other in snakes.where(
@@ -3289,29 +4246,86 @@ class GameSimulation {
             candidate.id != bot.id &&
             candidate.alive,
       )) {
-        final otherFuture = other.head +
-            other.heading * (_effectiveSpeed(other) * lookahead * progress);
+        final otherPlan = _botPlans[other.id];
+        final otherIntent = otherPlan?.intent ?? other.heading;
+        final otherSpeed = other.speed *
+            (otherPlan?.speedMultiplier ?? other.tacticalSpeedMultiplier) *
+            ((other.sprinting ||
+                    other.sprintRequested ||
+                    (otherPlan?.allowSprint ?? false))
+                ? config.botSprintMultiplier
+                : 1.0);
+        final otherFuture = _projectBotRoutePoint(
+          other,
+          otherIntent,
+          time,
+          speed: otherSpeed,
+        );
+        final otherRouteDirection = _projectTurningDirection(
+          heading: other.heading,
+          intended: otherIntent,
+          turnRate: config.botTurnRate * other.tacticalTurnRateMultiplier,
+          time: time,
+        );
         final distance = future.distanceTo(otherFuture);
         final peerRadius = bot.radius + other.radius + 52;
-        if (distance >= peerRadius) continue;
-        final motionThreat = _relativeMotionThreat(
-          bot,
-          other,
-          actorPosition: future,
-          otherPosition: otherFuture,
-          separation: distance,
-          actorDirection: direction,
-          actorSpeed: speed,
-        );
-        if (motionThreat <= 0) continue;
-        maximumRisk = math
-            .max(
-              maximumRisk,
-              (((peerRadius - distance) / peerRadius) * motionThreat)
-                  .clamp(0.0, 1.0)
-                  .toDouble(),
-            )
-            .toDouble();
+        if (distance < peerRadius) {
+          final motionThreat = _relativeMotionThreat(
+            bot,
+            other,
+            actorPosition: future,
+            otherPosition: otherFuture,
+            separation: distance,
+            actorDirection: routeDirection,
+            actorSpeed: speed,
+            otherDirection: otherRouteDirection,
+            otherSpeed: otherSpeed,
+          );
+          if (motionThreat > 0) {
+            maximumRisk = math
+                .max(
+                  maximumRisk,
+                  (((peerRadius - distance) / peerRadius) * motionThreat)
+                      .clamp(0.0, 1.0)
+                      .toDouble(),
+                )
+                .toDouble();
+          }
+        }
+
+        if (includePeerBodies) {
+          for (final bodySample in _nearbyBodySamples(
+            future,
+            peerRadius + otherSpeed * time,
+          )) {
+            if (bodySample.owner.id != other.id || bodySample.index < 2) {
+              continue;
+            }
+            final projectedSegment = _projectBodySample(bodySample, time);
+            final bodyDistance = future.distanceTo(projectedSegment);
+            if (bodyDistance >= peerRadius) continue;
+            final bodyThreat = _relativeMotionThreat(
+              bot,
+              other,
+              actorPosition: future,
+              otherPosition: projectedSegment,
+              separation: bodyDistance,
+              actorDirection: routeDirection,
+              actorSpeed: speed,
+              otherDirection: otherRouteDirection,
+              otherSpeed: otherSpeed,
+            );
+            if (bodyThreat <= 0) continue;
+            maximumRisk = math
+                .max(
+                  maximumRisk,
+                  (((peerRadius - bodyDistance) / peerRadius) * bodyThreat)
+                      .clamp(0.0, 1.0)
+                      .toDouble(),
+                )
+                .toDouble();
+          }
+        }
       }
     }
 
@@ -3357,8 +4371,13 @@ class GameSimulation {
         .toDouble();
     for (var sample = 1; sample <= samples; sample++) {
       final progress = sample / samples;
-      final future =
-          snake.head + snake.heading * (speed * lookahead * progress);
+      final time = lookahead * progress;
+      final future = _projectBotRoutePoint(
+        snake,
+        snake.heading,
+        time,
+        speed: speed,
+      );
       final projectedTravel = speed * lookahead * progress;
       for (final bodySample in _nearbyBodySamples(
         future,
@@ -3368,10 +4387,10 @@ class GameSimulation {
         if (other.id == snake.id || !other.alive || bodySample.index == 0) {
           continue;
         }
-        // Treat the other body as moving with its current public heading.
-        // The bucket limits the candidates before this projection is tested.
-        final projectedSegment = bodySample.position +
-            other.heading * (_effectiveSpeed(other) * lookahead * progress);
+        // Body samples advance along their existing curved trail. This keeps
+        // the predictor aligned with the geometry the snake will actually
+        // occupy instead of translating every segment as a rigid line.
+        final projectedSegment = _projectBodySample(bodySample, time);
         final offset = future - projectedSegment;
         final distance = offset.length;
         if (distance <= 0 || distance >= avoidanceRadius) continue;
@@ -3420,17 +4439,22 @@ class GameSimulation {
 
     for (var sample = 1; sample <= samples; sample++) {
       final progress = sample / samples;
-      final future = bot.head + bot.heading * (speed * lookahead * progress);
-      final playerTravel =
-          _playerRoutePoint(lookahead * progress) - player.head;
+      final time = lookahead * progress;
+      final future = _projectBotRoutePoint(
+        bot,
+        bot.heading,
+        time,
+        speed: speed,
+      );
+      final playerTravel = _effectiveSpeed(player) * time;
       for (final samplePoint in _nearbyBodySamples(
-        future - playerTravel,
-        radius,
+        future,
+        radius + playerTravel,
       )) {
         if (samplePoint.owner.id != player.id || samplePoint.index < 1) {
           continue;
         }
-        final projectedSegment = samplePoint.position + playerTravel;
+        final projectedSegment = _projectBodySample(samplePoint, time);
         final offset = future - projectedSegment;
         final distance = offset.length;
         if (distance >= radius) continue;
@@ -3479,24 +4503,37 @@ class GameSimulation {
     final samples = math.max(2, config.botCollisionSampleCount).toInt();
     var escape = Vec2.zero;
     var maximumUrgency = 0.0;
+    String? rightOfWayOwnerId;
     for (final other in snakes.where(
       (candidate) =>
           candidate.kind == SnakeKind.bot &&
           candidate.id != bot.id &&
           candidate.alive,
     )) {
+      final otherOwnsRightOfWay = !_botHasRightOfWay(bot, other);
       for (var sample = 1; sample <= samples; sample++) {
         final progress = sample / samples;
-        final future = bot.head + bot.heading * (speed * lookahead * progress);
+        final time = lookahead * progress;
+        final future = _projectBotRoutePoint(
+          bot,
+          bot.heading,
+          time,
+          speed: speed,
+        );
         final otherProbeSpeed =
             math.max(_effectiveSpeed(other), other.speed * 0.55).toDouble();
-        final otherTravel =
-            other.heading * (otherProbeSpeed * lookahead * progress);
+        final otherPlan = _botPlans[other.id];
+        final otherIntent = otherPlan?.intent ?? other.heading;
+        final peerHead = _projectBotRoutePoint(
+          other,
+          otherIntent,
+          time,
+          speed: otherProbeSpeed,
+        );
         final peerRadius = math.max(
           config.botPeerHardAvoidanceRadius,
           bot.radius + other.radius + 42,
         );
-        final peerHead = other.head + otherTravel;
         final headOffset = future - peerHead;
         final headDistance = headOffset.length;
         if (headDistance < peerRadius) {
@@ -3507,11 +4544,16 @@ class GameSimulation {
             otherPosition: peerHead,
             separation: headDistance,
           );
-          final urgency =
+          final rawUrgency =
               (((peerRadius - headDistance) / peerRadius) * motionThreat)
                   .clamp(0.0, 1.0)
                   .toDouble();
-          maximumUrgency = math.max(maximumUrgency, urgency).toDouble();
+          final urgency = rawUrgency *
+              (otherOwnsRightOfWay || rawUrgency >= 0.78 ? 1.0 : 0.42);
+          if (urgency > maximumUrgency) {
+            maximumUrgency = urgency;
+            rightOfWayOwnerId = otherOwnsRightOfWay ? other.id : null;
+          }
           final side = _peerYieldSide(bot, other);
           final away = headDistance == 0 ? side : headOffset.normalized();
           escape +=
@@ -3521,12 +4563,12 @@ class GameSimulation {
         final bodyRadius = bot.radius + other.radius + 24;
         for (final samplePoint in _nearbyBodySamples(
           future,
-          bodyRadius + otherTravel.length,
+          bodyRadius + otherProbeSpeed * time,
         )) {
           if (samplePoint.owner.id != other.id || samplePoint.index < 1) {
             continue;
           }
-          final projectedSegment = samplePoint.position + otherTravel;
+          final projectedSegment = _projectBodySample(samplePoint, time);
           final offset = future - projectedSegment;
           final distance = offset.length;
           if (distance >= bodyRadius) continue;
@@ -3538,11 +4580,16 @@ class GameSimulation {
             otherPosition: projectedSegment,
             separation: distance,
           );
-          final urgency =
+          final rawUrgency =
               (((bodyRadius - distance) / bodyRadius) * motionThreat)
                   .clamp(0.0, 1.0)
                   .toDouble();
-          maximumUrgency = math.max(maximumUrgency, urgency).toDouble();
+          final urgency = rawUrgency *
+              (otherOwnsRightOfWay || rawUrgency >= 0.78 ? 1.0 : 0.42);
+          if (urgency > maximumUrgency) {
+            maximumUrgency = urgency;
+            rightOfWayOwnerId = otherOwnsRightOfWay ? other.id : null;
+          }
           final side = _peerYieldSide(bot, other);
           final away = distance == 0 ? side : offset.normalized();
           escape +=
@@ -3550,7 +4597,20 @@ class GameSimulation {
         }
       }
     }
-    return _BotPeerRisk(escape: escape.normalized(), urgency: maximumUrgency);
+    return _BotPeerRisk(
+      escape: escape.normalized(),
+      urgency: maximumUrgency,
+      rightOfWayOwnerId: rightOfWayOwnerId,
+    );
+  }
+
+  bool _botHasRightOfWay(SnakeState bot, SnakeState other) {
+    final botPriority = _botPlanningPriority(bot);
+    final otherPriority = _botPlanningPriority(other);
+    if ((botPriority - otherPriority).abs() > 1e-6) {
+      return botPriority > otherPriority;
+    }
+    return bot.id.compareTo(other.id) < 0;
   }
 
   Vec2 _peerYieldSide(SnakeState bot, SnakeState other) {
@@ -3734,25 +4794,35 @@ class GameSimulation {
     required double separation,
     Vec2? actorDirection,
     double? actorSpeed,
+    Vec2? otherDirection,
+    double? otherSpeed,
   }) {
     final direction = actorDirection ?? actor.heading;
-    final otherDirection = other.heading;
+    final peerDirection = otherDirection ?? other.heading;
     final speed = actorSpeed ?? _effectiveSpeed(actor);
-    final otherSpeed = _effectiveSpeed(other);
+    final peerSpeed = otherSpeed ?? _effectiveSpeed(other);
     if (direction.length == 0 || separation <= 0) return 1;
 
     final offsetX = otherPosition.x - actorPosition.x;
     final offsetY = otherPosition.y - actorPosition.y;
-    final relativeVelocityX =
-        direction.x * speed - otherDirection.x * otherSpeed;
-    final relativeVelocityY =
-        direction.y * speed - otherDirection.y * otherSpeed;
+    final relativeVelocityX = direction.x * speed - peerDirection.x * peerSpeed;
+    final relativeVelocityY = direction.y * speed - peerDirection.y * peerSpeed;
     final closingRatio =
         ((relativeVelocityX * offsetX + relativeVelocityY * offsetY) /
-                (separation * math.max(1.0, speed + otherSpeed)))
+                (separation * math.max(1.0, speed + peerSpeed)))
             .clamp(0.0, 1.0)
             .toDouble();
-    final headingAlignment = _alignment(direction, otherDirection);
+    final headingAlignment = _alignment(direction, peerDirection);
+    final tightParallelAlignment =
+        math.max(config.botParallelAlignmentThreshold, 0.96).toDouble();
+    if (headingAlignment >= tightParallelAlignment) {
+      final routeDirection = direction.normalized();
+      final lateralSeparation =
+          (offsetX * routeDirection.y - offsetY * routeDirection.x).abs();
+      final lethalClearance = (actor.radius + other.radius) *
+          config.collisionCoreScale.clamp(0.0, 1.0).toDouble();
+      if (lateralSeparation >= lethalClearance) return 0;
+    }
     if (headingAlignment >= config.botParallelAlignmentThreshold &&
         closingRatio <= config.botParallelClosingThreshold) {
       return 0;
@@ -4121,6 +5191,10 @@ class GameSimulation {
       gameOverReason = reason;
     } else {
       _botHunters.remove(snake.id);
+      _botOpportunityRoles.remove(snake.id);
+      _botResourceRoles.remove(snake.id);
+      _botYieldingTo.remove(snake.id);
+      _botYieldingTo.removeWhere((_, ownerId) => ownerId == snake.id);
       _botRespawnTimers[snake.id] = config.botRespawnDelay;
     }
     if (reason == GameOverReason.bodyCollision) {

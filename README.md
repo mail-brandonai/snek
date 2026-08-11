@@ -431,3 +431,32 @@ collision. Bot safety prediction also evaluates relative closing motion:
 stable parallel lanes are allowed, but crossing, head-on, and faster trailing
 routes continue to trigger deconfliction. The V1.23 fixed-step budget and the
 V1.24 hierarchical safety veto remain unchanged.
+
+## V1.26 tactical opportunism and collision discipline
+
+Bot planning now builds one shared tactical-opportunity snapshot per bounded
+planning pass. It recognizes when the player is closing a body loop around
+another snake, approaching or occupying a valuable food field, pinned near the
+arena boundary, recovering from a sprint, or committed inside a narrow body
+corridor. No more than two outside responders temporarily leave their normal
+portfolio: an outer constrictor controls the compound player-and-prey envelope,
+while a gap striker or exit cutter attacks the route needed to finish or abandon
+the enclosure. An enclosed bot coordinates from inside without immunity or
+hidden information.
+
+Natural pellets and dropped mass now share the same density, value, contest,
+and arrival-time field model. When a player commits to a worthwhile field, the
+eligible bots claim distinct harvesting, approach-guard, and exit-ambush lanes
+instead of racing down one centre line. Aggressive bots receive first access to
+outer constriction and exit cutting, opportunistic bots emphasize food ambushes,
+defensive bots counter committed loops, and wanderers remain irregular reserve
+strikers.
+
+Collision prediction rolls each committed route forward through the actor's
+real turn-rate and speed phase. Body samples advance along their existing curved
+trail rather than translating as a rigid shape, and final routes are checked
+again after deconfliction and sprint activation. Time-windowed reservations now
+carry explicit right of way; a yielding bot remains in its safe lane until the
+occupied corridor is geometrically clear. These changes retain V1.25's tight
+lethal core and close parallel contact while strengthening crossing and
+turning-body discipline within V1.23's fixed two-step frame budget.
