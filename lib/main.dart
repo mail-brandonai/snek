@@ -227,6 +227,34 @@ class SlitherGame extends FlameGame {
 
   final GameSimulation simulation;
   final ValueNotifier<GameHud> hud;
+  final ui.Paint _gridPaint = ui.Paint()
+    ..color = const Color(0xff172238)
+    ..style = ui.PaintingStyle.stroke
+    ..strokeWidth = 1;
+  final ui.Paint _naturalPelletPaint = ui.Paint()
+    ..color = const Color(0xcc54e8d1);
+  final List<ui.Paint> _droppedPelletPaints = List<ui.Paint>.generate(
+    _snakeColours.length,
+    (index) => ui.Paint()..color = _snakeColours[index].withValues(alpha: 0.95),
+  );
+  final List<ui.Paint> _droppedGlowPaints = List<ui.Paint>.generate(
+    _snakeColours.length,
+    (index) => ui.Paint()..color = _snakeColours[index].withValues(alpha: 0.13),
+  );
+  final List<ui.Paint> _snakeBodyPaints = List<ui.Paint>.generate(
+    _snakeColours.length,
+    (index) => ui.Paint()
+      ..color = _snakeColours[index]
+      ..style = ui.PaintingStyle.fill,
+  );
+  final ui.Paint _effectPaint = ui.Paint();
+  final ui.Paint _eyePaint = ui.Paint()..color = Colors.white;
+  final ui.Paint _pupilPaint = ui.Paint()..color = const Color(0xff142033);
+  final ui.Path _visibleGridPath = ui.Path();
+  int _gridStartColumn = -1;
+  int _gridEndColumn = -1;
+  int _gridStartRow = -1;
+  int _gridEndRow = -1;
   Vec2 steering = const Vec2(1, 0);
   bool _pointerSprint = false;
   bool _keyboardSprint = false;
@@ -286,13 +314,14 @@ class SlitherGame extends FlameGame {
     _drawArena(canvas);
     _drawPellets(canvas, simulation.pellets, dropped: false);
     _drawPellets(canvas, simulation.droppedMass, dropped: true);
-    for (final snake in simulation.snakes.where((item) => item.alive)) {
-      _drawSnake(canvas, snake);
+    for (final snake in simulation.snakes) {
+      if (snake.alive) _drawSnake(canvas, snake);
     }
     canvas.restore();
   }
 
   void _publishHud() {
+    final threats = simulation.playerThreats;
     hud.value = GameHud(
       score: simulation.score,
       length: simulation.player.length,
@@ -302,12 +331,12 @@ class SlitherGame extends FlameGame {
       gameOver: simulation.gameOver,
       gameOverReason: simulation.gameOverReason,
       finalStats: simulation.finalStats,
-      threats: simulation.playerThreats,
+      threats: threats,
       leaderboard: simulation.leaderboard,
       minimap: MinimapModel.markers(
         snakes: simulation.snakes,
         arenaRadius: simulation.config.arenaRadius,
-        threats: simulation.playerThreats,
+        threats: threats,
       ),
       minimapPings: MinimapModel.pings(
         collisionPings: simulation.collisionPings,
@@ -336,77 +365,110 @@ class SlitherGame extends FlameGame {
   }
 
   void _drawArena(ui.Canvas canvas) {
-    final gridPaint = ui.Paint()
-      ..color = const Color(0xff172238)
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 1;
     const spacing = 92.0;
     final radius = simulation.config.arenaRadius;
-    for (var x = -radius; x <= radius; x += spacing) {
-      for (var y = -radius; y <= radius; y += spacing) {
-        final centre = Offset(
-          x + ((y ~/ spacing).isOdd ? spacing / 2 : 0),
-          y,
-        );
-        final path = ui.Path();
-        for (var index = 0; index < 6; index++) {
-          final angle = index * 3.141592653589793 / 3;
-          final point = Offset(
-            centre.dx + 44 * math.cos(angle),
-            centre.dy + 44 * math.sin(angle),
+    final camera = simulation.player.head;
+    final minimumX = camera.x - size.x / 2 - spacing;
+    final maximumX = camera.x + size.x / 2 + spacing;
+    final minimumY = camera.y - size.y / 2 - spacing;
+    final maximumY = camera.y + size.y / 2 + spacing;
+    final maximumGridIndex = (radius * 2 / spacing).floor();
+    final startColumn = ((minimumX + radius) / spacing)
+        .floor()
+        .clamp(0, maximumGridIndex)
+        .toInt();
+    final endColumn = ((maximumX + radius) / spacing)
+        .ceil()
+        .clamp(0, maximumGridIndex)
+        .toInt();
+    final startRow = ((minimumY + radius) / spacing)
+        .floor()
+        .clamp(0, maximumGridIndex)
+        .toInt();
+    final endRow = ((maximumY + radius) / spacing)
+        .ceil()
+        .clamp(0, maximumGridIndex)
+        .toInt();
+    if (startColumn != _gridStartColumn ||
+        endColumn != _gridEndColumn ||
+        startRow != _gridStartRow ||
+        endRow != _gridEndRow) {
+      _gridStartColumn = startColumn;
+      _gridEndColumn = endColumn;
+      _gridStartRow = startRow;
+      _gridEndRow = endRow;
+      _visibleGridPath.reset();
+      for (var column = startColumn; column <= endColumn; column++) {
+        final x = -radius + column * spacing;
+        for (var row = startRow; row <= endRow; row++) {
+          final y = -radius + row * spacing;
+          final centre = Offset(
+            x + ((y ~/ spacing).isOdd ? spacing / 2 : 0),
+            y,
           );
-          if (index == 0) {
-            path.moveTo(point.dx, point.dy);
-          } else {
-            path.lineTo(point.dx, point.dy);
+          for (var index = 0; index < 6; index++) {
+            final angle = index * 3.141592653589793 / 3;
+            final point = Offset(
+              centre.dx + 44 * math.cos(angle),
+              centre.dy + 44 * math.sin(angle),
+            );
+            if (index == 0) {
+              _visibleGridPath.moveTo(point.dx, point.dy);
+            } else {
+              _visibleGridPath.lineTo(point.dx, point.dy);
+            }
           }
+          _visibleGridPath.close();
         }
-        path.close();
-        canvas.drawPath(path, gridPaint);
       }
     }
+    canvas.drawPath(_visibleGridPath, _gridPaint);
+
+    final viewportRadius = math.sqrt(size.x * size.x + size.y * size.y) / 2;
     final warningRadius = math
         .max(
           0.0,
           radius - simulation.config.arenaBoundaryWarningBuffer,
         )
         .toDouble();
-    final warningGlow = ui.Paint()
-      ..color = const Color(0xffff9f43).withValues(alpha: 0.08)
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 18;
-    canvas.drawCircle(Offset.zero, warningRadius, warningGlow);
+    if ((camera.length - warningRadius).abs() <= viewportRadius + 24) {
+      _effectPaint
+        ..color = const Color(0xffff9f43).withValues(alpha: 0.08)
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 18;
+      canvas.drawCircle(Offset.zero, warningRadius, _effectPaint);
+      _effectPaint
+        ..color = const Color(0xffffb347).withValues(alpha: 0.72)
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 2;
+      canvas.drawCircle(Offset.zero, warningRadius, _effectPaint);
+    }
 
-    final warningPaint = ui.Paint()
-      ..color = const Color(0xffffb347).withValues(alpha: 0.72)
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 2;
-    canvas.drawCircle(Offset.zero, warningRadius, warningPaint);
-
-    final boundaryGlow = ui.Paint()
-      ..color = const Color(0xffff4d5f).withValues(alpha: 0.16)
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 16;
-    canvas.drawCircle(Offset.zero, radius, boundaryGlow);
-
-    final boundaryPaint = ui.Paint()
-      ..color = const Color(0xffff5263)
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 5;
-    canvas.drawCircle(Offset.zero, radius, boundaryPaint);
-
-    final tickPaint = ui.Paint()
-      ..color = const Color(0xffff8d78).withValues(alpha: 0.85)
-      ..strokeWidth = 3;
-    for (var index = 0; index < 48; index++) {
-      final angle = index * math.pi / 24;
-      final inner = radius - 13;
-      final outer = radius + 13;
-      canvas.drawLine(
-        Offset(math.cos(angle) * inner, math.sin(angle) * inner),
-        Offset(math.cos(angle) * outer, math.sin(angle) * outer),
-        tickPaint,
-      );
+    if ((camera.length - radius).abs() <= viewportRadius + 28) {
+      _effectPaint
+        ..color = const Color(0xffff4d5f).withValues(alpha: 0.16)
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 16;
+      canvas.drawCircle(Offset.zero, radius, _effectPaint);
+      _effectPaint
+        ..color = const Color(0xffff5263)
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 5;
+      canvas.drawCircle(Offset.zero, radius, _effectPaint);
+      _effectPaint
+        ..color = const Color(0xffff8d78).withValues(alpha: 0.85)
+        ..style = ui.PaintingStyle.fill
+        ..strokeWidth = 3;
+      for (var index = 0; index < 48; index++) {
+        final angle = index * math.pi / 24;
+        final inner = radius - 13;
+        final outer = radius + 13;
+        canvas.drawLine(
+          Offset(math.cos(angle) * inner, math.sin(angle) * inner),
+          Offset(math.cos(angle) * outer, math.sin(angle) * outer),
+          _effectPaint,
+        );
+      }
     }
   }
 
@@ -417,44 +479,49 @@ class SlitherGame extends FlameGame {
   }) {
     for (final pellet in items) {
       if (!_isVisible(pellet.position, dropped ? 28 : 12)) continue;
-      final colour = dropped
-          ? _snakeColour(pellet.sourceColorIndex ?? 0)
-          : const Color(0xff54e8d1);
       final isDefeatDrop = pellet.kind == FoodPelletKind.defeatDrop;
-      final paint = ui.Paint()
-        ..color = colour.withValues(alpha: dropped ? 0.95 : 0.8);
+      final colourIndex =
+          (pellet.sourceColorIndex ?? 0).abs() % _snakeColours.length;
+      final paint =
+          dropped ? _droppedPelletPaints[colourIndex] : _naturalPelletPaint;
       canvas.drawCircle(
         Offset(pellet.position.x, pellet.position.y),
         isDefeatDrop ? 8 : 4,
         paint,
       );
       if (isDefeatDrop) {
-        final glow = ui.Paint()..color = colour.withValues(alpha: 0.13);
         canvas.drawCircle(
           Offset(pellet.position.x, pellet.position.y),
           18,
-          glow,
+          _droppedGlowPaints[colourIndex],
         );
       }
     }
   }
 
   void _drawSnake(ui.Canvas canvas, SnakeState snake) {
-    // Avoid a second full-body scan just to decide whether a long snake is
-    // visible. The same bounded stride used by the renderer is enough to
-    // detect a visible sample while preserving a continuous silhouette.
+    if (snake.body.isEmpty) return;
     final renderStride = snake.body.length > 420 ? 2 : 1;
-    var hasVisibleSample = false;
-    for (var index = 0; index < snake.body.length; index += renderStride) {
-      if (_isVisible(snake.body[index], snake.radius + 12)) {
-        hasVisibleSample = true;
+    final viewMinimumX = simulation.player.head.x - size.x / 2;
+    final viewMaximumX = simulation.player.head.x + size.x / 2;
+    final viewMinimumY = simulation.player.head.y - size.y / 2;
+    final viewMaximumY = simulation.player.head.y + size.y / 2;
+    final padding = snake.radius + 12;
+    var hasVisibleChunk = false;
+    for (final chunk in snake.bodyChunks) {
+      if (chunk.intersects(
+        minimumX: viewMinimumX - padding,
+        maximumX: viewMaximumX + padding,
+        minimumY: viewMinimumY - padding,
+        maximumY: viewMaximumY + padding,
+      )) {
+        hasVisibleChunk = true;
         break;
       }
     }
-    if (!hasVisibleSample) {
-      return;
-    }
-    final colour = _snakeColour(snake.colorIndex);
+    if (!hasVisibleChunk) return;
+    final colourIndex = snake.colorIndex.abs() % _snakeColours.length;
+    final colour = _snakeColours[colourIndex];
     if (snake.sprintAnticipating || snake.sprinting) {
       final double pulse = (snake.sprinting
               ? snake.sprintPulseRemaining /
@@ -463,78 +530,110 @@ class SlitherGame extends FlameGame {
                   math.max(
                       simulation.config.sprintAnticipationDuration, 0.0001))
           .toDouble();
-      final ringPaint = ui.Paint()
+      _effectPaint
         ..color = colour.withValues(
           alpha: (0.22 + pulse.clamp(0.0, 1.0) * 0.34).toDouble(),
         )
         ..style = ui.PaintingStyle.stroke
         ..strokeWidth = snake.sprinting ? 3 : 2;
-      canvas.drawCircle(
-        Offset(snake.head.x, snake.head.y),
-        snake.radius + 8 + (1 - pulse.clamp(0.0, 1.0)) * 8,
-        ringPaint,
-      );
+      if (_isVisible(snake.head, snake.radius + 20)) {
+        canvas.drawCircle(
+          Offset(snake.head.x, snake.head.y),
+          snake.radius + 8 + (1 - pulse.clamp(0.0, 1.0)) * 8,
+          _effectPaint,
+        );
+      }
     }
     if (snake.kind == SnakeKind.player && snake.sprinting) {
       final pulse = (math.sin(simulation.elapsed * 10) + 1) / 2;
-      final auraPaint = ui.Paint()
+      _effectPaint
         ..color = const Color(0xffffc766).withValues(
           alpha: 0.12 + pulse * 0.1,
         )
         ..style = ui.PaintingStyle.fill;
       final auraStride = snake.body.length > 420 ? 2 : 1;
-      for (var index = 0; index < snake.body.length; index += auraStride) {
-        final segment = snake.body[index];
-        canvas.drawCircle(
-          Offset(segment.x, segment.y),
-          snake.radius * (1.45 + pulse * 0.18),
-          auraPaint,
-        );
+      for (final chunk in snake.bodyChunks) {
+        if (!chunk.intersects(
+          minimumX: viewMinimumX - padding,
+          maximumX: viewMaximumX + padding,
+          minimumY: viewMinimumY - padding,
+          maximumY: viewMaximumY + padding,
+        )) {
+          continue;
+        }
+        var index = chunk.startIndex;
+        final strideOffset = index % auraStride;
+        if (strideOffset != 0) index += auraStride - strideOffset;
+        final end = math.min(chunk.endIndex, snake.body.length);
+        for (; index < end; index += auraStride) {
+          final segment = snake.body[index];
+          if (!_isVisible(segment, padding)) continue;
+          canvas.drawCircle(
+            Offset(segment.x, segment.y),
+            snake.radius * (1.45 + pulse * 0.18),
+            _effectPaint,
+          );
+        }
       }
-      final auraRing = ui.Paint()
+      _effectPaint
         ..color = const Color(0xffffd166).withValues(
           alpha: 0.45 + pulse * 0.25,
         )
         ..style = ui.PaintingStyle.stroke
         ..strokeWidth = 1.5 + pulse;
-      canvas.drawCircle(
-        Offset(snake.head.x, snake.head.y),
-        snake.radius * (1.55 + pulse * 0.25),
-        auraRing,
-      );
+      if (_isVisible(snake.head, snake.radius + 20)) {
+        canvas.drawCircle(
+          Offset(snake.head.x, snake.head.y),
+          snake.radius * (1.55 + pulse * 0.25),
+          _effectPaint,
+        );
+      }
     }
-    final bodyPaint = ui.Paint()
-      ..color = colour
-      ..style = ui.PaintingStyle.fill;
+    final bodyPaint = _snakeBodyPaints[colourIndex];
     // body[0] is the head position and is rendered separately below. Skipping
     // it here keeps the visible segment count equal to the HUD length instead
     // of making every snake appear one segment longer at spawn.
-    for (var index = snake.body.length - 1; index >= 1; index -= renderStride) {
-      final segment = snake.body[index];
-      if (!_isVisible(segment, snake.radius + 12)) continue;
-      final double taper =
-          (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0).toDouble();
-      canvas.drawCircle(
-        Offset(segment.x, segment.y),
-        snake.radius * taper * (renderStride == 1 ? 1 : 1.22),
-        bodyPaint,
-      );
+    for (var chunkIndex = snake.bodyChunks.length - 1;
+        chunkIndex >= 0;
+        chunkIndex--) {
+      final chunk = snake.bodyChunks[chunkIndex];
+      if (!chunk.intersects(
+        minimumX: viewMinimumX - padding,
+        maximumX: viewMaximumX + padding,
+        minimumY: viewMinimumY - padding,
+        maximumY: viewMaximumY + padding,
+      )) {
+        continue;
+      }
+      var index = math.min(chunk.endIndex, snake.body.length).toInt() - 1;
+      final tailStrideOffset = (snake.body.length - 1 - index) % renderStride;
+      if (tailStrideOffset != 0) index -= renderStride - tailStrideOffset;
+      for (; index >= math.max(1, chunk.startIndex); index -= renderStride) {
+        final segment = snake.body[index];
+        if (!_isVisible(segment, padding)) continue;
+        final double taper =
+            (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0).toDouble();
+        canvas.drawCircle(
+          Offset(segment.x, segment.y),
+          snake.radius * taper * (renderStride == 1 ? 1 : 1.22),
+          bodyPaint,
+        );
+      }
     }
     final head = snake.head;
+    if (!_isVisible(head, snake.radius + 12)) return;
     canvas.drawCircle(Offset(head.x, head.y), snake.radius + 2, bodyPaint);
-    final eyePaint = ui.Paint()..color = Colors.white;
-    final pupilPaint = ui.Paint()..color = const Color(0xff142033);
     final perpendicular = Vec2(-snake.heading.y, snake.heading.x);
-    for (final side in [-1.0, 1.0]) {
+    for (final side in const [-1.0, 1.0]) {
       final eye = head + snake.heading * 5 + perpendicular * (side * 5);
-      canvas.drawCircle(Offset(eye.x, eye.y), 3.5, eyePaint);
+      canvas.drawCircle(Offset(eye.x, eye.y), 3.5, _eyePaint);
       canvas.drawCircle(
         Offset(
           eye.x + snake.heading.x * 1.5,
           eye.y + snake.heading.y * 1.5,
         ),
         1.8,
-        pupilPaint,
+        _pupilPaint,
       );
     }
   }

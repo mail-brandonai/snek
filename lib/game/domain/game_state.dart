@@ -151,6 +151,51 @@ class RunStats {
   final int rank;
 }
 
+class BodyChunkBounds {
+  BodyChunkBounds({
+    required this.startIndex,
+    required this.endIndex,
+    required this.minimumX,
+    required this.maximumX,
+    required this.minimumY,
+    required this.maximumY,
+  });
+
+  int startIndex;
+  int endIndex;
+  double minimumX;
+  double maximumX;
+  double minimumY;
+  double maximumY;
+
+  void update({
+    required int startIndex,
+    required int endIndex,
+    required double minimumX,
+    required double maximumX,
+    required double minimumY,
+    required double maximumY,
+  }) {
+    this.startIndex = startIndex;
+    this.endIndex = endIndex;
+    this.minimumX = minimumX;
+    this.maximumX = maximumX;
+    this.minimumY = minimumY;
+    this.maximumY = maximumY;
+  }
+
+  bool intersects({
+    required double minimumX,
+    required double maximumX,
+    required double minimumY,
+    required double maximumY,
+  }) =>
+      this.maximumX >= minimumX &&
+      this.minimumX <= maximumX &&
+      this.maximumY >= minimumY &&
+      this.minimumY <= maximumY;
+}
+
 class SnakeState {
   SnakeState({
     required this.id,
@@ -170,6 +215,7 @@ class SnakeState {
           (index) => position - Vec2(index * segmentSpacing, 0),
         ) {
     movementTrail.addAll(body.reversed);
+    rebuildBodyChunks();
   }
 
   final String id;
@@ -182,6 +228,7 @@ class SnakeState {
   final int spawnLength;
   final List<Vec2> body;
   final List<Vec2> movementTrail = [];
+  final List<BodyChunkBounds> bodyChunks = [];
   Vec2 heading;
   int _logicalLength;
   double _growthExpressionRemaining = 0;
@@ -276,6 +323,56 @@ class SnakeState {
     retreating = false;
     publicIntent = ActorIntent.wandering;
     alive = true;
+    rebuildBodyChunks();
+  }
+
+  void rebuildBodyChunks({int chunkSize = 64}) {
+    if (body.isEmpty || chunkSize <= 0) {
+      bodyChunks.clear();
+      return;
+    }
+
+    var chunkIndex = 0;
+    for (var start = 0; start < body.length; start += chunkSize) {
+      final end = (start + chunkSize).clamp(0, body.length).toInt();
+      var minimumX = double.infinity;
+      var maximumX = double.negativeInfinity;
+      var minimumY = double.infinity;
+      var maximumY = double.negativeInfinity;
+      for (var index = start; index < end; index++) {
+        final point = body[index];
+        if (point.x < minimumX) minimumX = point.x;
+        if (point.x > maximumX) maximumX = point.x;
+        if (point.y < minimumY) minimumY = point.y;
+        if (point.y > maximumY) maximumY = point.y;
+      }
+
+      if (chunkIndex < bodyChunks.length) {
+        bodyChunks[chunkIndex].update(
+          startIndex: start,
+          endIndex: end,
+          minimumX: minimumX,
+          maximumX: maximumX,
+          minimumY: minimumY,
+          maximumY: maximumY,
+        );
+      } else {
+        bodyChunks.add(
+          BodyChunkBounds(
+            startIndex: start,
+            endIndex: end,
+            minimumX: minimumX,
+            maximumX: maximumX,
+            minimumY: minimumY,
+            maximumY: maximumY,
+          ),
+        );
+      }
+      chunkIndex++;
+    }
+    if (bodyChunks.length > chunkIndex) {
+      bodyChunks.removeRange(chunkIndex, bodyChunks.length);
+    }
   }
 
   bool get sprintAnticipating => sprintAnticipationRemaining > 0;
@@ -283,7 +380,8 @@ class SnakeState {
   Vec2? shedMass({required int minimumLength}) {
     if (length <= minimumLength) return null;
 
-    final position = body.last;
+    final tail = body.last;
+    final position = Vec2(tail.x, tail.y);
     _logicalLength -= 1;
     if (_growthExpressionRemaining > 0) {
       _growthExpressionRemaining = (_growthExpressionRemaining - segmentSpacing)

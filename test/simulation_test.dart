@@ -5,6 +5,20 @@ import 'package:slither/game/domain/minimap.dart';
 import 'package:slither/game/domain/simulation.dart';
 import 'package:slither/game/domain/vec2.dart';
 
+void advanceSimulation(
+  GameSimulation simulation,
+  double duration,
+  Vec2 steering, {
+  bool sprinting = false,
+}) {
+  var remaining = duration;
+  while (remaining > 1e-9) {
+    final frame = remaining > 1 / 60 ? 1 / 60 : remaining;
+    simulation.update(frame, steering, sprinting: sprinting);
+    remaining -= frame;
+  }
+}
+
 void main() {
   group('Vec2', () {
     test('supports basic vector arithmetic', () {
@@ -126,10 +140,10 @@ void main() {
       simulation.update(1 / 60, Vec2.zero);
       expect(bot.alive, isFalse);
 
-      simulation.update(0.1, Vec2.zero);
+      advanceSimulation(simulation, 0.1, Vec2.zero);
       expect(bot.alive, isFalse);
 
-      simulation.update(0.11, Vec2.zero);
+      advanceSimulation(simulation, 0.11, Vec2.zero);
       expect(bot.alive, isTrue);
       final firstRespawnPosition = bot.head;
       for (final playerSegment in simulation.player.body) {
@@ -145,7 +159,7 @@ void main() {
       final restartedBot = simulation.snakes[1];
       simulation.player.body[3] = restartedBot.head;
       simulation.update(1 / 60, Vec2.zero);
-      simulation.update(0.21, Vec2.zero);
+      advanceSimulation(simulation, 0.21, Vec2.zero);
 
       expect(restartedBot.alive, isTrue);
       expect(restartedBot.head, firstRespawnPosition);
@@ -166,18 +180,18 @@ void main() {
       expect(simulation.totalBotCount, 1);
       expect(simulation.livingBotCount, 1);
 
-      simulation.update(0.49, Vec2.zero);
+      advanceSimulation(simulation, 0.49, Vec2.zero);
       expect(simulation.totalBotCount, 1);
 
-      simulation.update(0.02, Vec2.zero);
+      advanceSimulation(simulation, 0.03, Vec2.zero);
       expect(simulation.totalBotCount, 2);
       expect(simulation.livingBotCount, 2);
 
-      simulation.update(1.0, Vec2.zero);
+      advanceSimulation(simulation, 1, Vec2.zero);
       expect(simulation.totalBotCount, 3);
       expect(simulation.livingBotCount, 3);
 
-      simulation.update(2.0, Vec2.zero);
+      advanceSimulation(simulation, 2, Vec2.zero);
       expect(simulation.totalBotCount, 3);
     });
 
@@ -305,7 +319,7 @@ void main() {
       simulation.update(1 / 60, Vec2.zero);
       expect(bot.sprinting, isTrue);
 
-      simulation.update(0.6, Vec2.zero);
+      advanceSimulation(simulation, 0.6, Vec2.zero);
 
       expect(bot.sprinting, isFalse);
       expect(bot.length, lessThan(initialLength));
@@ -349,7 +363,7 @@ void main() {
         TelegraphEventKind.sprintAnticipation,
       );
 
-      simulation.update(0.2, Vec2.zero);
+      advanceSimulation(simulation, 0.2, Vec2.zero);
 
       expect(bot.sprinting, isTrue);
       expect(
@@ -540,11 +554,11 @@ void main() {
         final simulation = GameSimulation(config: config);
         simulation.pellets.clear();
 
-        simulation.update(0.5, Vec2.zero);
+        advanceSimulation(simulation, 0.52, Vec2.zero);
         expect(simulation.pellets.length, 2);
         expect(simulation.pellets.length, lessThan(config.initialPellets));
 
-        simulation.update(0.5, Vec2.zero);
+        advanceSimulation(simulation, 0.52, Vec2.zero);
         expect(simulation.pellets.length, 4);
         expect(simulation.pellets.length, lessThanOrEqualTo(7));
       },
@@ -1032,7 +1046,8 @@ void main() {
         simulation.update(1 / 60, const Vec2(1, 0));
 
         final player = simulation.player;
-        final tailAtCollection = player.body.last;
+        final collectedTail = player.body.last;
+        final tailAtCollection = Vec2(collectedTail.x, collectedTail.y);
         final lengthAtCollection = player.length;
         expect(player.growthExpressionRemaining, config.segmentSpacing);
         expect(player.body.length, lengthAtCollection - 1);
@@ -1057,7 +1072,7 @@ void main() {
           greaterThan(0),
         );
 
-        simulation.update(2.2, const Vec2(1, 0));
+        advanceSimulation(simulation, 2.2, const Vec2(1, 0));
         expect(player.growthExpressionRemaining, closeTo(0, 0.0001));
         expect(player.body.length, player.length);
         for (var index = 1; index < player.body.length; index++) {
@@ -1091,7 +1106,7 @@ void main() {
         expect(player.pendingGrowthSegments, 3);
         expect(player.body.length, player.fullyExpressedLength + 1);
 
-        simulation.update(8, const Vec2(1, 0));
+        advanceSimulation(simulation, 8, const Vec2(1, 0));
 
         expect(player.growthExpressionRemaining, closeTo(0, 0.0001));
         expect(player.body.length, player.length);
@@ -1318,7 +1333,8 @@ void main() {
       );
 
       simulation.update(1 / 30, const Vec2(1, 0));
-      final beforeTurn = simulation.player.body[3];
+      final previousPoint = simulation.player.body[3];
+      final beforeTurn = Vec2(previousPoint.x, previousPoint.y);
       simulation.update(1 / 30, const Vec2(0, 1));
       final afterTurn = simulation.player.body[3];
 
@@ -1349,8 +1365,13 @@ void main() {
       final normalLength = normal.player.length;
       final sprintLength = sprinting.player.length;
 
-      normal.update(0.5, const Vec2(1, 0));
-      sprinting.update(0.5, const Vec2(1, 0), sprinting: true);
+      advanceSimulation(normal, 0.5, const Vec2(1, 0));
+      advanceSimulation(
+        sprinting,
+        0.5,
+        const Vec2(1, 0),
+        sprinting: true,
+      );
 
       expect(sprinting.player.head.x, greaterThan(normal.player.head.x));
       expect(sprinting.player.length, lessThan(sprintLength));
@@ -1390,7 +1411,12 @@ void main() {
       );
       final simulation = GameSimulation(config: config);
 
-      simulation.update(0.1, const Vec2(1, 0), sprinting: true);
+      advanceSimulation(
+        simulation,
+        0.1,
+        const Vec2(1, 0),
+        sprinting: true,
+      );
 
       expect(simulation.player.length, config.minimumSprintLength);
       expect(simulation.player.sprinting, isFalse);
@@ -1410,7 +1436,12 @@ void main() {
       final simulation = GameSimulation(config: config);
       simulation.player.grow(1);
 
-      simulation.update(0.2, const Vec2(1, 0), sprinting: true);
+      advanceSimulation(
+        simulation,
+        0.2,
+        const Vec2(1, 0),
+        sprinting: true,
+      );
 
       expect(simulation.player.length, config.minimumSprintLength);
       expect(simulation.player.sprinting, isFalse);
@@ -1529,7 +1560,7 @@ void main() {
     });
 
     test(
-      'long updates advance wall time without replaying an unbounded backlog',
+      'long updates cap authoritative work and discard excess backlog',
       () {
         const config = SimulationConfig(
           botCount: 0,
@@ -1542,9 +1573,82 @@ void main() {
         simulation.update(2, const Vec2(1, 0));
 
         expect(simulation.elapsed, closeTo(2, 0.0001));
-        expect(simulation.player.head.x, closeTo(200, 0.0001));
+        expect(simulation.lastFixedStepCount, 2);
+        expect(simulation.player.head.x, closeTo(100 * 2 / 60, 0.0001));
+
+        simulation.update(1 / 60, const Vec2(1, 0));
+        expect(simulation.lastFixedStepCount, lessThanOrEqualTo(2));
       },
     );
+
+    test('sustained turning triggers one immediate tactical replan', () {
+      const config = SimulationConfig(
+        arenaRadius: 2000,
+        botCount: 3,
+        initialPellets: 0,
+        playerSpeed: 100,
+        botSpeed: 100,
+        botTacticalDecisionInterval: 1,
+      );
+      final simulation = GameSimulation(config: config);
+
+      simulation.update(1 / 60, const Vec2(1, 0));
+      simulation.update(0.2, const Vec2(0, 1));
+
+      expect(simulation.lastFixedStepCount, 2);
+      expect(simulation.lastTacticalReplanCount, 1);
+      expect(simulation.lastSpatialIndexBuildCount, lessThanOrEqualTo(3));
+    });
+
+    test('body reconstruction reuses established segment storage', () {
+      const config = SimulationConfig(
+        botCount: 0,
+        initialPellets: 0,
+        playerSpeed: 120,
+      );
+      final simulation = GameSimulation(config: config);
+
+      simulation.update(1 / 60, const Vec2(1, 0));
+      final firstSegment = simulation.player.body[1];
+      simulation.update(1 / 60, const Vec2(1, 0));
+
+      expect(identical(simulation.player.body[1], firstSegment), isTrue);
+      expect(simulation.player.bodyChunks, isNotEmpty);
+    });
+
+    test('drop-cap consolidation batches a busy field into one merge pass', () {
+      const config = SimulationConfig(
+        arenaRadius: 4000,
+        botCount: 0,
+        initialPellets: 0,
+        playerSpeed: 0,
+        maxDroppedMass: 50,
+      );
+      final simulation = GameSimulation(config: config);
+      for (var index = 0; index < 600; index++) {
+        simulation.droppedMass.add(
+          FoodPellet(
+            position: Vec2(
+              1000.0 + index % 30 * 3,
+              1000.0 + index ~/ 30 * 3,
+            ),
+            kind: FoodPelletKind.defeatDrop,
+          ),
+        );
+      }
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(simulation.droppedMass, hasLength(config.maxDroppedMass));
+      expect(simulation.lastDroppedMassMergeCount, 1);
+      expect(
+        simulation.droppedMass.fold<int>(
+          0,
+          (total, pellet) => total + pellet.value,
+        ),
+        600,
+      );
+    });
 
     test(
       'bots receive bounded catch-up growth when the player pulls ahead',
@@ -1563,7 +1667,7 @@ void main() {
         final initialLength = bot.length;
         simulation.player.grow(100);
 
-        simulation.update(1, Vec2.zero);
+        advanceSimulation(simulation, 1, Vec2.zero);
 
         expect(bot.length, greaterThan(initialLength));
         expect(bot.length, lessThanOrEqualTo(config.botAdaptiveMaximumLength));

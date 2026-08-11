@@ -359,3 +359,19 @@ reducing busy-state geometry work while preserving an expanded collision safety
 margin. Bot route reservations now compare swept corridors rather than only
 their projected endpoints, so committed attack and resource lanes deconflict
 before they cross.
+
+## V1.23 stable frame budget
+
+The simulation now performs at most two fixed authoritative steps per rendered
+update and discards excess backlog without a full-world remainder pass. Sharp
+player turns trigger one immediate tactical replan at the turn edge instead of
+forcing every bot through the full planner on every substep; a lightweight
+near-body safety check remains active between ordinary planning passes.
+
+Long-body reconstruction reuses mutable segment storage, spatial buckets and
+nearby-query buffers are retained across steps, and dropped-mass cap enforcement
+consolidates a busy field in one batched spatial pass. Rendering caches the
+visible hex-grid region and paint objects, skips arena geometry outside the
+camera, and rejects whole off-screen body chunks before visiting segments.
+Movement speeds, collision geometry, population pacing, sprint economics,
+telegraphs, bot tactical weights, drop values, and HUD behavior are unchanged.
