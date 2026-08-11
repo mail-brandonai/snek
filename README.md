@@ -375,3 +375,37 @@ visible hex-grid region and paint objects, skips arena geometry outside the
 camera, and rejects whole off-screen body chunks before visiting segments.
 Movement speeds, collision geometry, population pacing, sprint economics,
 telegraphs, bot tactical weights, drop values, and HUD behavior are unchanged.
+
+## V1.24 formidable bot intelligence
+
+Bots now operate within the same default cruise, turning, and sprint capability
+envelope as the player. Difficulty comes from decisions rather than hidden
+information, collision immunity, or bot-only statistical advantages. Large bots
+no longer inherit a default mobility penalty, while every sprint still uses the
+same public anticipation, visible acceleration, mass cost, duration, and
+cooldown rules.
+
+The bot controller is hierarchical. Immediate body, peer, and boundary safety
+can veto an objective; one authoritative maneuver then owns steering instead of
+being averaged with wandering and food vectors. Lane execution, counter-cuts,
+constriction, bait ambushes, feint reversals, resource denial, and roaming duels
+run through explicit staging, waiting, commitment, execution, and recovery
+phases. Their timers age on authoritative simulation time rather than only when
+the expensive planner happens to run.
+
+A bounded, decaying player model uses only public movement: turn direction,
+reversals, sprint use, approach to dropped mass, and attempts to camp a
+head-to-tail gap. Repeated evasions change attack side and maneuver choice, while
+gap camping makes a constrictor widen or guard the opening instead of closing
+blindly. Disposition now selects a genuine strategy portfolio: aggressive bots
+intercept and constrict, opportunistic bots bait and deny resources, defensive
+bots counter-cut, and wanderers use irregular duelling patterns.
+
+Final deconflicted routes are rescored before sprint is permitted. Swept peer
+reservations carry owner, timing, speed phase, and corridor width; lower-priority
+bots brake or yield through a safe lane. Lightweight per-step avoidance remains
+authoritative during every maneuver, including close pressure. Debug counters
+expose credible player collision windows and bot peer-collision deaths for
+deterministic competence benchmarks, while the V1.23 two-step frame budget,
+spatial pooling, drop consolidation, and viewport-bounded rendering remain
+unchanged.

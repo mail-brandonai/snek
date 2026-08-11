@@ -8,8 +8,8 @@ class SimulationConfig {
     this.arenaRadius = 1800,
     this.arenaBoundaryWarningBuffer = 260,
     this.playerSpeed = 175,
-    this.botSpeed = 120,
-    this.botTurnRate = 2.2,
+    this.botSpeed = 175,
+    this.botTurnRate = 6,
     this.botSenseRadius = 320,
     this.botBoundaryBuffer = 360,
     this.botSpawnRadius = 440,
@@ -39,8 +39,8 @@ class SimulationConfig {
     this.botRetreatLength = 78,
     this.botRetreatBoundaryBuffer = 150,
     this.botRetreatWeight = 6,
-    this.botSizeSpeedPenalty = 0.003,
-    this.botSprintMultiplier = 1.85,
+    this.botSizeSpeedPenalty = 0,
+    this.botSprintMultiplier = 2.4,
     this.botSprintDuration = 0.75,
     this.botSprintCooldown = 2.4,
     this.botSprintMinimumLength = 8,
@@ -121,6 +121,12 @@ class SimulationConfig {
     this.simulationStep = 1 / 60,
     this.maxSimulationStepsPerUpdate = 2,
     this.bodyIndexStrideThreshold = 320,
+    this.botManeuverStageDuration = 0.42,
+    this.botManeuverCommitDuration = 0.62,
+    this.botManeuverRecoveryDuration = 0.38,
+    this.botPlayerMemoryDecay = 0.72,
+    this.botReservationHorizon = 1.05,
+    this.botYieldSpeedMultiplier = 0.58,
   });
 
   final double arenaRadius;
@@ -242,6 +248,12 @@ class SimulationConfig {
   final double simulationStep;
   final int maxSimulationStepsPerUpdate;
   final int bodyIndexStrideThreshold;
+  final double botManeuverStageDuration;
+  final double botManeuverCommitDuration;
+  final double botManeuverRecoveryDuration;
+  final double botPlayerMemoryDecay;
+  final double botReservationHorizon;
+  final double botYieldSpeedMultiplier;
 }
 
 class _BotProfile {
@@ -279,22 +291,93 @@ class _BotTacticState {
 enum _BotPlanMode { retreat, evadePeer, evadePlayer, attack, contest, wander }
 
 class _BotPlan {
-  const _BotPlan({required this.intent, required this.mode});
+  const _BotPlan({
+    required this.intent,
+    required this.mode,
+    required this.allowSprint,
+    required this.speedMultiplier,
+  });
 
   final Vec2 intent;
   final _BotPlanMode mode;
+  final bool allowSprint;
+  final double speedMultiplier;
 }
 
 class _BotRouteReservation {
   const _BotRouteReservation({
+    required this.ownerId,
     required this.start,
     required this.end,
     required this.radius,
+    required this.duration,
+    required this.sprinting,
   });
 
+  final String ownerId;
   final Vec2 start;
   final Vec2 end;
   final double radius;
+  final double duration;
+  final bool sprinting;
+}
+
+enum _BotManeuverKind {
+  laneExecution,
+  counterCut,
+  constrictor,
+  baitAmbush,
+  feintReversal,
+  resourceDenial,
+  roamingDuel,
+}
+
+enum _BotManeuverPhase { stage, wait, commit, execute, recover }
+
+class _BotManeuverState {
+  _BotManeuverKind kind = _BotManeuverKind.roamingDuel;
+  _BotManeuverPhase phase = _BotManeuverPhase.recover;
+  double remaining = 0;
+  double side = 1;
+  int sequence = 0;
+  int failedApproaches = 0;
+  Vec2 anchor = Vec2.zero;
+  Vec2 observedPlayerHeading = const Vec2(1, 0);
+  Vec2 observedPlayerPosition = Vec2.zero;
+}
+
+class _BotManeuverPlan {
+  const _BotManeuverPlan({
+    required this.intent,
+    required this.mode,
+    required this.wantsSprint,
+    required this.speedMultiplier,
+  });
+
+  final Vec2 intent;
+  final _BotPlanMode mode;
+  final bool wantsSprint;
+  final double speedMultiplier;
+}
+
+class _PlayerBehaviorModel {
+  double escapeSideBias = 0;
+  double reversalTendency = 0;
+  double sprintTendency = 0;
+  double resourceAttraction = 0;
+  double gapCamping = 0;
+  double previousTurnSign = 0;
+  bool previousSprinting = false;
+
+  void reset() {
+    escapeSideBias = 0;
+    reversalTendency = 0;
+    sprintTendency = 0;
+    resourceAttraction = 0;
+    gapCamping = 0;
+    previousTurnSign = 0;
+    previousSprinting = false;
+  }
 }
 
 class _BotClosedLoopState {
@@ -470,10 +553,13 @@ class GameSimulation {
   final Map<String, _BotTacticState> _botTactics = {};
   final Map<String, _BotClosedLoopState> _botEngagementStates = {};
   final Map<String, _BotFormationRole> _botFormationRoles = {};
+  final Map<String, _BotManeuverState> _botManeuvers = {};
   final Map<String, _BotPlan> _botPlans = {};
+  final Map<String, double> _botSafetyHolds = {};
+  final Map<String, Vec2> _botSafetyEscapes = {};
   final List<_BotRouteReservation> _botRouteReservations = [];
-  final Set<String> _closePressureTelegraphs = {};
   final _BotFormationState _botFormation = _BotFormationState();
+  final _PlayerBehaviorModel _playerBehavior = _PlayerBehaviorModel();
   Vec2 _observedPlayerHeading = const Vec2(1, 0);
   double _observedPlayerTurnRate = 0;
   double elapsed = 0;
@@ -490,6 +576,8 @@ class GameSimulation {
   int lastSpatialIndexBuildCount = 0;
   int lastTacticalReplanCount = 0;
   int lastDroppedMassMergeCount = 0;
+  int lastCrediblePlayerKillWindowCount = 0;
+  int botPeerCollisionDeaths = 0;
   int score = 0;
   bool gameOver = false;
   GameOverReason? gameOverReason;
@@ -612,6 +700,19 @@ class GameSimulation {
   bool get canSprint =>
       !gameOver && player.alive && player.length > config.minimumSprintLength;
 
+  String? botManeuverName(String botId) => _botManeuvers[botId]?.kind.name;
+
+  String? botManeuverPhase(String botId) => _botManeuvers[botId]?.phase.name;
+
+  double? botManeuverSide(String botId) => _botManeuvers[botId]?.side;
+
+  bool botPlanAllowsSprint(String botId) =>
+      _botPlans[botId]?.allowSprint ?? false;
+
+  String? botPlanMode(String botId) => _botPlans[botId]?.mode.name;
+
+  double get observedPlayerEscapeSideBias => _playerBehavior.escapeSideBias;
+
   void reset() {
     _random = math.Random(seed);
     snakes.clear();
@@ -641,11 +742,14 @@ class GameSimulation {
     _botTactics.clear();
     _botEngagementStates.clear();
     _botFormationRoles.clear();
+    _botManeuvers.clear();
     _botPlans.clear();
+    _botSafetyHolds.clear();
+    _botSafetyEscapes.clear();
     _botRouteReservations.clear();
-    _closePressureTelegraphs.clear();
     _botFormation.remaining = 0;
     _botFormation.playerAnchor = null;
+    _playerBehavior.reset();
     _observedPlayerHeading = const Vec2(1, 0);
     _observedPlayerTurnRate = 0;
     elapsed = 0;
@@ -662,6 +766,8 @@ class GameSimulation {
     lastSpatialIndexBuildCount = 0;
     lastTacticalReplanCount = 0;
     lastDroppedMassMergeCount = 0;
+    lastCrediblePlayerKillWindowCount = 0;
+    botPeerCollisionDeaths = 0;
     score = 0;
     gameOver = false;
     gameOverReason = null;
@@ -696,6 +802,7 @@ class GameSimulation {
     lastSpatialIndexBuildCount = 0;
     lastTacticalReplanCount = 0;
     lastDroppedMassMergeCount = 0;
+    lastCrediblePlayerKillWindowCount = 0;
     if (gameOver) {
       _advanceCollisionPings(dt);
       _advanceTelegraphEvents(dt);
@@ -769,36 +876,6 @@ class GameSimulation {
     // advance less authoritative simulation time than wall time, but it can
     // never turn one missed deadline into another multi-pass frame spike.
     _enforceDroppedMassLimit();
-    _preserveClosePressureTelegraphs();
-  }
-
-  void _preserveClosePressureTelegraphs() {
-    if (!player.alive) return;
-    for (final bot in snakes.where(
-      (snake) => snake.kind == SnakeKind.bot && snake.alive,
-    )) {
-      final closePressure = bot.disposition == BotDisposition.defensive &&
-          bot.head.distanceTo(player.head) <= config.botSprintTriggerDistance &&
-          bot.length <= player.length * 1.2;
-      final requiresTelegraph = config.sprintAnticipationDuration > 0 &&
-          player.length <= config.minimumSprintLength + 10;
-      if (closePressure && requiresTelegraph) {
-        if (!_closePressureTelegraphs.contains(bot.id)) {
-          bot.sprintRequested = false;
-          bot.sprinting = false;
-          bot.sprintAnticipationRemaining = 0;
-          bot.sprintPulseRemaining = 0;
-          bot.sprintDrainAccumulator = 0;
-          _requestSprint(bot);
-          bot.botSprintRemaining = config.botSprintDuration;
-          _closePressureTelegraphs.add(bot.id);
-        } else if (bot.sprinting) {
-          _closePressureTelegraphs.remove(bot.id);
-        }
-      } else {
-        _closePressureTelegraphs.remove(bot.id);
-      }
-    }
   }
 
   void restart() => reset();
@@ -1011,12 +1088,11 @@ class GameSimulation {
   }
 
   void _steerBots(double dt) {
+    _advanceBotDecisionClocks(dt);
     for (final bot in snakes.where(
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
     )) {
       _advanceBotSprint(bot, dt);
-      final tactic = _botTactics[bot.id]?.mode ?? _BotTactic.weave;
-      _applyTacticalMotion(bot, tactic, dt);
     }
 
     _botTacticalDecisionRemaining -= dt;
@@ -1035,23 +1111,122 @@ class GameSimulation {
       final plan = _botPlans[bot.id];
       if (plan == null) continue;
       final emergencyAvoidance = _immediateBotAvoidance(bot);
-      final closePressure = player.alive &&
-          bot.disposition == BotDisposition.defensive &&
-          bot.head.distanceTo(player.head) <= config.botSprintTriggerDistance &&
-          bot.length <= player.length * 1.2;
       if ((plan.mode == _BotPlanMode.evadePeer ||
               plan.mode == _BotPlanMode.evadePlayer) &&
-          (bot.sprinting || bot.sprintRequested) &&
-          !closePressure) {
+          (bot.sprinting || bot.sprintRequested)) {
         _interruptBotPursuit(bot);
       }
-      if (emergencyAvoidance.length > 0 && !closePressure) {
+      final speedTarget = emergencyAvoidance.length > 0
+          ? config.botYieldSpeedMultiplier
+          : plan.speedMultiplier;
+      final speedSmoothing = (dt * 8).clamp(0.0, 1.0).toDouble();
+      bot.tacticalSpeedMultiplier +=
+          (speedTarget - bot.tacticalSpeedMultiplier) * speedSmoothing;
+      bot.tacticalSpeedMultiplier = bot.tacticalSpeedMultiplier
+          .clamp(config.botYieldSpeedMultiplier, 1.0)
+          .toDouble();
+      if (emergencyAvoidance.length > 0) {
+        _holdBotSafety(bot, emergencyAvoidance);
         if (bot.sprinting || bot.sprintRequested) {
           _interruptBotPursuit(bot);
         }
         _turnBotToward(bot, emergencyAvoidance, dt);
       } else {
         _turnBotToward(bot, plan.intent, dt);
+      }
+    }
+  }
+
+  void _advanceBotDecisionClocks(double dt) {
+    _botFormation.remaining =
+        math.max(0, _botFormation.remaining - dt).toDouble();
+    for (final state in _botTactics.values) {
+      state.remaining = math.max(0, state.remaining - dt).toDouble();
+    }
+    for (final state in _botEngagementStates.values) {
+      state.remaining = math.max(0, state.remaining - dt).toDouble();
+      state.evasionCooldown =
+          math.max(0, state.evasionCooldown - dt).toDouble();
+    }
+    for (final state in _botManeuvers.values) {
+      state.remaining = math.max(0, state.remaining - dt).toDouble();
+    }
+    for (final id in _botSafetyHolds.keys.toList()) {
+      final remaining = (_botSafetyHolds[id] ?? 0) - dt;
+      if (remaining <= 0) {
+        _botSafetyHolds.remove(id);
+        _botSafetyEscapes.remove(id);
+      } else {
+        _botSafetyHolds[id] = remaining;
+      }
+    }
+    _updatePlayerBehavior(dt);
+  }
+
+  void _updatePlayerBehavior(double dt) {
+    final decayBase = config.botPlayerMemoryDecay.clamp(0.05, 0.999);
+    final decay = math.pow(decayBase, dt).toDouble();
+    _playerBehavior.escapeSideBias *= decay;
+    _playerBehavior.reversalTendency *= decay;
+    _playerBehavior.sprintTendency *= decay;
+    _playerBehavior.resourceAttraction *= decay;
+    _playerBehavior.gapCamping *= decay;
+
+    final turnSign = _observedPlayerTurnRate.abs() < 0.35
+        ? 0.0
+        : _observedPlayerTurnRate.sign;
+    if (turnSign != 0) {
+      _playerBehavior.escapeSideBias =
+          (_playerBehavior.escapeSideBias + turnSign * dt * 1.8)
+              .clamp(-1.0, 1.0)
+              .toDouble();
+      if (_playerBehavior.previousTurnSign != 0 &&
+          turnSign != _playerBehavior.previousTurnSign) {
+        _playerBehavior.reversalTendency =
+            (_playerBehavior.reversalTendency + 0.16)
+                .clamp(0.0, 1.0)
+                .toDouble();
+      }
+      _playerBehavior.previousTurnSign = turnSign;
+    }
+
+    if (player.sprinting ||
+        (player.sprintRequested && !_playerBehavior.previousSprinting)) {
+      _playerBehavior.sprintTendency =
+          (_playerBehavior.sprintTendency + dt * 1.4)
+              .clamp(0.0, 1.0)
+              .toDouble();
+    }
+    _playerBehavior.previousSprinting =
+        player.sprinting || player.sprintRequested;
+
+    for (final cluster in _droppedMassClusters) {
+      final toCluster = cluster.center - player.head;
+      if (toCluster.length <= config.botDroppedMassGuardRadius &&
+          _alignment(player.heading, toCluster) >= 0.25) {
+        _playerBehavior.resourceAttraction =
+            (_playerBehavior.resourceAttraction + dt * 1.6)
+                .clamp(0.0, 1.0)
+                .toDouble();
+        break;
+      }
+    }
+
+    for (final bot in snakes.where(
+      (snake) => snake.kind == SnakeKind.bot && snake.alive,
+    )) {
+      if (bot.body.length < 3 ||
+          bot.head.distanceTo(player.head) > config.botEngagementRadius) {
+        continue;
+      }
+      final tail = bot.body.last;
+      final gapMidpoint = (bot.head + tail) * 0.5;
+      final gapRadius =
+          math.max(90.0, bot.head.distanceTo(tail) * 0.38).toDouble();
+      if (player.head.distanceTo(gapMidpoint) <= gapRadius) {
+        _playerBehavior.gapCamping =
+            (_playerBehavior.gapCamping + dt * 1.8).clamp(0.0, 1.0).toDouble();
+        break;
       }
     }
   }
@@ -1086,7 +1261,9 @@ class GameSimulation {
       final away = distance == 0 ? side : offset.normalized();
       escape = (away * 0.35 + side * 0.95).normalized();
     }
-    return maximumUrgency >= 0.18 ? escape : Vec2.zero;
+    final responseThreshold =
+        (0.2 / _threatWeight(bot)).clamp(0.1, 0.24).toDouble();
+    return maximumUrgency >= responseThreshold ? escape : Vec2.zero;
   }
 
   double _botPlanningInterval() {
@@ -1106,7 +1283,7 @@ class GameSimulation {
   void _replanBotPlans(double dt) {
     lastTacticalReplanCount++;
     _rebuildDroppedMassClusters();
-    _refreshBotFormation(dt);
+    _refreshBotFormation();
     _botPlans.clear();
     _botRouteReservations.clear();
     final planningBots = snakes
@@ -1120,104 +1297,128 @@ class GameSimulation {
       });
 
     for (final bot in planningBots) {
-      final tactic = _advanceBotTactic(bot, dt);
+      _advanceBotTactic(bot);
       if (!bot.retreating && bot.length >= config.botRetreatLength) {
         bot.retreating = true;
       }
       if (_shouldPrioritizeRetreat(bot)) {
-        _decideBotSprint(bot);
-        _commitBotPlan(bot, _retreatDirection(bot), _BotPlanMode.retreat);
+        final plan = _commitBotPlan(
+          bot,
+          _retreatDirection(bot),
+          _BotPlanMode.retreat,
+          wantsSprint: true,
+          speedMultiplier: 1,
+        );
+        _decideBotSprint(bot, plan: plan, maneuverRequestsSprint: true);
         continue;
       }
 
-      final wander = Vec2(
-        math.cos(elapsed * 0.35 + bot.colorIndex),
-        math.sin(elapsed * 0.27 + bot.colorIndex * 1.7),
-      );
       final boundary = _boundaryAvoidance(bot);
-      final threat = _nearbyThreat(bot);
-      final interest = _nearestFood(bot);
-      final droppedMassInterest = _nearestDroppedMass(bot);
-      final pressure = _playerPressure(bot);
-      final tactical = _tacticalIntent(bot, tactic);
-      final predictiveAvoidance = _predictiveCollisionAvoidance(bot);
-      final peerSeparation = _peerSeparation(bot);
       final peerRisk = _botPeerRouteRisk(bot);
-      final droppedMassControl = _droppedMassControl(bot);
       final routeRisk = _playerRouteRisk(bot);
-      final closedLoop = _closedLoopEngagement(bot, dt);
-      final closedLoopIntent = _closedLoopIntent(bot, closedLoop);
-      final geometryPlan = _geometryAttackPlan(bot);
-      final geometryPressure = _geometryPressure(bot, geometryPlan);
-      final formationIntent = _formationIntent(bot);
-      final safeAttack = geometryPlan.attack &&
-          geometryPlan.safety >= config.botAttackAbortSafety;
       final routeAbortThreshold =
           (config.botAttackAbortSafety + 0.14).clamp(0.42, 0.58).toDouble();
+      final safetyHold = _botSafetyHolds[bot.id] ?? 0;
+      if (safetyHold > 0) {
+        final escape = peerRisk.urgency >= 0.1
+            ? peerRisk.escape
+            : routeRisk.urgency >= 0.1
+                ? routeRisk.escape
+                : _botSafetyEscapes[bot.id] ?? bot.heading;
+        _interruptBotPursuit(bot);
+        _commitBotPlan(
+          bot,
+          escape,
+          peerRisk.urgency >= routeRisk.urgency
+              ? _BotPlanMode.evadePeer
+              : _BotPlanMode.evadePlayer,
+          wantsSprint: false,
+          speedMultiplier: config.botYieldSpeedMultiplier,
+        );
+        continue;
+      }
       if (peerRisk.urgency >= config.botPeerHardAvoidanceThreshold) {
+        _holdBotSafety(bot, peerRisk.escape);
         _interruptBotPursuit(bot);
+        _commitBotPlan(
+          bot,
+          peerRisk.escape,
+          _BotPlanMode.evadePeer,
+          wantsSprint: false,
+          speedMultiplier: config.botYieldSpeedMultiplier,
+        );
+        continue;
       }
-      if (routeRisk.urgency >= routeAbortThreshold &&
-          (!safeAttack || routeRisk.urgency >= 0.86)) {
+      if (routeRisk.urgency >= routeAbortThreshold) {
+        _holdBotSafety(bot, routeRisk.escape);
         _interruptBotPursuit(bot);
-        final engagement = _botEngagementStates[bot.id];
-        if (engagement != null) {
-          engagement.mode = _BotEngagementMode.replan;
-          engagement.remaining = 0;
-        }
+        _commitBotPlan(
+          bot,
+          routeRisk.escape,
+          _BotPlanMode.evadePlayer,
+          wantsSprint: false,
+          speedMultiplier: config.botYieldSpeedMultiplier,
+        );
+        continue;
       }
-      final baseIntent = wander * _wanderWeight(bot) +
-          boundary * _boundaryWeight(bot) +
-          threat * _threatWeight(bot) +
-          interest * _foodWeight(bot) +
-          droppedMassInterest * _droppedMassWeight(bot) +
-          pressure * _pressureWeight(bot) +
-          tactical * 1.55 +
-          predictiveAvoidance *
-              math.max(
-                config.botCollisionAvoidanceWeight,
-                config.botRouteAvoidanceWeight,
-              ) +
-          peerSeparation * config.botPeerSeparationWeight +
-          droppedMassControl * config.botDroppedMassControlWeight +
-          closedLoopIntent * config.botClosedLoopWeight +
-          geometryPressure * config.botGeometryPressureWeight +
-          formationIntent * config.botFormationPressureWeight;
-      final intent = peerRisk.urgency >= config.botPeerAbortThreshold
-          ? (peerRisk.escape * (1.4 + peerRisk.urgency * 2) +
-                  boundary * _boundaryWeight(bot))
-              .normalized()
-          : routeRisk.urgency >= routeAbortThreshold
-              ? (routeRisk.escape *
-                          (config.botDefensiveAvoidanceWeight +
-                              routeRisk.urgency * 5) +
-                      baseIntent * (safeAttack ? 0.72 : 0.3) +
-                      (safeAttack ? geometryPressure * 2.0 : Vec2.zero))
-                  .normalized()
-              : (baseIntent +
-                      peerRisk.escape *
-                          (peerRisk.urgency *
-                              config.botPeerSeparationWeight *
-                              2.6) +
-                      routeRisk.escape *
-                          (routeRisk.urgency *
-                              config.botDefensiveAvoidanceWeight *
-                              (safeAttack ? 0.45 : 1.0)))
-                  .normalized();
-      final mode = peerRisk.urgency >= config.botPeerAbortThreshold
-          ? _BotPlanMode.evadePeer
-          : routeRisk.urgency >= routeAbortThreshold && !safeAttack
-              ? _BotPlanMode.evadePlayer
-              : safeAttack
-                  ? _BotPlanMode.attack
-                  : closedLoop == _BotEngagementMode.harvest ||
-                          closedLoop == _BotEngagementMode.deny ||
-                          closedLoop == _BotEngagementMode.screen
-                      ? _BotPlanMode.contest
-                      : _BotPlanMode.wander;
-      _decideBotSprint(bot);
-      _commitBotPlan(bot, intent, mode);
+      final boundaryThreshold =
+          (0.9 / _boundaryWeight(bot)).clamp(0.55, 0.95).toDouble();
+      if (boundary.length >= boundaryThreshold) {
+        _commitBotPlan(
+          bot,
+          boundary,
+          _BotPlanMode.evadePlayer,
+          wantsSprint: false,
+          speedMultiplier: config.botYieldSpeedMultiplier,
+        );
+        continue;
+      }
+
+      final maneuver = _maneuverPlan(bot);
+      final plan = _commitBotPlan(
+        bot,
+        maneuver.intent,
+        maneuver.mode,
+        wantsSprint: maneuver.wantsSprint,
+        speedMultiplier: maneuver.speedMultiplier,
+      );
+      _decideBotSprint(
+        bot,
+        plan: plan,
+        maneuverRequestsSprint: maneuver.wantsSprint,
+      );
+      if (plan.mode == _BotPlanMode.attack &&
+          _createsCrediblePlayerKillWindow(bot, plan)) {
+        lastCrediblePlayerKillWindowCount++;
+      }
     }
+  }
+
+  void _holdBotSafety(SnakeState bot, Vec2 escape) {
+    _botSafetyHolds[bot.id] = 0.55;
+    bot.tacticalSpeedMultiplier = math
+        .min(bot.tacticalSpeedMultiplier, config.botYieldSpeedMultiplier)
+        .toDouble();
+    if (escape.length > 0) {
+      _botSafetyEscapes[bot.id] = escape.normalized();
+    }
+  }
+
+  bool _createsCrediblePlayerKillWindow(SnakeState bot, _BotPlan plan) {
+    if (!player.alive || plan.intent.length == 0) return false;
+    const horizon = 0.72;
+    const samples = 5;
+    final botSpeed = bot.speed *
+        plan.speedMultiplier *
+        (plan.allowSprint ? config.botSprintMultiplier : 1.0);
+    final collisionWindow = bot.radius + player.radius + 46;
+    for (var index = 1; index <= samples; index++) {
+      final time = horizon * index / samples;
+      final botPoint = bot.head + plan.intent.normalized() * (botSpeed * time);
+      final playerPoint = _playerRoutePoint(time);
+      if (botPoint.distanceTo(playerPoint) <= collisionWindow) return true;
+    }
+    return false;
   }
 
   double _botPlanningPriority(SnakeState bot) {
@@ -1230,20 +1431,86 @@ class GameSimulation {
         (1 + config.botEngagementRadius / math.max(1.0, distance));
   }
 
-  void _commitBotPlan(SnakeState bot, Vec2 intent, _BotPlanMode mode) {
-    final deconflicted = _deconflictBotIntent(bot, intent);
-    _botPlans[bot.id] = _BotPlan(intent: deconflicted, mode: mode);
-    if (deconflicted.length > 0) {
+  _BotPlan _commitBotPlan(
+    SnakeState bot,
+    Vec2 intent,
+    _BotPlanMode mode, {
+    required bool wantsSprint,
+    required double speedMultiplier,
+  }) {
+    final requested = intent.length == 0 ? bot.heading : intent.normalized();
+    final deconflicted = _deconflictBotIntent(bot, requested);
+    final safety = _finalRouteSafety(bot, deconflicted);
+    final unsafe = safety.risk >= 0.62;
+    final finalIntent = unsafe ? safety.escape : deconflicted;
+    final finalMode =
+        unsafe && mode != _BotPlanMode.retreat ? _BotPlanMode.evadePeer : mode;
+    final allowSprint = wantsSprint && !unsafe;
+    final finalSpeedMultiplier = unsafe
+        ? config.botYieldSpeedMultiplier
+        : speedMultiplier.clamp(config.botYieldSpeedMultiplier, 1.0).toDouble();
+    final plan = _BotPlan(
+      intent: finalIntent,
+      mode: finalMode,
+      allowSprint: allowSprint,
+      speedMultiplier: finalSpeedMultiplier,
+    );
+    _botPlans[bot.id] = plan;
+    if (finalIntent.length > 0) {
+      final projectedSpeed = math.max(1.0, bot.speed * finalSpeedMultiplier) *
+          (allowSprint ? config.botSprintMultiplier : 1.0);
+      final duration = math.max(0.2, config.botReservationHorizon).toDouble();
       _botRouteReservations.add(
         _BotRouteReservation(
+          ownerId: bot.id,
           start: bot.head,
-          end: bot.head +
-              deconflicted *
-                  (_effectiveSpeed(bot) * config.botPlannerLookahead),
+          end:
+              bot.head + finalIntent.normalized() * (projectedSpeed * duration),
           radius: config.botRouteReservationDistance,
+          duration: duration,
+          sprinting: allowSprint,
         ),
       );
     }
+    return plan;
+  }
+
+  ({double risk, Vec2 escape}) _finalRouteSafety(
+    SnakeState bot,
+    Vec2 intended,
+  ) {
+    if (intended.length == 0) return (risk: 1.0, escape: bot.heading);
+    final direction = intended.normalized();
+    final horizon = math.max(0.2, config.botReservationHorizon).toDouble();
+    final distance = math.max(1.0, bot.speed) * horizon;
+    final target = bot.head + direction * distance;
+    var bestIntent = direction;
+    var bestRisk = _engagementLaneRisk(bot, target);
+    final side = Vec2(-direction.y, direction.x);
+    final predictive = _predictiveCollisionAvoidance(bot);
+    final peerSeparation = _peerSeparation(bot);
+    final candidates = <Vec2>[
+      (direction * 0.72 + side * 0.7).normalized(),
+      (direction * 0.72 - side * 0.7).normalized(),
+      if (predictive.length > 0) predictive,
+      if (peerSeparation.length > 0) peerSeparation,
+      side,
+      side * -1,
+      direction * -1,
+    ];
+    for (var index = 0; index < candidates.length; index++) {
+      final candidate = candidates[index];
+      final risk = _engagementLaneRisk(
+        bot,
+        bot.head + candidate * (distance * (index < 2 ? 1.0 : 0.72)),
+      );
+      final preferencePenalty = index < 2 ? 0.03 : 0.1 + index * 0.025;
+      if (risk + preferencePenalty < bestRisk) {
+        bestRisk = risk;
+        bestIntent = candidate;
+      }
+    }
+    return (risk: bestRisk, escape: bestIntent);
   }
 
   Vec2 _deconflictBotIntent(SnakeState bot, Vec2 intent) {
@@ -1258,16 +1525,19 @@ class GameSimulation {
         continue;
       }
       final axis = projectedEnd - reservation.end;
+      SnakeState? owner;
+      for (final candidate in snakes) {
+        if (candidate.kind == SnakeKind.bot &&
+            candidate.alive &&
+            candidate.id == reservation.ownerId) {
+          owner = candidate;
+          break;
+        }
+      }
       final separation = axis.length == 0
-          ? _peerYieldSide(
-              bot,
-              snakes.firstWhere(
-                (candidate) =>
-                    candidate.kind == SnakeKind.bot &&
-                    candidate.alive &&
-                    candidate.id != bot.id,
-              ),
-            )
+          ? owner == null
+              ? Vec2(-result.y, result.x)
+              : _peerYieldSide(bot, owner)
           : axis.normalized();
       result = (result * 0.35 + separation * 1.15).normalized();
     }
@@ -1279,23 +1549,28 @@ class GameSimulation {
     Vec2 end,
     _BotRouteReservation reservation,
   ) {
-    const samples = 4;
+    const samples = 6;
     final minimum = math
-        .max(config.botRouteReservationDistance, reservation.radius)
+            .max(config.botRouteReservationDistance, reservation.radius)
+            .toDouble() *
+        (reservation.sprinting ? 1.12 : 1.0);
+    final sharedHorizon = math
+        .min(config.botReservationHorizon, reservation.duration)
+        .clamp(0.01, double.infinity)
         .toDouble();
     for (var index = 0; index <= samples; index++) {
-      final progress = index / samples;
+      final time = sharedHorizon * index / samples;
+      final progress = time / math.max(0.01, config.botReservationHorizon);
+      final otherProgress = time / math.max(0.01, reservation.duration);
       final point = start + (end - start) * progress;
-      final otherPoint =
-          reservation.start + (reservation.end - reservation.start) * progress;
+      final otherPoint = reservation.start +
+          (reservation.end - reservation.start) * otherProgress;
       if (point.distanceTo(otherPoint) < minimum) return true;
     }
     return false;
   }
 
-  void _refreshBotFormation(double dt) {
-    _botFormation.remaining =
-        math.max(0, _botFormation.remaining - dt).toDouble();
+  void _refreshBotFormation() {
     final active = snakes
         .where(
           (snake) =>
@@ -1413,14 +1688,11 @@ class GameSimulation {
     return direction.length == 0 ? Vec2.zero : direction.normalized();
   }
 
-  _BotEngagementMode _closedLoopEngagement(SnakeState bot, double dt) {
+  _BotEngagementMode _closedLoopEngagement(SnakeState bot) {
     final state = _botEngagementStates.putIfAbsent(
       bot.id,
       _BotClosedLoopState.new,
     );
-    state.remaining = math.max(0, state.remaining - dt).toDouble();
-    state.evasionCooldown = math.max(0, state.evasionCooldown - dt).toDouble();
-
     final previousTarget = state.expectedPlayerPosition;
     final playerTurned = _observedPlayerTurnRate.abs() >= 0.75;
     final departedLane = previousTarget != null &&
@@ -1588,32 +1860,376 @@ class GameSimulation {
         lateral * curveOffset;
   }
 
-  _BotTactic _advanceBotTactic(SnakeState bot, double dt) {
-    final state = _botTactics.putIfAbsent(bot.id, _BotTacticState.new);
-    final headingChanged = state.plannedPlayerHeading != null &&
-        _alignment(state.plannedPlayerHeading!, player.heading) < 0.58;
-    final lateralReplan = state.plannedPlayerPosition != null &&
-        player.head.distanceTo(state.plannedPlayerPosition!) > 120 &&
-        _alignment(player.heading, player.head - state.plannedPlayerPosition!) <
-            0.35;
-    if (headingChanged || lateralReplan) {
-      // A tactic is a short commitment, not a locked target. A sharp player
-      // turn or lateral escape invalidates the old intercept lane immediately.
-      state.remaining = 0;
+  _BotManeuverState _ensureBotManeuver(SnakeState bot) {
+    final state = _botManeuvers.putIfAbsent(bot.id, _BotManeuverState.new);
+    final committed = state.phase == _BotManeuverPhase.commit ||
+        state.phase == _BotManeuverPhase.execute;
+    final playerEscaped = committed &&
+        (_alignment(state.observedPlayerHeading, player.heading) < 0.45 ||
+            (player.head.distanceTo(state.observedPlayerPosition) >=
+                    config.botEvasionReplanDistance &&
+                _alignment(
+                      player.heading,
+                      player.head - state.observedPlayerPosition,
+                    ) <
+                    0.1));
+    if (playerEscaped) {
+      state.failedApproaches++;
+      state.phase = _BotManeuverPhase.recover;
+      state.remaining = math
+          .min(
+            state.remaining,
+            config.botManeuverRecoveryDuration,
+          )
+          .toDouble();
+      state.side *= -1;
     }
-    state.remaining -= dt;
-    if (state.remaining > 0) return state.mode;
 
-    state.mode = _selectBotTactic(bot);
-    final minimum = math.max(0.1, config.botTacticDecisionMin);
-    final maximum = math.max(minimum, config.botTacticDecisionMax);
-    state.remaining = minimum + _random.nextDouble() * (maximum - minimum);
-    state.sign = _random.nextBool() ? 1 : -1;
+    final stageTarget = _maneuverStageTarget(bot, state);
+    final arrivedAtStage = state.phase == _BotManeuverPhase.stage &&
+        bot.head.distanceTo(stageTarget) <= 105;
+    final playerCommitted = state.phase == _BotManeuverPhase.wait &&
+        _playerCommittedToManeuver(state);
+    if (state.remaining > 0 && !arrivedAtStage && !playerCommitted) {
+      return state;
+    }
+
+    switch (state.phase) {
+      case _BotManeuverPhase.stage:
+        state.phase = state.kind == _BotManeuverKind.baitAmbush ||
+                state.kind == _BotManeuverKind.counterCut
+            ? _BotManeuverPhase.wait
+            : _BotManeuverPhase.commit;
+        state.remaining = state.phase == _BotManeuverPhase.wait
+            ? config.botManeuverStageDuration * 0.8
+            : config.botManeuverCommitDuration;
+      case _BotManeuverPhase.wait:
+        state.phase = _BotManeuverPhase.commit;
+        state.remaining = config.botManeuverCommitDuration;
+      case _BotManeuverPhase.commit:
+        state.phase = _BotManeuverPhase.execute;
+        state.remaining = config.botManeuverCommitDuration * 0.72;
+      case _BotManeuverPhase.execute:
+        state.phase = _BotManeuverPhase.recover;
+        state.remaining = config.botManeuverRecoveryDuration;
+      case _BotManeuverPhase.recover:
+        state.sequence++;
+        state.kind = _selectManeuver(bot, state);
+        state.phase = _BotManeuverPhase.stage;
+        state.remaining = config.botManeuverStageDuration;
+        state.side = _adaptiveAttackSide(bot, state);
+        state.anchor = _maneuverAnchor(bot, state.kind);
+    }
+    state.observedPlayerHeading = player.heading;
+    state.observedPlayerPosition = player.head;
+    return state;
+  }
+
+  _BotManeuverKind _selectManeuver(
+    SnakeState bot,
+    _BotManeuverState state,
+  ) {
+    final role = _botFormationRoles[bot.id];
+    if (role == _BotFormationRole.resourceGuard) {
+      return _BotManeuverKind.resourceDenial;
+    }
+    if (role == _BotFormationRole.leadCutoff) {
+      return state.sequence.isEven
+          ? _BotManeuverKind.laneExecution
+          : _BotManeuverKind.constrictor;
+    }
+    if (role == _BotFormationRole.leftScreen ||
+        role == _BotFormationRole.rightScreen) {
+      return state.sequence.isEven
+          ? _BotManeuverKind.counterCut
+          : _BotManeuverKind.feintReversal;
+    }
+
+    switch (bot.disposition) {
+      case BotDisposition.aggressive:
+        const portfolio = <_BotManeuverKind>[
+          _BotManeuverKind.laneExecution,
+          _BotManeuverKind.constrictor,
+          _BotManeuverKind.feintReversal,
+        ];
+        return portfolio[
+            (state.sequence + state.failedApproaches) % portfolio.length];
+      case BotDisposition.opportunistic:
+        if (_bestDroppedMassCluster(bot) != null ||
+            _playerBehavior.resourceAttraction >= 0.25) {
+          return state.sequence.isEven
+              ? _BotManeuverKind.baitAmbush
+              : _BotManeuverKind.resourceDenial;
+        }
+        return state.sequence.isEven
+            ? _BotManeuverKind.baitAmbush
+            : _BotManeuverKind.laneExecution;
+      case BotDisposition.defensive:
+        return state.sequence.isEven
+            ? _BotManeuverKind.counterCut
+            : _BotManeuverKind.resourceDenial;
+      case BotDisposition.wanderer:
+        const portfolio = <_BotManeuverKind>[
+          _BotManeuverKind.feintReversal,
+          _BotManeuverKind.roamingDuel,
+          _BotManeuverKind.counterCut,
+        ];
+        return portfolio[(state.sequence + bot.colorIndex) % portfolio.length];
+    }
+  }
+
+  double _adaptiveAttackSide(SnakeState bot, _BotManeuverState state) {
+    if (_playerBehavior.escapeSideBias.abs() >= 0.12) {
+      final learned = -_playerBehavior.escapeSideBias.sign;
+      return state.failedApproaches.isOdd ? -learned : learned;
+    }
+    final parity = (bot.colorIndex + state.sequence).isEven ? 1.0 : -1.0;
+    return state.failedApproaches.isOdd ? -parity : parity;
+  }
+
+  Vec2 _maneuverAnchor(SnakeState bot, _BotManeuverKind kind) {
+    if (kind == _BotManeuverKind.baitAmbush ||
+        kind == _BotManeuverKind.resourceDenial) {
+      final cluster = _bestDroppedMassCluster(bot);
+      if (cluster != null) return cluster.center;
+      final food = _nearestFoodTarget(bot);
+      if (food != null) return food;
+    }
+    return _playerRoutePoint(0.8);
+  }
+
+  bool _playerCommittedToManeuver(_BotManeuverState state) {
+    final toAnchor = state.anchor - player.head;
+    if (toAnchor.length == 0) return true;
+    final approaching = _alignment(player.heading, toAnchor) >= 0.42;
+    final close = toAnchor.length <= config.botDroppedMassGuardRadius * 0.75;
+    final stableRoute = player.movementCommitment >= 0.55;
+    return close && approaching && stableRoute;
+  }
+
+  Vec2 _maneuverStageTarget(SnakeState bot, _BotManeuverState state) {
+    if (!player.alive) return bot.head + bot.heading * 120;
+    final lateral = Vec2(-player.heading.y, player.heading.x);
+    final formation = _formationIntent(bot);
+    if (formation.length > 0 && state.phase == _BotManeuverPhase.stage) {
+      return bot.head + formation * config.botFormationSeparationDistance;
+    }
+    switch (state.kind) {
+      case _BotManeuverKind.laneExecution:
+        final pressure = _playerPressure(bot);
+        final pressureTarget = pressure.length == 0
+            ? _playerRoutePoint(0.95)
+            : bot.head + pressure.normalized() * 260;
+        return pressureTarget + lateral * state.side * 245;
+      case _BotManeuverKind.counterCut:
+        return player.head + player.heading * 105 + lateral * state.side * 205;
+      case _BotManeuverKind.constrictor:
+        final geometry = _geometryAttackPlan(bot);
+        if (geometry.attack) return geometry.target;
+        final midpoint = player.body[math.min(
+          player.body.length - 1,
+          math.max(1, player.body.length ~/ 2),
+        )];
+        final widen = _playerBehavior.gapCamping >= 0.22 ? 1.65 : 1.0;
+        return midpoint +
+            lateral * state.side * config.botEncircleGapDistance * widen;
+      case _BotManeuverKind.baitAmbush:
+        final fromPlayer = state.anchor - player.head;
+        final approach =
+            fromPlayer.length == 0 ? player.heading : fromPlayer.normalized();
+        final anchorLateral = Vec2(-approach.y, approach.x);
+        return state.anchor +
+            approach * config.botBaitDistance +
+            anchorLateral * state.side * 145;
+      case _BotManeuverKind.feintReversal:
+        return _playerRoutePoint(0.72) + lateral * state.side * 220;
+      case _BotManeuverKind.resourceDenial:
+        final control = _droppedMassControl(bot);
+        if (control.length > 0) {
+          return bot.head + control.normalized() * config.botScreenDistance;
+        }
+        final droppedMass = _nearestDroppedMass(bot);
+        if (droppedMass.length > 0) {
+          return bot.head + droppedMass.normalized() * config.botScreenDistance;
+        }
+        final approach = (state.anchor - player.head).normalized();
+        final anchorLateral = Vec2(-approach.y, approach.x);
+        return player.head +
+            approach * config.botDroppedMassGuardDistance +
+            anchorLateral * state.side * config.botScreenDistance;
+      case _BotManeuverKind.roamingDuel:
+        final food = _nearestFood(bot);
+        if (bot.head.distanceTo(player.head) > config.botEngagementRadius &&
+            food.length > 0) {
+          return bot.head + food.normalized() * 170;
+        }
+        final phase = elapsed * (1.9 + bot.colorIndex % 3 * 0.27);
+        final irregular = math.sin(phase) + math.sin(phase * 1.73) * 0.48;
+        final tactical = _tacticalIntent(bot, _BotTactic.feint);
+        final tacticalDirection =
+            tactical.length == 0 ? bot.heading : tactical.normalized();
+        return bot.head +
+            tacticalDirection * 70 +
+            bot.heading * 170 +
+            Vec2(-bot.heading.y, bot.heading.x) * irregular * 145;
+    }
+  }
+
+  _BotManeuverPlan _maneuverPlan(SnakeState bot) {
+    final state = _ensureBotManeuver(bot);
+    final closedLoopMode = _closedLoopEngagement(bot);
+    final closedLoop = _closedLoopIntent(bot, closedLoopMode);
+    final lateral = Vec2(-player.heading.y, player.heading.x);
+    final stageTarget = _maneuverStageTarget(bot, state);
+    Vec2 target = stageTarget;
+    var wantsSprint = false;
+    var mode = _BotPlanMode.attack;
+    var speedMultiplier = 0.84;
+
+    switch (state.phase) {
+      case _BotManeuverPhase.stage:
+        speedMultiplier = 0.86;
+      case _BotManeuverPhase.wait:
+        speedMultiplier = config.botYieldSpeedMultiplier;
+        if (state.kind == _BotManeuverKind.counterCut) {
+          target = bot.head - player.heading * 60 + lateral * state.side * 35;
+        }
+      case _BotManeuverPhase.commit:
+        speedMultiplier = 1;
+        wantsSprint = state.kind == _BotManeuverKind.laneExecution ||
+            state.kind == _BotManeuverKind.counterCut ||
+            state.kind == _BotManeuverKind.feintReversal ||
+            state.kind == _BotManeuverKind.baitAmbush;
+        switch (state.kind) {
+          case _BotManeuverKind.laneExecution:
+            target = _playerRoutePoint(0.5) - lateral * state.side * 190;
+          case _BotManeuverKind.counterCut:
+            target = _playerRoutePoint(0.38) - lateral * state.side * 125;
+          case _BotManeuverKind.constrictor:
+            target = _playerRoutePoint(0.3) +
+                lateral *
+                    state.side *
+                    (_playerBehavior.gapCamping >= 0.22 ? 175 : 75);
+            final geometry = _geometryPressure(bot, _geometryAttackPlan(bot));
+            if (geometry.length > 0) {
+              target = target + geometry * 90;
+            }
+            wantsSprint = _playerBehavior.gapCamping < 0.22;
+          case _BotManeuverKind.baitAmbush:
+            target =
+                player.head + player.heading * 135 - lateral * state.side * 110;
+          case _BotManeuverKind.feintReversal:
+            target = _playerRoutePoint(0.42) - lateral * state.side * 215;
+          case _BotManeuverKind.resourceDenial:
+            target = player.head +
+                (state.anchor - player.head).normalized() *
+                    config.botDenyDistance;
+            mode = _BotPlanMode.contest;
+            wantsSprint = _playerBehavior.resourceAttraction >= 0.2 ||
+                bot.head.distanceTo(state.anchor) <=
+                    config.botSprintTriggerDistance * 1.25;
+          case _BotManeuverKind.roamingDuel:
+            target = _playerRoutePoint(0.5) - lateral * state.side * 140;
+            wantsSprint = _playerBehavior.reversalTendency < 0.5;
+        }
+      case _BotManeuverPhase.execute:
+        speedMultiplier =
+            state.kind == _BotManeuverKind.constrictor ? 0.72 : 0.9;
+        switch (state.kind) {
+          case _BotManeuverKind.constrictor:
+            final midpoint = player.body[math.min(
+              player.body.length - 1,
+              math.max(1, player.body.length ~/ 2),
+            )];
+            final radial = (bot.head - midpoint).normalized();
+            final tangent = Vec2(-radial.y, radial.x) * state.side;
+            target = bot.head +
+                tangent * 190 +
+                radial * (_playerBehavior.gapCamping >= 0.22 ? 120 : -55);
+          case _BotManeuverKind.baitAmbush:
+          case _BotManeuverKind.resourceDenial:
+            target = _playerRoutePoint(0.32) - lateral * state.side * 80;
+            mode = _BotPlanMode.contest;
+          case _BotManeuverKind.laneExecution:
+          case _BotManeuverKind.counterCut:
+          case _BotManeuverKind.feintReversal:
+          case _BotManeuverKind.roamingDuel:
+            target = _playerRoutePoint(0.28) - lateral * state.side * 120;
+        }
+      case _BotManeuverPhase.recover:
+        speedMultiplier = 0.76;
+        mode = _BotPlanMode.wander;
+        final away = (bot.head - player.head).normalized();
+        target =
+            bot.head + away * 210 + Vec2(-away.y, away.x) * state.side * 130;
+    }
+
+    if (state.kind == _BotManeuverKind.resourceDenial) {
+      mode = _BotPlanMode.contest;
+      speedMultiplier = (speedMultiplier *
+              (0.82 + math.min(0.18, _droppedMassWeight(bot) * 0.06)))
+          .clamp(config.botYieldSpeedMultiplier, 1.0)
+          .toDouble();
+      if (closedLoop.length > 0 &&
+          (closedLoopMode == _BotEngagementMode.deny ||
+              closedLoopMode == _BotEngagementMode.screen ||
+              closedLoopMode == _BotEngagementMode.harvest)) {
+        target = bot.head + closedLoop * config.botScreenDistance;
+      }
+    } else if (state.kind == _BotManeuverKind.roamingDuel &&
+        bot.head.distanceTo(player.head) > config.botEngagementRadius) {
+      mode = _BotPlanMode.wander;
+      speedMultiplier = (speedMultiplier *
+              (0.72 +
+                  math.min(
+                    0.28,
+                    (_wanderWeight(bot) + _foodWeight(bot)) * 0.1,
+                  )))
+          .clamp(config.botYieldSpeedMultiplier, 1.0)
+          .toDouble();
+    } else if (mode == _BotPlanMode.attack) {
+      speedMultiplier = (speedMultiplier *
+              (0.84 + math.min(0.16, _pressureWeight(bot) * 0.05)))
+          .clamp(config.botYieldSpeedMultiplier, 1.0)
+          .toDouble();
+    }
+    final direction = target - bot.head;
+    return _BotManeuverPlan(
+      intent: direction.length == 0 ? bot.heading : direction.normalized(),
+      mode: mode,
+      wantsSprint: wantsSprint,
+      speedMultiplier: speedMultiplier,
+    );
+  }
+
+  _BotTactic _advanceBotTactic(SnakeState bot) {
+    final maneuver = _ensureBotManeuver(bot);
+    final state = _botTactics.putIfAbsent(bot.id, _BotTacticState.new);
+    if (!player.alive) {
+      state.mode = _selectBotTactic(bot);
+      return state.mode;
+    }
+    state.mode = switch (maneuver.kind) {
+      _BotManeuverKind.laneExecution => _BotTactic.cutoff,
+      _BotManeuverKind.counterCut => _BotTactic.flank,
+      _BotManeuverKind.constrictor => _BotTactic.encircle,
+      _BotManeuverKind.baitAmbush => _BotTactic.bait,
+      _BotManeuverKind.feintReversal => _BotTactic.feint,
+      _BotManeuverKind.resourceDenial => _BotTactic.flank,
+      _BotManeuverKind.roamingDuel => _BotTactic.weave,
+    };
+    state.remaining = maneuver.remaining;
+    state.sign = maneuver.side;
     state.plannedPlayerHeading = player.heading;
     state.plannedPlayerPosition = player.head;
-    bot.tacticalTurnRateMultiplier = 1 -
-        config.botTacticTurnVariance / 2 +
-        _random.nextDouble() * config.botTacticTurnVariance;
+    final phaseTurn = maneuver.phase == _BotManeuverPhase.commit ||
+            maneuver.phase == _BotManeuverPhase.execute
+        ? 1.0
+        : 0.82;
+    final variation = ((bot.colorIndex + maneuver.sequence) % 4) * 0.035;
+    bot.tacticalTurnRateMultiplier =
+        (phaseTurn - variation).clamp(0.72, 1.0).toDouble();
+    _applyTacticalMotion(bot, state.mode, 0);
     return state.mode;
   }
 
@@ -1756,7 +2372,11 @@ class GameSimulation {
     if (bot.botSprintRemaining <= 0) _stopBotSprint(bot);
   }
 
-  void _decideBotSprint(SnakeState bot) {
+  void _decideBotSprint(
+    SnakeState bot, {
+    required _BotPlan plan,
+    required bool maneuverRequestsSprint,
+  }) {
     if (bot.sprinting ||
         bot.sprintRequested ||
         bot.botSprintCooldownRemaining > 0 ||
@@ -1764,22 +2384,13 @@ class GameSimulation {
         bot.length <= config.botSprintMinimumLength) {
       return;
     }
-
-    final routeRisk = _playerRouteRisk(bot);
-    final geometryPlan = _geometryAttackPlan(bot);
-    final canSprintThroughLane = geometryPlan.attack &&
-        geometryPlan.safety >= config.botAttackAbortSafety &&
-        routeRisk.urgency < 0.8;
-    final playerDistance = bot.head.distanceTo(player.head);
-    final closePlayerOpportunity = player.alive &&
-        playerDistance <= config.botSprintTriggerDistance &&
-        bot.length <= player.length * 1.2;
-    if (routeRisk.urgency >= 0.48 &&
-        !canSprintThroughLane &&
-        !(bot.disposition == BotDisposition.defensive &&
-            closePlayerOpportunity)) {
+    if (!plan.allowSprint ||
+        plan.mode == _BotPlanMode.evadePeer ||
+        plan.mode == _BotPlanMode.evadePlayer) {
       return;
     }
+
+    final playerDistance = bot.head.distanceTo(player.head);
     final droppedMassCluster = _bestDroppedMassCluster(bot);
     final droppedMassDistance = math.min(
       _nearestDroppedMassDistance(bot),
@@ -1789,7 +2400,7 @@ class GameSimulation {
     );
     final naturalFoodDistance = _nearestNaturalFoodDistance(bot);
     final distanceLimit = config.botSprintTriggerDistance;
-    var shouldSprint = false;
+    var shouldSprint = maneuverRequestsSprint;
     final playerNearCluster = droppedMassCluster != null &&
         player.alive &&
         player.head.distanceTo(droppedMassCluster.center) <=
@@ -1797,30 +2408,28 @@ class GameSimulation {
 
     switch (bot.disposition) {
       case BotDisposition.defensive:
-        shouldSprint = bot.retreating ||
+        shouldSprint = shouldSprint ||
+            bot.retreating ||
             (player.alive &&
                 playerDistance <= distanceLimit * 0.8 &&
                 bot.length <= player.length * 1.2);
       case BotDisposition.aggressive:
-        shouldSprint = (player.alive &&
+        shouldSprint = shouldSprint ||
+            (player.alive &&
                 playerDistance <= distanceLimit &&
                 bot.length >= player.length * 0.75 &&
                 bot.length <= player.length * 1.6) ||
             (playerNearCluster && droppedMassDistance <= distanceLimit * 1.5);
       case BotDisposition.opportunistic:
-        shouldSprint = droppedMassDistance <= distanceLimit ||
+        shouldSprint = shouldSprint ||
+            droppedMassDistance <= distanceLimit ||
             (playerNearCluster && droppedMassDistance <= distanceLimit * 1.5);
       case BotDisposition.wanderer:
-        shouldSprint = naturalFoodDistance <= distanceLimit * 0.7;
+        shouldSprint =
+            shouldSprint || naturalFoodDistance <= distanceLimit * 0.7;
     }
 
-    final deferClosePressure = config.sprintAnticipationDuration > 0 &&
-        bot.disposition == BotDisposition.defensive &&
-        player.alive &&
-        playerDistance <= config.botSprintTriggerDistance &&
-        bot.length <= player.length * 1.2 &&
-        player.length <= config.minimumSprintLength + 10;
-    if (shouldSprint && !deferClosePressure) {
+    if (shouldSprint) {
       _requestSprint(bot);
       bot.botSprintRemaining = config.botSprintDuration;
       bot.sprintDrainAccumulator = 0;
@@ -1849,6 +2458,16 @@ class GameSimulation {
     state.mode = _BotTactic.disengage;
     state.remaining = math.max(state.remaining, 0.35).toDouble();
     state.sign = bot.id.hashCode.isEven ? 1 : -1;
+    final maneuver = _botManeuvers[bot.id];
+    if (maneuver != null) {
+      maneuver.phase = _BotManeuverPhase.recover;
+      maneuver.remaining = math
+          .min(
+            math.max(maneuver.remaining, 0.12),
+            config.botManeuverRecoveryDuration,
+          )
+          .toDouble();
+    }
     bot.movementCommitment = math.min(bot.movementCommitment, 0.45).toDouble();
   }
 
@@ -2513,10 +3132,14 @@ class GameSimulation {
   }
 
   _BotPeerRisk _botPeerRouteRisk(SnakeState bot) {
-    final speed = _effectiveSpeed(bot);
-    if (speed <= 0) {
+    if (bot.speed <= 0) {
       return const _BotPeerRisk(escape: Vec2.zero, urgency: 0);
     }
+    // A stopped bot must evaluate the route it would occupy after yielding,
+    // not conclude that the lane is clear merely because its current velocity
+    // is zero. The bounded restart probe prevents both peers from releasing a
+    // safety hold into the same crossing on the same planning tick.
+    final speed = math.max(_effectiveSpeed(bot), bot.speed * 0.55).toDouble();
 
     final lookahead = math.max(
       config.botCollisionLookahead,
@@ -2534,8 +3157,10 @@ class GameSimulation {
       for (var sample = 1; sample <= samples; sample++) {
         final progress = sample / samples;
         final future = bot.head + bot.heading * (speed * lookahead * progress);
+        final otherProbeSpeed =
+            math.max(_effectiveSpeed(other), other.speed * 0.55).toDouble();
         final otherTravel =
-            other.heading * (_effectiveSpeed(other) * lookahead * progress);
+            other.heading * (otherProbeSpeed * lookahead * progress);
         final peerRadius = math.max(
           config.botPeerHardAvoidanceRadius,
           bot.radius + other.radius + 42,
@@ -3073,6 +3698,9 @@ class GameSimulation {
         }
         if (snake.head.distanceTo(sample.position) <
             snake.radius + other.radius) {
+          if (snake.kind == SnakeKind.bot && other.kind == SnakeKind.bot) {
+            botPeerCollisionDeaths++;
+          }
           _defeat(snake, GameOverReason.bodyCollision);
           break;
         }
@@ -3368,7 +3996,12 @@ class GameSimulation {
       if (!gameOver && !bot.alive) {
         bot.resetAt(_findBotSpawnPosition(bot));
         _botTactics.remove(id);
+        _botEngagementStates.remove(id);
+        _botManeuvers.remove(id);
+        _botFormationRoles.remove(id);
         _botPlans.remove(id);
+        _botSafetyHolds.remove(id);
+        _botSafetyEscapes.remove(id);
       }
       _botRespawnTimers.remove(id);
     }
@@ -3432,42 +4065,42 @@ class GameSimulation {
       _BotProfile(
         disposition: BotDisposition.opportunistic,
         lengthBonus: 24,
-        speedMultiplier: 0.9,
+        speedMultiplier: 1.0,
       ),
       _BotProfile(
         disposition: BotDisposition.wanderer,
         lengthBonus: 4,
-        speedMultiplier: 1.05,
+        speedMultiplier: 1.0,
       ),
       _BotProfile(
         disposition: BotDisposition.defensive,
         lengthBonus: 18,
-        speedMultiplier: 0.95,
+        speedMultiplier: 1.0,
       ),
       _BotProfile(
         disposition: BotDisposition.aggressive,
         lengthBonus: 36,
-        speedMultiplier: 0.88,
+        speedMultiplier: 1.0,
       ),
       _BotProfile(
         disposition: BotDisposition.opportunistic,
         lengthBonus: 12,
-        speedMultiplier: 0.98,
+        speedMultiplier: 1.0,
       ),
       _BotProfile(
         disposition: BotDisposition.defensive,
         lengthBonus: 58,
-        speedMultiplier: 0.8,
+        speedMultiplier: 1.0,
       ),
       _BotProfile(
         disposition: BotDisposition.aggressive,
         lengthBonus: 2,
-        speedMultiplier: 1.02,
+        speedMultiplier: 1.0,
       ),
       _BotProfile(
         disposition: BotDisposition.opportunistic,
         lengthBonus: 44,
-        speedMultiplier: 0.86,
+        speedMultiplier: 1.0,
       ),
     ];
     return profiles[index % profiles.length];

@@ -19,6 +19,23 @@ void advanceSimulation(
   }
 }
 
+void resetSnakeAlongHeading(
+  SnakeState snake,
+  Vec2 position,
+  Vec2 heading,
+) {
+  snake.resetAt(position);
+  final direction = heading.normalized();
+  snake.heading = direction;
+  for (var index = 0; index < snake.body.length; index++) {
+    snake.body[index] = position - direction * (index * snake.segmentSpacing);
+  }
+  snake.movementTrail
+    ..clear()
+    ..addAll(snake.body.reversed);
+  snake.rebuildBodyChunks();
+}
+
 void main() {
   group('Vec2', () {
     test('supports basic vector arithmetic', () {
@@ -36,6 +53,25 @@ void main() {
       expect(config.sprintDropValue, config.naturalPelletValue);
       expect(config.defeatDropValue, greaterThan(config.sprintDropValue));
       expect(config.sprintDrainInterval, 0.35);
+    });
+
+    test('default bots share the player movement capability envelope', () {
+      const config = SimulationConfig();
+
+      expect(config.botSpeed, config.playerSpeed);
+      expect(config.botTurnRate, 6);
+      expect(config.botSprintMultiplier, config.sprintMultiplier);
+      expect(config.botSizeSpeedPenalty, 0);
+
+      final simulation = GameSimulation(
+        config: const SimulationConfig(botCount: 10, initialPellets: 0),
+      );
+      expect(
+        simulation.snakes
+            .where((snake) => snake.kind == SnakeKind.bot)
+            .every((bot) => bot.speed == config.playerSpeed),
+        isTrue,
+      );
     });
 
     test('bots grow modestly faster from collected food', () {
@@ -215,6 +251,96 @@ void main() {
       expect(bots[5].length, greaterThan(bots[1].length));
     });
 
+    test('bot roster opens with distinct strategic maneuver portfolios', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 2000,
+          botCount: 4,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 0,
+          botTurnRate: 20,
+        ),
+      );
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      final maneuvers = simulation.snakes
+          .where((snake) => snake.kind == SnakeKind.bot)
+          .map((bot) => simulation.botManeuverName(bot.id))
+          .whereType<String>()
+          .toSet();
+      expect(maneuvers.length, greaterThanOrEqualTo(3));
+      expect(maneuvers, contains('constrictor'));
+      expect(maneuvers, contains('resourceDenial'));
+    });
+
+    test('maneuver phases expire on simulation time between replans', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 2000,
+          botCount: 1,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 0,
+          botTurnRate: 20,
+          botTacticalDecisionInterval: 0.18,
+          botManeuverStageDuration: 0.12,
+          botManeuverCommitDuration: 0.16,
+          botManeuverRecoveryDuration: 0.1,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      final observedPhases = <String>{};
+      final observedManeuvers = <String>{};
+
+      for (var frame = 0; frame < 90; frame++) {
+        simulation.update(1 / 60, Vec2.zero);
+        final phase = simulation.botManeuverPhase(bot.id);
+        final maneuver = simulation.botManeuverName(bot.id);
+        if (phase != null) observedPhases.add(phase);
+        if (maneuver != null) observedManeuvers.add(maneuver);
+      }
+
+      expect(observedPhases.length, greaterThanOrEqualTo(3));
+      expect(observedManeuvers.length, greaterThanOrEqualTo(2));
+    });
+
+    test('bots switch attack side after observing a repeated escape bias', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 3000,
+          botCount: 1,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 0,
+          botTurnRate: 20,
+          botTacticalDecisionInterval: 0.08,
+          botManeuverStageDuration: 0.08,
+          botManeuverCommitDuration: 0.1,
+          botManeuverRecoveryDuration: 0.08,
+        ),
+      );
+      final bot = simulation.snakes[1];
+      simulation.update(1 / 60, Vec2.zero);
+      final initialSide = simulation.botManeuverSide(bot.id);
+      final observedSides = <double>{if (initialSide != null) initialSide};
+
+      var angle = 0.0;
+      for (var frame = 0; frame < 90; frame++) {
+        angle += 0.08;
+        simulation.player.heading = Vec2.fromAngle(angle);
+        simulation.update(1 / 60, Vec2.zero);
+        final side = simulation.botManeuverSide(bot.id);
+        if (side != null) observedSides.add(side);
+      }
+
+      expect(initialSide, isNotNull);
+      expect(simulation.observedPlayerEscapeSideBias, greaterThan(0.2));
+      expect(observedSides, contains(-1));
+      expect(observedSides.length, greaterThanOrEqualTo(2));
+    });
+
     test('large bots enter a one-way retreat state', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(
@@ -252,7 +378,8 @@ void main() {
       simulation.update(0.1, Vec2.zero);
 
       expect(bot.retreating, isTrue);
-      expect(bot.heading.x.abs(), greaterThan(0.01));
+      expect(simulation.botPlanMode(bot.id), isNot('retreat'));
+      expect(simulation.botManeuverName(bot.id), isNotNull);
     });
 
     test('bot sprinting follows each disposition objective', () {
@@ -265,6 +392,7 @@ void main() {
           botSpeed: 100,
           botTurnRate: 20,
           botRetreatLength: 200,
+          botRetreatBoundaryBuffer: 600,
           botSprintTriggerDistance: 400,
           sprintAnticipationDuration: 0,
         ),
@@ -273,18 +401,18 @@ void main() {
       final aggressive = simulation.snakes[2];
       final opportunistic = simulation.snakes[3];
       final wanderer = simulation.snakes[4];
-      simulation.player.grow(20);
-      defensive.body[0] = const Vec2(0, 100);
-      aggressive.body[0] = const Vec2(0, 300);
-      opportunistic.body[0] = const Vec2(-300, 0);
-      wanderer.body[0] = const Vec2(300, 0);
-      simulation.droppedMass.add(
-        const FoodPellet(
-          position: Vec2(-300, 0),
-          kind: FoodPelletKind.defeatDrop,
-        ),
-      );
-      simulation.pellets.add(const FoodPellet(position: Vec2(300, 0)));
+      defensive.resetAt(const Vec2(0, 1500));
+      aggressive.resetAt(const Vec2(1500, 0));
+      opportunistic.resetAt(const Vec2(0, -1500));
+      wanderer.resetAt(const Vec2(-1500, 0));
+      for (final bot in <SnakeState>[
+        defensive,
+        aggressive,
+        opportunistic,
+        wanderer,
+      ]) {
+        bot.retreating = true;
+      }
 
       simulation.update(1 / 60, Vec2.zero);
 
@@ -304,6 +432,7 @@ void main() {
           botSpeed: 100,
           botTurnRate: 20,
           botRetreatLength: 200,
+          botRetreatBoundaryBuffer: 600,
           botSprintDuration: 0.5,
           botSprintCooldown: 2,
           botSprintTriggerDistance: 400,
@@ -312,8 +441,8 @@ void main() {
         ),
       );
       final bot = simulation.snakes[1];
-      simulation.player.grow(10);
-      bot.body[0] = const Vec2(100, 0);
+      bot.resetAt(const Vec2(0, 1500));
+      bot.retreating = true;
       final initialLength = bot.length;
 
       simulation.update(1 / 60, Vec2.zero);
@@ -340,13 +469,14 @@ void main() {
         botSpeed: 100,
         botTurnRate: 20,
         botRetreatLength: 200,
+        botRetreatBoundaryBuffer: 600,
         botSprintTriggerDistance: 400,
         sprintAnticipationDuration: 0.2,
       );
       final simulation = GameSimulation(config: config);
-      simulation.player.grow(10);
       final bot = simulation.snakes[1];
-      bot.body[0] = const Vec2(100, 0);
+      bot.resetAt(const Vec2(0, 1500));
+      bot.retreating = true;
 
       simulation.update(1 / 60, Vec2.zero);
 
@@ -800,6 +930,75 @@ void main() {
       expect(first.heading.x * second.heading.x, lessThan(0));
     });
 
+    test('bots survive a sustained head-on convergence without immunity', () {
+      const config = SimulationConfig(
+        arenaRadius: 3000,
+        botCount: 2,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 175,
+        botTurnRate: 6,
+        botEngagementRadius: 0,
+        botTacticalDecisionInterval: 0.08,
+      );
+      final simulation = GameSimulation(config: config);
+      simulation.player.resetAt(const Vec2(0, 1500));
+      final first = simulation.snakes[1];
+      final second = simulation.snakes[2];
+      first.resetAt(const Vec2(-300, 0));
+      first.heading = const Vec2(1, 0);
+      second.resetAt(const Vec2(300, 0));
+      second.heading = const Vec2(-1, 0);
+
+      advanceSimulation(simulation, 2.2, Vec2.zero);
+
+      expect(first.alive, isTrue);
+      expect(second.alive, isTrue);
+      expect(simulation.botPeerCollisionDeaths, 0);
+      expect(first.head.distanceTo(second.head), greaterThan(40));
+    });
+
+    test('final route safety vetoes simultaneous crossing sprints', () {
+      const config = SimulationConfig(
+        arenaRadius: 3000,
+        botCount: 2,
+        initialPellets: 0,
+        playerSpeed: 0,
+        botSpeed: 175,
+        botTurnRate: 6,
+        botEngagementRadius: 0,
+        botTacticalDecisionInterval: 0.05,
+        sprintAnticipationDuration: 0,
+      );
+      final simulation = GameSimulation(config: config);
+      simulation.player.resetAt(const Vec2(0, 1500));
+      final first = simulation.snakes[1];
+      final second = simulation.snakes[2];
+      resetSnakeAlongHeading(
+        first,
+        const Vec2(-120, -120),
+        const Vec2(1, 1),
+      );
+      resetSnakeAlongHeading(
+        second,
+        const Vec2(120, -120),
+        const Vec2(-1, 1),
+      );
+      first.sprintRequested = true;
+      first.sprinting = true;
+      first.botSprintRemaining = 1;
+      second.sprintRequested = true;
+      second.sprinting = true;
+      second.botSprintRemaining = 1;
+
+      advanceSimulation(simulation, 0.8, Vec2.zero);
+
+      expect(first.alive, isTrue);
+      expect(second.alive, isTrue);
+      expect(simulation.botPeerCollisionDeaths, 0);
+      expect(first.sprinting && second.sprinting, isFalse);
+    });
+
     test('persistent formation gives engaged bots separate pressure lanes', () {
       const config = SimulationConfig(
         arenaRadius: 2000,
@@ -919,7 +1118,13 @@ void main() {
 
       simulation.update(0.1, Vec2.zero);
 
-      expect(first.heading.y * second.heading.y, lessThan(0));
+      final maneuvers = <String?>{
+        simulation.botManeuverName(first.id),
+        simulation.botManeuverName(second.id),
+      };
+      expect(maneuvers.length, 2);
+      expect(maneuvers, contains('resourceDenial'));
+      expect(simulation.botPeerCollisionDeaths, 0);
     });
 
     test('geometry pressure selects a body lane instead of a blind charge', () {
@@ -949,7 +1154,46 @@ void main() {
 
       simulation.update(0.1, Vec2.zero);
 
-      expect(bot.heading.x.abs(), greaterThan(0.01));
+      expect(simulation.botManeuverName(bot.id), 'constrictor');
+      expect(simulation.botPlanMode(bot.id), isNot('wander'));
+    });
+
+    test('multi-phase attacks create credible player collision windows', () {
+      const config = SimulationConfig(
+        arenaRadius: 3000,
+        botCount: 3,
+        initialPellets: 0,
+        playerSpeed: 120,
+        botSpeed: 175,
+        botTurnRate: 6,
+        botEngagementRadius: 1200,
+        botTacticalDecisionInterval: 0.06,
+        botManeuverStageDuration: 0.12,
+        botManeuverCommitDuration: 0.3,
+        botManeuverRecoveryDuration: 0.16,
+      );
+      final simulation = GameSimulation(config: config);
+      simulation.player.heading = const Vec2(1, 0);
+      simulation.snakes[1].resetAt(const Vec2(-260, 220));
+      simulation.snakes[2].resetAt(const Vec2(180, 320));
+      simulation.snakes[3].resetAt(const Vec2(360, -260));
+      var credibleWindows = 0;
+
+      for (var frame = 0; frame < 180 && !simulation.gameOver; frame++) {
+        simulation.update(1 / 60, const Vec2(1, 0));
+        credibleWindows += simulation.lastCrediblePlayerKillWindowCount;
+      }
+
+      expect(credibleWindows, greaterThan(0));
+      expect(
+        simulation.snakes
+            .where((snake) => snake.kind == SnakeKind.bot)
+            .map((bot) => simulation.botManeuverName(bot.id))
+            .whereType<String>()
+            .toSet()
+            .length,
+        greaterThanOrEqualTo(2),
+      );
     });
 
     test('sprint-drop fields participate in bot denial planning', () {
@@ -1598,6 +1842,44 @@ void main() {
       expect(simulation.lastFixedStepCount, 2);
       expect(simulation.lastTacticalReplanCount, 1);
       expect(simulation.lastSpatialIndexBuildCount, lessThanOrEqualTo(3));
+    });
+
+    test('formidable planning preserves the V1.23 busy-frame budget', () {
+      const config = SimulationConfig(
+        arenaRadius: 5000,
+        botCount: 10,
+        maxBotCount: 10,
+        initialPellets: 0,
+        playerSpeed: 175,
+        botSpeed: 175,
+        busyPlanningLoadThreshold: 1,
+        botTacticalDecisionInterval: 0.08,
+      );
+      final simulation = GameSimulation(config: config);
+      simulation.player.grow(1500);
+      for (final bot in simulation.snakes.where(
+        (snake) => snake.kind == SnakeKind.bot,
+      )) {
+        bot.grow(220);
+      }
+      for (var index = 0; index < config.maxDroppedMass; index++) {
+        simulation.droppedMass.add(
+          FoodPellet(
+            position: Vec2(
+              900 + index % 24 * 12.0,
+              900 + index ~/ 24 * 12.0,
+            ),
+            kind: FoodPelletKind.defeatDrop,
+          ),
+        );
+      }
+
+      simulation.update(1 / 30, const Vec2(0, 1), sprinting: true);
+
+      expect(simulation.lastFixedStepCount, 2);
+      expect(simulation.lastTacticalReplanCount, lessThanOrEqualTo(1));
+      expect(simulation.lastSpatialIndexBuildCount, lessThanOrEqualTo(3));
+      expect(simulation.droppedMass.length, lessThanOrEqualTo(480));
     });
 
     test('body reconstruction reuses established segment storage', () {
