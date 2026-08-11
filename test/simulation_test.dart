@@ -62,6 +62,10 @@ void main() {
       expect(config.botTurnRate, 6);
       expect(config.botSprintMultiplier, config.sprintMultiplier);
       expect(config.botSizeSpeedPenalty, 0);
+      expect(config.botHunterInitialCount, 1);
+      expect(config.botHunterMaximumCount, 2);
+      expect(config.collisionCoreScale, 0.84);
+      expect(config.collisionTailTaper, 0.72);
 
       final simulation = GameSimulation(
         config: const SimulationConfig(botCount: 10, initialPellets: 0),
@@ -249,6 +253,102 @@ void main() {
       );
       expect(bots[2].length, greaterThan(bots[0].length));
       expect(bots[5].length, greaterThan(bots[1].length));
+    });
+
+    test('only a persistent minority of the roster is assigned to hunt', () {
+      final smallRoster = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 3000,
+          botCount: 3,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 0,
+        ),
+      );
+      smallRoster.update(1 / 60, Vec2.zero);
+
+      expect(smallRoster.activeHunterCount, 1);
+      final firstHunter = smallRoster.snakes.singleWhere(
+        (snake) => smallRoster.botIsHunter(snake.id),
+      );
+      final firstStyle = smallRoster.botHunterStyle(firstHunter.id);
+      smallRoster.update(0.2, Vec2.zero);
+      expect(smallRoster.botIsHunter(firstHunter.id), isTrue);
+      expect(smallRoster.botHunterStyle(firstHunter.id), firstStyle);
+
+      final largeRoster = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 3000,
+          botCount: 7,
+          maxBotCount: 7,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 0,
+        ),
+      );
+      largeRoster.update(1 / 60, Vec2.zero);
+      final hunters = largeRoster.snakes
+          .where((snake) => largeRoster.botIsHunter(snake.id))
+          .toList();
+
+      expect(hunters, hasLength(2));
+      expect(
+        hunters.map((hunter) => largeRoster.botHunterStyle(hunter.id)).toSet(),
+        hasLength(2),
+      );
+      expect(
+        largeRoster.activeHunterCount,
+        lessThan(largeRoster.livingBotCount),
+      );
+    });
+
+    test('hunters sustain pressure and reacquire after player reversals', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 5000,
+          botCount: 3,
+          maxBotCount: 3,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 175,
+          botTurnRate: 6,
+          botRetreatLength: 500,
+          botEngagementRadius: 360,
+          botTacticalDecisionInterval: 0.06,
+          botManeuverStageDuration: 0.18,
+          botManeuverCommitDuration: 0.32,
+          botManeuverRecoveryDuration: 0.16,
+          collisionCoreScale: 0,
+        ),
+      );
+      simulation.update(1 / 60, Vec2.zero);
+      final hunter = simulation.snakes.singleWhere(
+        (snake) => simulation.botIsHunter(snake.id),
+      );
+      resetSnakeAlongHeading(
+        hunter,
+        const Vec2(-1400, 260),
+        const Vec2(1, 0),
+      );
+      const directions = <Vec2>[
+        Vec2(1, 0),
+        Vec2(0, 1),
+        Vec2(-1, 0),
+        Vec2(0, -1),
+      ];
+
+      for (var frame = 0; frame < 60 * 60; frame++) {
+        if (frame % 300 == 0) {
+          simulation.player.heading = directions[(frame ~/ 300) % 4];
+        }
+        simulation.update(1 / 60, Vec2.zero);
+      }
+
+      expect(simulation.botIsHunter(hunter.id), isTrue);
+      expect(simulation.botHunterPressureSeconds(hunter.id), greaterThan(30));
+      expect(simulation.botHunterReacquisitionCount(hunter.id), greaterThan(5));
+      expect(simulation.botPlanMode(hunter.id), isNot('wander'));
+      expect(simulation.botPeerCollisionDeaths, 0);
     });
 
     test('bot roster opens with distinct strategic maneuver portfolios', () {
@@ -1141,6 +1241,8 @@ void main() {
         botGeometryPressureWeight: 16,
         botTacticDecisionMin: 30,
         botTacticDecisionMax: 30,
+        botHunterInitialCount: 0,
+        botHunterMaximumCount: 0,
       );
       final simulation = GameSimulation(config: config);
       final bot = simulation.snakes[1];
@@ -1482,6 +1584,108 @@ void main() {
       expect(simulation.collisionPings, hasLength(1));
       simulation.update(0.45, Vec2.zero);
       expect(simulation.collisionPings, isEmpty);
+    });
+
+    test('lethal cores permit pressed contact but retain real collisions', () {
+      GameSimulation contactSimulation(double separation) {
+        final simulation = GameSimulation(
+          config: const SimulationConfig(
+            arenaRadius: 2000,
+            botCount: 1,
+            initialPellets: 0,
+            playerSpeed: 0,
+            botSpeed: 0,
+            botHunterInitialCount: 0,
+            botHunterMaximumCount: 0,
+          ),
+        );
+        resetSnakeAlongHeading(
+          simulation.player,
+          Vec2.zero,
+          const Vec2(1, 0),
+        );
+        resetSnakeAlongHeading(
+          simulation.snakes[1],
+          Vec2(24, separation),
+          const Vec2(1, 0),
+        );
+        simulation.update(1 / 60, Vec2.zero);
+        return simulation;
+      }
+
+      final pressed = contactSimulation(18);
+      expect(pressed.gameOver, isFalse);
+      expect(pressed.player.alive, isTrue);
+
+      final overlapping = contactSimulation(15);
+      expect(overlapping.gameOver, isTrue);
+      expect(overlapping.gameOverReason, GameOverReason.bodyCollision);
+    });
+
+    test('tail taper narrows the lethal boundary with the rendered body', () {
+      GameSimulation tailContactSimulation(double separation) {
+        final simulation = GameSimulation(
+          config: const SimulationConfig(
+            arenaRadius: 2000,
+            botCount: 1,
+            initialPellets: 0,
+            playerSpeed: 0,
+            botSpeed: 0,
+            botHunterInitialCount: 0,
+            botHunterMaximumCount: 0,
+          ),
+        );
+        final bot = simulation.snakes[1];
+        resetSnakeAlongHeading(
+          simulation.player,
+          Vec2.zero,
+          const Vec2(1, 0),
+        );
+        resetSnakeAlongHeading(
+          bot,
+          Vec2((bot.body.length - 1) * bot.segmentSpacing, separation),
+          const Vec2(1, 0),
+        );
+        simulation.update(1 / 60, Vec2.zero);
+        return simulation;
+      }
+
+      expect(tailContactSimulation(15).gameOver, isFalse);
+      expect(tailContactSimulation(13).gameOver, isTrue);
+    });
+
+    test('parallel bots can hold a close lane without a false safety veto', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 3000,
+          botCount: 2,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 120,
+          botTurnRate: 0,
+          botEngagementRadius: 0,
+          botTacticalDecisionInterval: 0.05,
+          botHunterInitialCount: 0,
+          botHunterMaximumCount: 0,
+        ),
+      );
+      // Isolate peer-route safety from unrelated player objectives. With no
+      // live player, both bots reserve their current forward lanes, so any
+      // evadePeer plan would be a false positive from parallel proximity.
+      simulation.player.alive = false;
+      final first = simulation.snakes[1];
+      final second = simulation.snakes[2];
+      resetSnakeAlongHeading(first, const Vec2(-300, 0), const Vec2(1, 0));
+      resetSnakeAlongHeading(second, const Vec2(-300, 18), const Vec2(1, 0));
+
+      advanceSimulation(simulation, 1.5, Vec2.zero);
+
+      expect(first.alive, isTrue);
+      expect(second.alive, isTrue);
+      expect(simulation.botPeerCollisionDeaths, 0);
+      expect(first.head.y - second.head.y, closeTo(-18, 0.001));
+      expect(simulation.botPlanMode(first.id), isNot('evadePeer'));
+      expect(simulation.botPlanMode(second.id), isNot('evadePeer'));
     });
 
     test(

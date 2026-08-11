@@ -502,6 +502,8 @@ class SlitherGame extends FlameGame {
   void _drawSnake(ui.Canvas canvas, SnakeState snake) {
     if (snake.body.isEmpty) return;
     final renderStride = snake.body.length > 420 ? 2 : 1;
+    final minimumTaper =
+        simulation.config.collisionTailTaper.clamp(0.0, 1.0).toDouble();
     final viewMinimumX = simulation.player.head.x - size.x / 2;
     final viewMaximumX = simulation.player.head.x + size.x / 2;
     final viewMinimumY = simulation.player.head.y - size.y / 2;
@@ -611,8 +613,9 @@ class SlitherGame extends FlameGame {
       for (; index >= math.max(1, chunk.startIndex); index -= renderStride) {
         final segment = snake.body[index];
         if (!_isVisible(segment, padding)) continue;
-        final double taper =
-            (1 - index / (snake.body.length * 1.5)).clamp(0.72, 1.0).toDouble();
+        final double taper = (1 - index / (snake.body.length * 1.5))
+            .clamp(minimumTaper, 1.0)
+            .toDouble();
         canvas.drawCircle(
           Offset(segment.x, segment.y),
           snake.radius * taper * (renderStride == 1 ? 1 : 1.22),

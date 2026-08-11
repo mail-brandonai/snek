@@ -409,3 +409,25 @@ expose credible player collision windows and bot peer-collision deaths for
 deterministic competence benchmarks, while the V1.23 two-step frame budget,
 spatial pooling, drop consolidation, and viewport-bounded rendering remain
 unchanged.
+
+## V1.25 persistent hunters and contact fidelity
+
+The living bot roster now assigns one persistent hunter during ordinary play
+and a second hunter only after the population reaches seven. Hunters retain a
+publicly readable strategic objective across failed approaches and sharp player
+turns: they cancel an unsafe burst, select a new side, and re-enter from a fresh
+intercept instead of returning to food or undirected wandering. Lead
+interceptors, lateral harriers, sprint-and-brake trappers, and patient
+constrictors share the same movement envelope, sprint cost, telegraphs, route
+safety, and observable player information as every other actor. The remaining
+bots preserve the defensive, opportunistic, resource-control, and roaming
+portfolios introduced in V1.24.
+
+Body collision now uses an explicit lethal core at 84 percent of nominal radius
+and follows the same taper toward the tail that is visible in rendering. Snakes
+can therefore press alongside one another or show a small visual overlap during
+tight parallel maneuvers, while meaningful core penetration still resolves as a
+collision. Bot safety prediction also evaluates relative closing motion:
+stable parallel lanes are allowed, but crossing, head-on, and faster trailing
+routes continue to trigger deconfliction. The V1.23 fixed-step budget and the
+V1.24 hierarchical safety veto remain unchanged.
