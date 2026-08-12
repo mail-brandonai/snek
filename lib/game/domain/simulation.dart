@@ -137,8 +137,13 @@ class SimulationConfig {
     this.botParallelClosingThreshold = 0.1,
     this.botOpportunitySenseRadius = 1500,
     this.botOpportunityResponderLimit = 2,
+    this.botOpportunityCommitmentDuration = 1.8,
+    this.botEnclosureGraceDuration = 0.55,
     this.botEnclosureSampleLimit = 24,
     this.botEnclosureMinimumSweep = 4.1,
+    this.botHookMinimumSweepRatio = 0.72,
+    this.botHookClosureRadiusMultiplier = 1.8,
+    this.botTacticalPrecisionSafetyRadius = 48,
     this.botResourceFieldRadius = 160,
     this.botResourceFieldMinimumValue = 4,
     this.botPlayerSprintRecoveryDuration = 0.9,
@@ -279,8 +284,13 @@ class SimulationConfig {
   final double botParallelClosingThreshold;
   final double botOpportunitySenseRadius;
   final int botOpportunityResponderLimit;
+  final double botOpportunityCommitmentDuration;
+  final double botEnclosureGraceDuration;
   final int botEnclosureSampleLimit;
   final double botEnclosureMinimumSweep;
+  final double botHookMinimumSweepRatio;
+  final double botHookClosureRadiusMultiplier;
+  final double botTacticalPrecisionSafetyRadius;
   final double botResourceFieldRadius;
   final int botResourceFieldMinimumValue;
   final double botPlayerSprintRecoveryDuration;
@@ -326,12 +336,14 @@ class _BotPlan {
     required this.mode,
     required this.allowSprint,
     required this.speedMultiplier,
+    this.tacticalPrecision = false,
   });
 
   final Vec2 intent;
   final _BotPlanMode mode;
   final bool allowSprint;
   final double speedMultiplier;
+  final bool tacticalPrecision;
 }
 
 class _BotRouteReservation {
@@ -384,6 +396,18 @@ enum _TacticalOpportunityRole {
   innerSurvivor,
 }
 
+class _BotOpportunityCommitment {
+  _BotOpportunityCommitment({
+    required this.role,
+    required this.subjectId,
+    required this.remaining,
+  });
+
+  final _TacticalOpportunityRole role;
+  final String subjectId;
+  double remaining;
+}
+
 enum _ResourceControlRole { harvester, approachGuard, exitAmbusher }
 
 class _ResourceField {
@@ -417,6 +441,10 @@ class _ResourceField {
 }
 
 class _ResourceFieldBucket {
+  _ResourceFieldBucket({required this.gridX, required this.gridY});
+
+  final int gridX;
+  final int gridY;
   int value = 0;
   int count = 0;
   int droppedCount = 0;
@@ -434,6 +462,7 @@ class _ResourceFieldBucket {
 
 class _TacticalOpportunitySnapshot {
   bool playerEnclosing = false;
+  bool playerDevelopingHook = false;
   bool playerHarvesting = false;
   bool playerBoundaryPinned = false;
   bool playerSprintRecovering = false;
@@ -447,6 +476,7 @@ class _TacticalOpportunitySnapshot {
 
   bool get active =>
       playerEnclosing ||
+      playerDevelopingHook ||
       playerHarvesting ||
       playerBoundaryPinned ||
       playerSprintRecovering ||
@@ -454,6 +484,7 @@ class _TacticalOpportunitySnapshot {
 
   void reset() {
     playerEnclosing = false;
+    playerDevelopingHook = false;
     playerHarvesting = false;
     playerBoundaryPinned = false;
     playerSprintRecovering = false;
@@ -709,7 +740,9 @@ class GameSimulation {
   final Map<String, _BotManeuverState> _botManeuvers = {};
   final Map<String, _BotHunterState> _botHunters = {};
   final Map<String, _TacticalOpportunityRole> _botOpportunityRoles = {};
+  final Map<String, _BotOpportunityCommitment> _botOpportunityCommitments = {};
   final Map<String, _ResourceControlRole> _botResourceRoles = {};
+  final Map<String, String> _botTacticalRejections = {};
   final Map<String, _BotPlan> _botPlans = {};
   final Map<String, double> _botSafetyHolds = {};
   final Map<String, Vec2> _botSafetyEscapes = {};
@@ -725,6 +758,12 @@ class GameSimulation {
   double _pelletRefillAccumulator = 0;
   double _botPopulationAccumulator = 0;
   double _botTacticalDecisionRemaining = 0;
+  double _enclosureGraceRemaining = 0;
+  Vec2 _lastEnclosureCenter = Vec2.zero;
+  Vec2 _lastEnclosureGap = Vec2.zero;
+  double _lastEnclosureRadius = 0;
+  double _lastEnclosureConfidence = 0;
+  String? _lastEnclosedBotId;
   double _simulationAccumulator = 0;
   double _playerTurnCommitmentRemaining = 0;
   bool _playerTurnWasSharp = false;
@@ -889,9 +928,20 @@ class GameSimulation {
 
   String? botOpportunityRole(String botId) => _botOpportunityRoles[botId]?.name;
 
+  double botOpportunityCommitmentRemaining(String botId) =>
+      _botOpportunityCommitments[botId]?.remaining ?? 0;
+
   String? botResourceRole(String botId) => _botResourceRoles[botId]?.name;
 
   String? botYieldingTo(String botId) => _botYieldingTo[botId];
+
+  String? botTacticalRejectionReason(String botId) =>
+      _botTacticalRejections[botId];
+
+  Vec2? botPlanIntent(String botId) => _botPlans[botId]?.intent;
+
+  bool botPlanUsesTacticalPrecision(String botId) =>
+      _botPlans[botId]?.tacticalPrecision ?? false;
 
   int get activeOpportunityResponderCount => _botOpportunityRoles.entries
       .where((entry) => entry.value != _TacticalOpportunityRole.innerSurvivor)
@@ -899,11 +949,33 @@ class GameSimulation {
 
   bool get playerEnclosureOpportunity => _opportunity.playerEnclosing;
 
+  bool get playerDevelopingHookOpportunity => _opportunity.playerDevelopingHook;
+
   bool get playerResourceOpportunity => _opportunity.playerHarvesting;
 
   double get playerEnclosureConfidence => _opportunity.enclosureConfidence;
 
   String? get enclosedBotId => _opportunity.enclosedBotId;
+
+  int get contestedResourceValue => _opportunity.resourceField?.value ?? 0;
+
+  String get tacticalDiagnostics {
+    final parts = <String>[];
+    if (_opportunity.playerEnclosing) {
+      parts.add(
+        _opportunity.playerDevelopingHook
+            ? 'HOOK DETECTED'
+            : 'ENCLOSURE DETECTED',
+      );
+      parts.add('$activeOpportunityResponderCount COMMITTED');
+    } else if (_opportunity.playerHarvesting && contestedResourceValue > 0) {
+      parts.add('MASS $contestedResourceValue CONTESTED');
+    }
+    if (_botTacticalRejections.isNotEmpty) {
+      parts.add('${_botTacticalRejections.length} ROUTE BLOCKED');
+    }
+    return parts.join('  ·  ');
+  }
 
   double get observedPlayerEscapeSideBias => _playerBehavior.escapeSideBias;
 
@@ -943,7 +1015,9 @@ class GameSimulation {
     _botManeuvers.clear();
     _botHunters.clear();
     _botOpportunityRoles.clear();
+    _botOpportunityCommitments.clear();
     _botResourceRoles.clear();
+    _botTacticalRejections.clear();
     _botPlans.clear();
     _botSafetyHolds.clear();
     _botSafetyEscapes.clear();
@@ -959,6 +1033,12 @@ class GameSimulation {
     _pelletRefillAccumulator = 0;
     _botPopulationAccumulator = 0;
     _botTacticalDecisionRemaining = 0;
+    _enclosureGraceRemaining = 0;
+    _lastEnclosureCenter = Vec2.zero;
+    _lastEnclosureGap = Vec2.zero;
+    _lastEnclosureRadius = 0;
+    _lastEnclosureConfidence = 0;
+    _lastEnclosedBotId = null;
     _simulationAccumulator = 0;
     _playerTurnCommitmentRemaining = 0;
     _playerTurnWasSharp = false;
@@ -1349,6 +1429,11 @@ class GameSimulation {
   void _advanceBotDecisionClocks(double dt) {
     _botFormation.remaining =
         math.max(0, _botFormation.remaining - dt).toDouble();
+    _enclosureGraceRemaining =
+        math.max(0, _enclosureGraceRemaining - dt).toDouble();
+    for (final commitment in _botOpportunityCommitments.values) {
+      commitment.remaining = math.max(0, commitment.remaining - dt).toDouble();
+    }
     for (final state in _botTactics.values) {
       state.remaining = math.max(0, state.remaining - dt).toDouble();
     }
@@ -1557,6 +1642,7 @@ class GameSimulation {
     _refreshBotFormation();
     _botPlans.clear();
     _botRouteReservations.clear();
+    _botTacticalRejections.clear();
     final planningBots = snakes
         .where((snake) => snake.kind == SnakeKind.bot && snake.alive)
         .toList()
@@ -1572,7 +1658,13 @@ class GameSimulation {
       if (!bot.retreating && bot.length >= config.botRetreatLength) {
         bot.retreating = true;
       }
-      if (_shouldPrioritizeRetreat(bot)) {
+      final trappedCounterplay = _botOpportunityRoles[bot.id] ==
+          _TacticalOpportunityRole.innerSurvivor;
+      if (_shouldPrioritizeRetreat(bot) && !trappedCounterplay) {
+        if (_botOpportunityRoles.containsKey(bot.id) ||
+            _botResourceRoles.containsKey(bot.id)) {
+          _botTacticalRejections[bot.id] = 'retreating';
+        }
         final plan = _commitBotPlan(
           bot,
           _retreatDirection(bot),
@@ -1582,6 +1674,41 @@ class GameSimulation {
         );
         _decideBotSprint(bot, plan: plan, maneuverRequestsSprint: true);
         _recheckCommittedBotPlan(bot);
+        continue;
+      }
+
+      final priorityManeuver = _priorityOpportunityPlan(bot);
+      if (priorityManeuver != null) {
+        final requestedMode = priorityManeuver.mode;
+        final tacticalPrecision = _botOpportunityRoles.containsKey(bot.id);
+        final plan = _commitBotPlan(
+          bot,
+          priorityManeuver.intent,
+          requestedMode,
+          wantsSprint: priorityManeuver.wantsSprint,
+          speedMultiplier: priorityManeuver.speedMultiplier,
+          tacticalPrecision: tacticalPrecision,
+        );
+        if (plan.mode == requestedMode) {
+          _botYieldingTo.remove(bot.id);
+          _botSafetyHolds.remove(bot.id);
+          _botSafetyEscapes.remove(bot.id);
+        } else {
+          _botTacticalRejections[bot.id] = 'unsafe route';
+        }
+        _decideBotSprint(
+          bot,
+          plan: plan,
+          maneuverRequestsSprint: priorityManeuver.wantsSprint,
+        );
+        _recheckCommittedBotPlan(bot);
+        final finalPlan = _botPlans[bot.id] ?? plan;
+        if (finalPlan.mode != requestedMode) {
+          _botTacticalRejections[bot.id] = 'route changed';
+        } else if (finalPlan.mode == _BotPlanMode.attack &&
+            _createsCrediblePlayerKillWindow(bot, finalPlan)) {
+          lastCrediblePlayerKillWindowCount++;
+        }
         continue;
       }
 
@@ -1695,6 +1822,13 @@ class GameSimulation {
         lastCrediblePlayerKillWindowCount++;
       }
     }
+  }
+
+  _BotManeuverPlan? _priorityOpportunityPlan(SnakeState bot) {
+    final state = _ensureBotManeuver(bot);
+    return _tacticalOpportunityPlan(bot, state) ??
+        _resourceControlPlan(bot, state) ??
+        _hunterHookGuardPlan(bot, state);
   }
 
   void _holdBotSafety(
@@ -1815,6 +1949,7 @@ class GameSimulation {
     _BotPlanMode mode, {
     required bool wantsSprint,
     required double speedMultiplier,
+    bool tacticalPrecision = false,
   }) {
     final requested = intent.length == 0 ? bot.heading : intent.normalized();
     final deconflicted = _deconflictBotIntent(bot, requested);
@@ -1826,6 +1961,7 @@ class GameSimulation {
       deconflicted,
       speedMultiplier: speedMultiplier,
       sprinting: sprintViable,
+      tacticalPrecision: tacticalPrecision,
     );
     final unsafe = safety.risk >= 0.62;
     final finalIntent = unsafe ? safety.escape : deconflicted;
@@ -1840,6 +1976,7 @@ class GameSimulation {
       mode: finalMode,
       allowSprint: allowSprint,
       speedMultiplier: finalSpeedMultiplier,
+      tacticalPrecision: tacticalPrecision && !unsafe,
     );
     _botPlans[bot.id] = plan;
     _reserveBotPlan(bot, plan);
@@ -1890,6 +2027,7 @@ class GameSimulation {
       intendedDirection: plan.intent,
       speedOverride: routeSpeed,
       includePeerBodies: true,
+      tacticalPrecision: plan.tacticalPrecision,
     );
     if (committedRisk < 0.62) {
       _reserveBotPlan(bot, plan);
@@ -1900,6 +2038,7 @@ class GameSimulation {
       plan.intent,
       speedMultiplier: plan.speedMultiplier,
       sprinting: sprinting,
+      tacticalPrecision: plan.tacticalPrecision,
     );
     if (bot.sprinting || bot.sprintRequested) {
       _cancelSprintRequest(bot);
@@ -1919,6 +2058,7 @@ class GameSimulation {
     Vec2 intended, {
     required double speedMultiplier,
     required bool sprinting,
+    bool tacticalPrecision = false,
   }) {
     if (intended.length == 0) return (risk: 1.0, escape: bot.heading);
     final direction = intended.normalized();
@@ -1938,6 +2078,7 @@ class GameSimulation {
       intendedDirection: direction,
       speedOverride: routeSpeed,
       includePeerBodies: true,
+      tacticalPrecision: tacticalPrecision,
     );
     final side = Vec2(-direction.y, direction.x);
     final predictive = _predictiveCollisionAvoidance(bot);
@@ -1963,6 +2104,7 @@ class GameSimulation {
         ),
         intendedDirection: candidate,
         speedOverride: routeSpeed,
+        tacticalPrecision: tacticalPrecision,
       );
       final preferencePenalty = index < 2 ? 0.03 : 0.1 + index * 0.025;
       if (risk + preferencePenalty < bestRisk) {
@@ -2207,8 +2349,8 @@ class GameSimulation {
     void addFood(FoodPellet pellet, bool dropped) {
       final x = (pellet.position.x / bucketSize).floor();
       final y = (pellet.position.y / bucketSize).floor();
-      final bucket =
-          _resourceFieldBuckets[_spatialKey(x, y)] ??= _ResourceFieldBucket();
+      final bucket = _resourceFieldBuckets[_spatialKey(x, y)] ??=
+          _ResourceFieldBucket(gridX: x, gridY: y);
       final value = math.max(1, pellet.value).toInt();
       bucket.value += value;
       bucket.count++;
@@ -2224,16 +2366,46 @@ class GameSimulation {
       addFood(pellet, true);
     }
 
-    for (final bucket in _resourceFieldBuckets.values) {
-      if (bucket.value < config.botResourceFieldMinimumValue ||
-          bucket.count < 2) {
+    for (final seed in _resourceFieldBuckets.values) {
+      if (seed.count == 0) continue;
+      final seedCenter = Vec2(
+        seed.weightedX / seed.value,
+        seed.weightedY / seed.value,
+      );
+      var value = 0;
+      var count = 0;
+      var droppedCount = 0;
+      var weightedX = 0.0;
+      var weightedY = 0.0;
+      var localMaximum = true;
+      for (var offsetX = -1; offsetX <= 1; offsetX++) {
+        for (var offsetY = -1; offsetY <= 1; offsetY++) {
+          final neighbor = _resourceFieldBuckets[
+              _spatialKey(seed.gridX + offsetX, seed.gridY + offsetY)];
+          if (neighbor == null || neighbor.count == 0) continue;
+          final neighborCenter = Vec2(
+            neighbor.weightedX / neighbor.value,
+            neighbor.weightedY / neighbor.value,
+          );
+          if (seedCenter.distanceTo(neighborCenter) > bucketSize) continue;
+          localMaximum = localMaximum && neighbor.value <= seed.value;
+          value += neighbor.value;
+          count += neighbor.count;
+          droppedCount += neighbor.droppedCount;
+          weightedX += neighbor.weightedX;
+          weightedY += neighbor.weightedY;
+        }
+      }
+      if (!localMaximum ||
+          value < config.botResourceFieldMinimumValue ||
+          count < 2) {
         continue;
       }
       final center = Vec2(
-        bucket.weightedX / bucket.value,
-        bucket.weightedY / bucket.value,
+        weightedX / value,
+        weightedY / value,
       );
-      final radius = (42 + math.sqrt(bucket.count) * 18)
+      final radius = (42 + math.sqrt(count) * 18)
           .clamp(42.0, config.botResourceFieldRadius)
           .toDouble();
       final index = _resourceFields.length;
@@ -2241,19 +2413,19 @@ class GameSimulation {
         final field = _resourceFieldPool[index];
         field.update(
           center: center,
-          value: bucket.value,
+          value: value,
           radius: radius,
-          memberCount: bucket.count,
-          droppedMemberCount: bucket.droppedCount,
+          memberCount: count,
+          droppedMemberCount: droppedCount,
         );
         _resourceFields.add(field);
       } else {
         final field = _ResourceField(
           center: center,
-          value: bucket.value,
+          value: value,
           radius: radius,
-          memberCount: bucket.count,
-          droppedMemberCount: bucket.droppedCount,
+          memberCount: count,
+          droppedMemberCount: droppedCount,
         );
         _resourceFieldPool.add(field);
         _resourceFields.add(field);
@@ -2267,6 +2439,27 @@ class GameSimulation {
     if (!player.alive) return;
 
     _assessPlayerEnclosure();
+    if (_opportunity.playerEnclosing) {
+      _enclosureGraceRemaining = config.botEnclosureGraceDuration;
+      _lastEnclosureCenter = _opportunity.center;
+      _lastEnclosureGap = _opportunity.gap;
+      _lastEnclosureRadius = _opportunity.radius;
+      _lastEnclosureConfidence = _opportunity.enclosureConfidence;
+      _lastEnclosedBotId = _opportunity.enclosedBotId;
+    } else if (_enclosureGraceRemaining > 0 &&
+        _lastEnclosedBotId != null &&
+        snakes.any((snake) => snake.id == _lastEnclosedBotId && snake.alive)) {
+      _opportunity.playerEnclosing = true;
+      _opportunity.playerDevelopingHook = true;
+      _opportunity.center = _lastEnclosureCenter;
+      _opportunity.gap = player.body.isEmpty
+          ? _lastEnclosureGap
+          : (player.body.first + player.body.last) * 0.5;
+      _opportunity.radius = _lastEnclosureRadius;
+      _opportunity.enclosureConfidence =
+          (_lastEnclosureConfidence * 0.92).clamp(0.0, 1.0).toDouble();
+      _opportunity.enclosedBotId = _lastEnclosedBotId;
+    }
     final resource = _bestContestedResourceField();
     if (resource != null) {
       _opportunity.resourceField = resource;
@@ -2334,26 +2527,36 @@ class GameSimulation {
     final averageRadius = radiusTotal / math.max(1, count);
     if (averageRadius < 48 || radiusMaximum < 60) return;
     final closureGap = body.first.distanceTo(body.last);
-    final closureLimit = math.max(120.0, averageRadius * 1.05).toDouble();
+    final committedClosureLimit =
+        math.max(120.0, averageRadius * 1.05).toDouble();
+    final hookClosureLimit = math
+        .max(
+          150.0,
+          averageRadius *
+              config.botHookClosureRadiusMultiplier.clamp(1.05, 2.4),
+        )
+        .toDouble();
+    final hookMinimumSweep = config.botEnclosureMinimumSweep *
+        config.botHookMinimumSweepRatio.clamp(0.55, 1.0);
     final sweepScore = (sweep / math.max(0.1, config.botEnclosureMinimumSweep))
         .clamp(0.0, 1.0)
         .toDouble();
     final closureScore =
-        (1 - closureGap / closureLimit).clamp(0.0, 1.0).toDouble();
+        (1 - closureGap / hookClosureLimit).clamp(0.0, 1.0).toDouble();
     final confidence = sweepScore * 0.62 + closureScore * 0.38;
     _playerBehavior.circularCommitment = math
         .max(_playerBehavior.circularCommitment, confidence)
         .clamp(0.0, 1.0)
         .toDouble();
-    if (sweep < config.botEnclosureMinimumSweep ||
-        closureGap > closureLimit ||
-        confidence < 0.58) {
+    if (sweep < hookMinimumSweep ||
+        closureGap > hookClosureLimit ||
+        confidence < 0.5) {
       return;
     }
 
     SnakeState? enclosed;
     var enclosedDistance = double.infinity;
-    final innerRadius = averageRadius * 0.74;
+    final innerRadius = averageRadius * 0.82;
     for (final bot in snakes.where(
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
     )) {
@@ -2366,6 +2569,10 @@ class GameSimulation {
     if (enclosed == null) return;
 
     _opportunity.playerEnclosing = true;
+    _opportunity.playerDevelopingHook =
+        sweep < config.botEnclosureMinimumSweep ||
+            closureGap > committedClosureLimit ||
+            confidence < 0.58;
     _opportunity.center = center;
     _opportunity.gap = (body.first + body.last) * 0.5;
     _opportunity.radius = radiusMaximum + player.radius;
@@ -2423,20 +2630,56 @@ class GameSimulation {
   void _assignTacticalOpportunityRoles(List<SnakeState> active) {
     _botOpportunityRoles.clear();
     _botResourceRoles.clear();
+    final livingIds = snakes
+        .where((snake) => snake.kind == SnakeKind.bot && snake.alive)
+        .map((snake) => snake.id)
+        .toSet();
+    final enclosedId = _opportunity.enclosedBotId;
+    _botOpportunityCommitments.removeWhere(
+      (id, commitment) =>
+          !livingIds.contains(id) ||
+          commitment.remaining <= 0 ||
+          !_opportunity.playerEnclosing ||
+          enclosedId == null ||
+          commitment.subjectId != enclosedId,
+    );
     if (!_opportunity.active) return;
 
-    final enclosedId = _opportunity.enclosedBotId;
     if (_opportunity.playerEnclosing && enclosedId != null) {
-      _botOpportunityRoles[enclosedId] = _TacticalOpportunityRole.innerSurvivor;
+      _botOpportunityCommitments[enclosedId] = _BotOpportunityCommitment(
+        role: _TacticalOpportunityRole.innerSurvivor,
+        subjectId: enclosedId,
+        remaining: config.botOpportunityCommitmentDuration,
+      );
+      for (final commitment in _botOpportunityCommitments.values) {
+        if (commitment.subjectId == enclosedId) {
+          commitment.remaining = math
+              .max(
+                commitment.remaining,
+                config.botOpportunityCommitmentDuration,
+              )
+              .toDouble();
+        }
+      }
+      _botOpportunityRoles.addEntries(
+        _botOpportunityCommitments.entries.map(
+          (entry) => MapEntry(entry.key, entry.value.role),
+        ),
+      );
     }
+    final field = _opportunity.resourceField;
+    final highValueResource = field != null &&
+        field.value >= math.max(8, config.botResourceFieldMinimumValue * 2);
     final recruitTacticalResponders = _opportunity.playerEnclosing ||
-        _opportunity.playerBoundaryPinned ||
-        _opportunity.playerSprintRecovering ||
-        _opportunity.playerInNarrowCorridor;
+        (!highValueResource &&
+            (_opportunity.playerBoundaryPinned ||
+                _opportunity.playerSprintRecovering ||
+                _opportunity.playerInNarrowCorridor));
     final candidates = active
         .where(
           (bot) =>
               bot.id != enclosedId &&
+              !_botOpportunityRoles.containsKey(bot.id) &&
               bot.head.distanceTo(_opportunity.center) <=
                   config.botOpportunitySenseRadius,
         )
@@ -2452,30 +2695,39 @@ class GameSimulation {
         final arrivalOrder = leftArrival.compareTo(rightArrival);
         return arrivalOrder == 0 ? left.id.compareTo(right.id) : arrivalOrder;
       });
-    final responderLimit = recruitTacticalResponders
-        ? math
-            .min(
-              math.max(0, config.botOpportunityResponderLimit),
-              candidates.length,
-            )
-            .toInt()
+    final externalCommitments = _botOpportunityRoles.entries
+        .where((entry) => entry.value != _TacticalOpportunityRole.innerSurvivor)
+        .length;
+    final availableResponderSlots = recruitTacticalResponders
+        ? math.max(0, config.botOpportunityResponderLimit - externalCommitments)
         : 0;
-    for (var index = 0; index < responderLimit; index++) {
+    final responderCount =
+        math.min(availableResponderSlots, candidates.length).toInt();
+    for (var index = 0; index < responderCount; index++) {
       final bot = candidates[index];
+      final _TacticalOpportunityRole role;
       if (_opportunity.playerEnclosing) {
-        _botOpportunityRoles[bot.id] = index == 0
+        final hasOuterConstrictor = _botOpportunityRoles.containsValue(
+          _TacticalOpportunityRole.outerConstrictor,
+        );
+        role = !hasOuterConstrictor
             ? _TacticalOpportunityRole.outerConstrictor
             : bot.disposition == BotDisposition.aggressive
                 ? _TacticalOpportunityRole.exitCutter
                 : _TacticalOpportunityRole.gapStriker;
+        _botOpportunityCommitments[bot.id] = _BotOpportunityCommitment(
+          role: role,
+          subjectId: enclosedId!,
+          remaining: config.botOpportunityCommitmentDuration,
+        );
       } else {
-        _botOpportunityRoles[bot.id] = index == 0
+        role = index == 0
             ? _TacticalOpportunityRole.exitCutter
             : _TacticalOpportunityRole.gapStriker;
       }
+      _botOpportunityRoles[bot.id] = role;
     }
 
-    final field = _opportunity.resourceField;
     if (field == null) return;
     final resourceCandidates = active
         .where(
@@ -2523,12 +2775,22 @@ class GameSimulation {
               !_shouldPrioritizeRetreat(snake),
         )
         .toList();
-    if (!player.alive || active.isEmpty) {
+    if (!player.alive) {
       _botFormationRoles.clear();
       _botHunters.clear();
       _botOpportunityRoles.clear();
+      _botOpportunityCommitments.clear();
       _botResourceRoles.clear();
+      _botTacticalRejections.clear();
       _botFormation.playerAnchor = null;
+      _botFormation.remaining = 0;
+      return;
+    }
+    if (active.isEmpty) {
+      _botFormationRoles.clear();
+      _botHunters.clear();
+      _assignTacticalOpportunityRoles(active);
+      _botFormation.playerAnchor = player.head;
       _botFormation.remaining = 0;
       return;
     }
@@ -3181,6 +3443,8 @@ class GameSimulation {
     if (opportunityPlan != null) return opportunityPlan;
     final resourcePlan = _resourceControlPlan(bot, state);
     if (resourcePlan != null) return resourcePlan;
+    final hookGuardPlan = _hunterHookGuardPlan(bot, state);
+    if (hookGuardPlan != null) return hookGuardPlan;
     final closedLoopMode = _closedLoopEngagement(bot);
     final closedLoop = _closedLoopIntent(bot, closedLoopMode);
     final lateral = Vec2(-player.heading.y, player.heading.x);
@@ -3368,12 +3632,21 @@ class GameSimulation {
       case _TacticalOpportunityRole.innerSurvivor:
         state.kind = _BotManeuverKind.counterCut;
         final pressure = _opportunity.gap - bot.head;
-        final pressureDirection =
-            pressure.length == 0 ? player.heading : pressure.normalized();
-        target = bot.head +
-            pressureDirection * 125 +
-            Vec2(-pressureDirection.y, pressureDirection.x) * state.side * 52;
-        speedMultiplier = 0.84;
+        final seam = player.body.isEmpty
+            ? player.heading
+            : (player.body.first - player.body.last).normalized();
+        final seamDirection = seam.length == 0 ? player.heading : seam;
+        final seamLateral = Vec2(-seamDirection.y, seamDirection.x);
+        final distanceToSeam = pressure.length;
+        target = distanceToSeam > 105
+            ? _opportunity.gap +
+                seamDirection * 24 +
+                seamLateral * state.side * 38
+            : _opportunity.gap + seamLateral * state.side * 72;
+        wantsSprint = distanceToSeam > 170 &&
+            distanceToSeam <= config.botSprintTriggerDistance * 1.6;
+        speedMultiplier =
+            distanceToSeam > 105 ? 1 : config.botYieldSpeedMultiplier * 1.08;
     }
     final direction = target - bot.head;
     return _BotManeuverPlan(
@@ -3381,6 +3654,50 @@ class GameSimulation {
       mode: _BotPlanMode.attack,
       wantsSprint: wantsSprint,
       speedMultiplier: speedMultiplier,
+    );
+  }
+
+  _BotManeuverPlan? _hunterHookGuardPlan(
+    SnakeState bot,
+    _BotManeuverState state,
+  ) {
+    if (!_opportunity.playerDevelopingHook ||
+        !_botHunters.containsKey(bot.id) ||
+        _botOpportunityRoles.containsKey(bot.id) ||
+        !player.alive) {
+      return null;
+    }
+    final fromCenter = bot.head - _opportunity.center;
+    final radial = fromCenter.length == 0
+        ? Vec2(-player.heading.y, player.heading.x) * state.side
+        : fromCenter.normalized();
+    final guardRadius = _opportunity.radius + bot.radius + 110;
+    final disengageRadius =
+        math.max(guardRadius, fromCenter.length + 160).toDouble();
+    final outsideRing = _opportunity.center + radial * disengageRadius;
+    final lateral = Vec2(-player.heading.y, player.heading.x);
+    final cutoff =
+        _opportunity.gap + player.heading * 165 + lateral * state.side * 125;
+    final insideClosingHook = fromCenter.length < guardRadius + 35 &&
+        _alignment(bot.heading, _opportunity.center - bot.head) > -0.15;
+    final inward = (_opportunity.center - bot.head).normalized();
+    var tangent = Vec2(-inward.y, inward.x);
+    if (_alignment(tangent, cutoff - bot.head) < 0) tangent = tangent * -1;
+    final radialError = math.max(0.0, fromCenter.length - guardRadius);
+    final guardedCutoff = bot.head +
+        tangent * 240 +
+        inward * math.min(90.0, radialError).toDouble();
+    final target = insideClosingHook ? outsideRing : guardedCutoff;
+    state.kind = insideClosingHook
+        ? _BotManeuverKind.feintReversal
+        : _BotManeuverKind.laneExecution;
+    final direction = target - bot.head;
+    return _BotManeuverPlan(
+      intent: direction.length == 0 ? bot.heading : direction.normalized(),
+      mode: _BotPlanMode.attack,
+      wantsSprint: !insideClosingHook &&
+          bot.head.distanceTo(target) <= config.botSprintTriggerDistance * 1.4,
+      speedMultiplier: insideClosingHook ? 0.82 : 0.96,
     );
   }
 
@@ -3404,8 +3721,10 @@ class GameSimulation {
     switch (role) {
       case _ResourceControlRole.harvester:
         target = field.center + lateral * side * field.radius * 0.24;
-        wantsSprint = bot.head.distanceTo(target) <=
-            config.botSprintTriggerDistance * 1.4;
+        wantsSprint = field.value >=
+                math.max(8, config.botResourceFieldMinimumValue * 2) ||
+            bot.head.distanceTo(target) <=
+                config.botSprintTriggerDistance * 1.4;
         speedMultiplier = 1;
       case _ResourceControlRole.approachGuard:
         target = player.head +
@@ -4181,6 +4500,7 @@ class GameSimulation {
     Vec2? intendedDirection,
     double? speedOverride,
     bool includePeerBodies = false,
+    bool tacticalPrecision = false,
   }) {
     final toTarget = target - bot.head;
     if (toTarget.length == 0) return 1;
@@ -4190,9 +4510,19 @@ class GameSimulation {
     final lookahead = math.max(config.botAdaptiveLeadTime, 1.0).toDouble();
     final samples = math.max(2, config.botCollisionSampleCount).toInt();
     var maximumRisk = 0.0;
-    final bodyRadius = math
-        .max(config.botEngagementSafetyRadius, bot.radius + player.radius + 24)
-        .toDouble();
+    final bodyRadius = tacticalPrecision
+        ? math
+            .max(
+              config.botTacticalPrecisionSafetyRadius,
+              bot.radius + player.radius + 18,
+            )
+            .toDouble()
+        : math
+            .max(
+              config.botEngagementSafetyRadius,
+              bot.radius + player.radius + 24,
+            )
+            .toDouble();
 
     for (var sample = 1; sample <= samples; sample++) {
       final progress = sample / samples;

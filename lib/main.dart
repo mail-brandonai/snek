@@ -180,6 +180,7 @@ class GameHud {
     required this.boundaryWarningProgress,
     required this.minimapTelegraphEvents,
     required this.threats,
+    required this.tacticalDiagnostics,
     required this.advancedHudEnabled,
   });
 
@@ -198,6 +199,7 @@ class GameHud {
   final double boundaryWarningProgress;
   final List<MinimapTelegraphEvent> minimapTelegraphEvents;
   final List<ThreatSignal> threats;
+  final String tacticalDiagnostics;
   final bool advancedHudEnabled;
 }
 
@@ -221,6 +223,7 @@ class SlitherGame extends FlameGame {
             boundaryWarningProgress: 0,
             minimapTelegraphEvents: <MinimapTelegraphEvent>[],
             threats: <ThreatSignal>[],
+            tacticalDiagnostics: '',
             advancedHudEnabled: false,
           ),
         );
@@ -351,6 +354,7 @@ class SlitherGame extends FlameGame {
         telegraphEvents: simulation.telegraphEvents,
         arenaRadius: simulation.config.arenaRadius,
       ),
+      tacticalDiagnostics: simulation.tacticalDiagnostics,
       advancedHudEnabled: advancedHudEnabled,
     );
   }
@@ -710,6 +714,14 @@ class _Hud extends StatelessWidget {
             top: 58,
             child: _ThreatPanel(threat: state.threats.first),
           ),
+        if (state.advancedHudEnabled && state.tacticalDiagnostics.isNotEmpty)
+          Positioned(
+            left: 16,
+            bottom: 74,
+            child: _TacticalDiagnosticsPanel(
+              diagnostics: state.tacticalDiagnostics,
+            ),
+          ),
         const Positioned(
           left: 16,
           bottom: 16,
@@ -930,6 +942,34 @@ class _Minimap extends StatelessWidget {
           pings,
           events,
           showTacticalSignals,
+        ),
+      ),
+    );
+  }
+}
+
+class _TacticalDiagnosticsPanel extends StatelessWidget {
+  const _TacticalDiagnosticsPanel({required this.diagnostics});
+
+  final String diagnostics;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xcc16253b),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xff4f6f92)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        child: Text(
+          diagnostics,
+          style: const TextStyle(
+            color: Color(0xffbcd7ef),
+            fontSize: 9,
+            letterSpacing: 0.8,
+          ),
         ),
       ),
     );

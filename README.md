@@ -460,3 +460,31 @@ carry explicit right of way; a yielding bot remains in its safe lane until the
 occupied corridor is geometrically clear. These changes retain V1.25's tight
 lethal core and close parallel contact while strengthening crossing and
 turning-body discipline within V1.23's fixed two-step frame budget.
+
+## V1.27 committed enclosure counterplay
+
+Enclosure detection now recognizes a developing hook before the player's head
+and tail have nearly met. A qualifying hook still requires a substantial body
+sweep, a reachable closure seam, and a living snake inside it, so ordinary
+turns do not recruit the response. The detected geometry survives a brief
+dropout, and the enclosed snake plus at most two outside responders retain their
+roles for a bounded commitment window instead of being reassigned on every
+planning pass.
+
+Committed roles are evaluated against their intended route before broad
+current-heading avoidance can cancel them. Their seam routes use a narrow
+planning clearance matched to tight gameplay contact, while the lethal core,
+per-step emergency avoidance, swept peer reservations, final route veto, and
+right-of-way rules remain authoritative. The enclosed snake drives to and
+camps the predicted seam; an outer constrictor controls the loop, and a gap
+striker or exit cutter attacks the player's completion or escape route. Hunters
+outside the two-responder budget recognize the hook and guard its cutoff lane
+or disengage from the closing interior rather than blindly pursuing into it.
+
+High-value defeat fields take priority over incidental opportunity roles.
+Their harvester commits a public sprint while the approach guard and exit
+ambusher hold distinct denial lanes. The optional tactics HUD now reports hook
+or enclosure detection, committed responder count, contested field value, and
+routes rejected by the safety veto. This is the final scheduled bot-behavior
+iteration before map development; non-critical future AI ideas are recorded in
+[`docs/BOT_BEHAVIOR_BACKLOG.md`](docs/BOT_BEHAVIOR_BACKLOG.md).

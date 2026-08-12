@@ -36,6 +36,28 @@ void resetSnakeAlongHeading(
   snake.rebuildBodyChunks();
 }
 
+void setDevelopingPlayerHook(GameSimulation simulation) {
+  simulation.player.body
+    ..clear()
+    ..addAll(const <Vec2>[
+      Vec2(180, 0),
+      Vec2(166, 69),
+      Vec2(127, 127),
+      Vec2(69, 166),
+      Vec2(0, 180),
+      Vec2(-69, 166),
+      Vec2(-127, 127),
+      Vec2(-166, 69),
+      Vec2(-180, 0),
+      Vec2(-166, -69),
+      Vec2(-127, -127),
+      Vec2(-69, -166),
+      Vec2(0, -180),
+    ]);
+  simulation.player.heading = const Vec2(0, -1);
+  simulation.player.rebuildBodyChunks();
+}
+
 void main() {
   group('Vec2', () {
     test('supports basic vector arithmetic', () {
@@ -66,6 +88,9 @@ void main() {
       expect(config.botHunterMaximumCount, 2);
       expect(config.collisionCoreScale, 0.84);
       expect(config.collisionTailTaper, 0.72);
+      expect(config.botOpportunityResponderLimit, 2);
+      expect(config.botOpportunityCommitmentDuration, 1.8);
+      expect(config.botTacticalPrecisionSafetyRadius, 48);
 
       final simulation = GameSimulation(
         config: const SimulationConfig(botCount: 10, initialPellets: 0),
@@ -421,6 +446,183 @@ void main() {
       );
     });
 
+    test('bots commit while the player hook still has a wide closure seam', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 3000,
+          botCount: 3,
+          maxBotCount: 3,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 80,
+          botTurnRate: 20,
+          collisionCoreScale: 0,
+        ),
+      );
+      setDevelopingPlayerHook(simulation);
+      final enclosed = simulation.snakes[1];
+      resetSnakeAlongHeading(enclosed, Vec2.zero, const Vec2(1, 0));
+      resetSnakeAlongHeading(
+        simulation.snakes[2],
+        const Vec2(-620, 280),
+        const Vec2(1, 0),
+      );
+      resetSnakeAlongHeading(
+        simulation.snakes[3],
+        const Vec2(620, 280),
+        const Vec2(-1, 0),
+      );
+
+      simulation.update(1 / 60, Vec2.zero);
+
+      expect(simulation.playerEnclosureOpportunity, isTrue);
+      expect(simulation.playerDevelopingHookOpportunity, isTrue);
+      expect(simulation.enclosedBotId, enclosed.id);
+      expect(simulation.activeOpportunityResponderCount, 2);
+      expect(simulation.botPlanMode(enclosed.id), 'attack');
+      expect(simulation.botPlanUsesTacticalPrecision(enclosed.id), isTrue);
+      expect(
+        simulation.botOpportunityCommitmentRemaining(enclosed.id),
+        greaterThan(1.7),
+      );
+      expect(simulation.tacticalDiagnostics, contains('HOOK DETECTED'));
+    });
+
+    test(
+      'enclosure responders keep roles through a brief geometry dropout',
+      () {
+        final simulation = GameSimulation(
+          config: const SimulationConfig(
+            arenaRadius: 3000,
+            botCount: 3,
+            maxBotCount: 3,
+            initialPellets: 0,
+            playerSpeed: 0,
+            botSpeed: 0,
+            collisionCoreScale: 0,
+            botTacticalDecisionInterval: 0.05,
+          ),
+        );
+        setDevelopingPlayerHook(simulation);
+        resetSnakeAlongHeading(
+          simulation.snakes[1],
+          Vec2.zero,
+          const Vec2(1, 0),
+        );
+        resetSnakeAlongHeading(
+          simulation.snakes[2],
+          const Vec2(-620, 280),
+          const Vec2(1, 0),
+        );
+        resetSnakeAlongHeading(
+          simulation.snakes[3],
+          const Vec2(620, 280),
+          const Vec2(-1, 0),
+        );
+        simulation.update(1 / 60, Vec2.zero);
+        final committedRoles = <String, String>{
+          for (final bot in simulation.snakes.skip(1))
+            if (simulation.botOpportunityRole(bot.id) != null)
+              bot.id: simulation.botOpportunityRole(bot.id)!,
+        };
+
+        for (var index = 0; index < simulation.player.body.length; index++) {
+          simulation.player.body[index] = Vec2(-index * 12.0, 0);
+        }
+        simulation.player.rebuildBodyChunks();
+        advanceSimulation(simulation, 0.18, Vec2.zero);
+
+        expect(simulation.playerEnclosureOpportunity, isTrue);
+        expect(simulation.playerDevelopingHookOpportunity, isTrue);
+        expect(<String, String>{
+          for (final bot in simulation.snakes.skip(1))
+            if (simulation.botOpportunityRole(bot.id) != null)
+              bot.id: simulation.botOpportunityRole(bot.id)!,
+        }, committedRoles);
+        expect(simulation.activeOpportunityResponderCount, 2);
+      },
+    );
+
+    test('a trapped bot drives toward the predicted closure seam', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 3000,
+          botCount: 1,
+          maxBotCount: 1,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 90,
+          botTurnRate: 20,
+          collisionCoreScale: 0,
+          botTacticalDecisionInterval: 0.04,
+        ),
+      );
+      setDevelopingPlayerHook(simulation);
+      final enclosed = simulation.snakes[1];
+      resetSnakeAlongHeading(enclosed, Vec2.zero, const Vec2(1, 0));
+      final seam =
+          (simulation.player.body.first + simulation.player.body.last) * 0.5;
+      final initialDistance = enclosed.head.distanceTo(seam);
+
+      advanceSimulation(simulation, 0.55, Vec2.zero);
+
+      expect(enclosed.head.distanceTo(seam), lessThan(initialDistance - 20));
+      expect(simulation.botPlanMode(enclosed.id), 'attack');
+      expect(simulation.botPeerCollisionDeaths, 0);
+    });
+
+    test(
+      'non-responder hunters guard a developing hook instead of entering it',
+      () {
+        final simulation = GameSimulation(
+          config: const SimulationConfig(
+            arenaRadius: 4000,
+            botCount: 4,
+            maxBotCount: 4,
+            initialPellets: 0,
+            playerSpeed: 0,
+            botSpeed: 100,
+            botTurnRate: 20,
+            collisionCoreScale: 0,
+            botHunterInitialCount: 2,
+            botHunterMaximumCount: 2,
+            botOpportunityResponderLimit: 1,
+            botTacticalDecisionInterval: 0.04,
+          ),
+        );
+        simulation.update(1 / 60, Vec2.zero);
+        final enclosed = simulation.snakes
+            .skip(1)
+            .firstWhere((bot) => !simulation.botIsHunter(bot.id));
+        setDevelopingPlayerHook(simulation);
+        resetSnakeAlongHeading(enclosed, Vec2.zero, const Vec2(1, 0));
+        var lane = 0;
+        for (final bot in simulation.snakes.skip(1)) {
+          if (bot.id == enclosed.id) continue;
+          resetSnakeAlongHeading(
+            bot,
+            Vec2(620, -360 + lane * 360.0),
+            const Vec2(-1, 0),
+          );
+          lane++;
+        }
+
+        advanceSimulation(simulation, 0.12, Vec2.zero);
+        final guard = simulation.snakes.skip(1).firstWhere(
+              (bot) =>
+                  simulation.botIsHunter(bot.id) &&
+                  simulation.botOpportunityRole(bot.id) == null,
+            );
+        final plan = simulation.botPlanIntent(guard.id)!;
+        final inward = (Vec2.zero - guard.head).normalized();
+        final inwardAlignment = plan.x * inward.x + plan.y * inward.y;
+
+        expect(inwardAlignment, lessThan(0.75));
+        expect(simulation.botPlanMode(guard.id), 'attack');
+        expect(simulation.botPeerCollisionDeaths, 0);
+      },
+    );
+
     test('natural and dropped food fields receive three control lanes', () {
       GameSimulation resourceScenario({required bool dropped}) {
         final simulation = GameSimulation(
@@ -490,6 +692,60 @@ void main() {
         expect(simulation.activeOpportunityResponderCount, 0);
         expect(simulation.botPeerCollisionDeaths, 0);
       }
+    });
+
+    test('high-value defeat mass makes the harvester commit its sprint', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 3000,
+          botCount: 3,
+          maxBotCount: 3,
+          initialPellets: 0,
+          playerSpeed: 0,
+          botSpeed: 175,
+          botTurnRate: 20,
+          collisionCoreScale: 0,
+          botHunterInitialCount: 0,
+          botHunterMaximumCount: 0,
+          sprintAnticipationDuration: 0,
+        ),
+      );
+      simulation.player.heading = const Vec2(1, 0);
+      for (var index = 0; index < 8; index++) {
+        simulation.droppedMass.add(
+          FoodPellet(
+            position: Vec2(420 + index * 6.0, -18 + index * 5.0),
+            value: 3,
+            kind: FoodPelletKind.defeatDrop,
+          ),
+        );
+      }
+      resetSnakeAlongHeading(
+        simulation.snakes[1],
+        const Vec2(980, 0),
+        const Vec2(-1, 0),
+      );
+      resetSnakeAlongHeading(
+        simulation.snakes[2],
+        const Vec2(1040, 280),
+        const Vec2(-1, 0),
+      );
+      resetSnakeAlongHeading(
+        simulation.snakes[3],
+        const Vec2(1040, -280),
+        const Vec2(-1, 0),
+      );
+
+      simulation.update(1 / 60, Vec2.zero);
+      final harvester = simulation.snakes.skip(1).singleWhere(
+            (bot) => simulation.botResourceRole(bot.id) == 'harvester',
+          );
+
+      expect(simulation.contestedResourceValue, 24);
+      expect(simulation.botPlanMode(harvester.id), 'contest');
+      expect(simulation.botPlanAllowsSprint(harvester.id), isTrue);
+      expect(simulation.tacticalDiagnostics, contains('MASS 24 CONTESTED'));
+      expect(simulation.botPeerCollisionDeaths, 0);
     });
 
     test('bot roster opens with distinct strategic maneuver portfolios', () {
