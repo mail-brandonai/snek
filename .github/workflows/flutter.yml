@@ -176,7 +176,11 @@ jobs:
             -no-snapshot -gpu swiftshader_indirect -accel "$acceleration" \
             > "$RUNNER_TEMP/snek-emulator.log" 2>&1 &
           adb start-server
-          adb wait-for-device
+          if ! timeout 180s adb wait-for-device; then
+            cat "$RUNNER_TEMP/snek-emulator.log"
+            echo "Android emulator did not become available to adb within 180 seconds."
+            exit 1
+          fi
           booted=false
           for attempt in $(seq 1 300); do
             if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)" = "1" ]; then
