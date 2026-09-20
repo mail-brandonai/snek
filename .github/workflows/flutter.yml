@@ -22,6 +22,13 @@ jobs:
       - name: Prepare CI logs
         run: mkdir -p ci-logs
 
+      - name: Install dependencies
+        id: dependencies
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter pub get 2>&1 | tee ci-logs/pub-get.log
+
       - name: Verify preinstalled Snek toolchain
         id: toolchain
         continue-on-error: true
