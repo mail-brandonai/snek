@@ -805,7 +805,7 @@ class _StatsPanel extends StatelessWidget {
             ),
             _HudMetric(
               label: 'RANK',
-              value: '#' + state.rank.toString(),
+              value: '#${state.rank}',
               accent: const Color(0xffc9d8ef),
             ),
             _HudMetric(
