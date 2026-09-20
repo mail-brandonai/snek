@@ -362,9 +362,8 @@ class SlitherGame extends FlameGame {
         telegraphEvents: simulation.telegraphEvents,
         arenaRadius: simulation.config.arenaRadius,
       ),
-      tacticalDiagnostics: advancedHudEnabled
-          ? simulation.tacticalDiagnostics
-          : '',
+      tacticalDiagnostics:
+          advancedHudEnabled ? simulation.tacticalDiagnostics : '',
       advancedHudEnabled: advancedHudEnabled,
     );
   }
