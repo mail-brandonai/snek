@@ -74,7 +74,7 @@ class SnekPenSnapshot {
 
   static const defaults = SnekPenSnapshot(
     sneks: <SnekProfile>[SnekProfile.starter],
-    selectedSnekId: SnekProfile.starter.id,
+    selectedSnekId: 'starter-snek',
   );
 }
 
@@ -296,8 +296,10 @@ class SnekPenScreen extends StatelessWidget {
                   Expanded(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final columns =
-                            (constraints.maxWidth / 238).floor().clamp(1, 4).toInt();
+                        final columns = (constraints.maxWidth / 238)
+                            .floor()
+                            .clamp(1, 4)
+                            .toInt();
                         return GridView.builder(
                           padding: const EdgeInsets.only(bottom: 8),
                           itemCount: sneks.length,
@@ -562,7 +564,10 @@ class _SnekPreviewPainter extends CustomPainter {
     final eyePaint = Paint()..color = const Color(0xfff7fbff);
     final pupilPaint = Paint()..color = const Color(0xff07111d);
     for (final side in const <double>[-1, 1]) {
-      final eye = Offset(head.dx + radius * 0.43, head.dy + side * radius * 0.34);
+      final eye = Offset(
+        head.dx + radius * 0.43,
+        head.dy + side * radius * 0.34,
+      );
       canvas.drawCircle(eye, radius * 0.24, eyePaint);
       canvas.drawCircle(
         eye + Offset(radius * 0.07, 0),
