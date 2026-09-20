@@ -16,46 +16,52 @@ jobs:
     steps:
       - name: Merge the exact validated pull request
         env:
-          GH_TOKEN: ${{ github.token }}
+          API_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           RUN_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
 
+          api="https://api.github.com/repos/$REPOSITORY"
+          auth_headers=(
+            -H "Accept: application/vnd.github+json"
+            -H "Authorization: Bearer $API_TOKEN"
+            -H "X-GitHub-Api-Version: 2022-11-28"
+          )
+
           # workflow_run.pull_requests is not guaranteed to be populated. Resolve
           # the PR from the exact commit that produced the successful check.
-          prs="$(gh api \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "repos/$REPOSITORY/commits/$RUN_SHA/pulls")"
+          prs="$(curl --fail --silent --show-error "${auth_headers[@]}" \
+            "$api/commits/$RUN_SHA/pulls")"
 
           pr_number="$(jq -r --arg sha "$RUN_SHA" '
-            .[]
-            | select(
-                .state == "open"
-                and .draft != true
-                and .base.ref == "main"
-                and .head.sha == $sha
-              )
-            | .number
-          ' <<<"$prs" | head -n1)"
+            [
+              .[]
+              | select(
+                  .state == "open"
+                  and .draft != true
+                  and .base.ref == "main"
+                  and .head.sha == $sha
+                )
+            ]
+            | .[0].number // empty
+          ' <<<"$prs")"
 
           if [ -z "$pr_number" ]; then
             echo "No open, non-draft main-targeting PR is associated with validated commit $RUN_SHA."
             exit 0
           fi
 
-          pr="$(gh api \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "repos/$REPOSITORY/pulls/$pr_number")"
+          pr="$(curl --fail --silent --show-error "${auth_headers[@]}" \
+            "$api/pulls/$pr_number")"
 
           state="$(jq -r '.state' <<<"$pr")"
           draft="$(jq -r '.draft' <<<"$pr")"
+          base_branch="$(jq -r '.base.ref' <<<"$pr")"
           head_sha="$(jq -r '.head.sha' <<<"$pr")"
 
-          if [ "$state" != "open" ] || [ "$draft" = "true" ]; then
-            echo "PR #$pr_number is no longer an open ready PR; nothing to merge."
+          if [ "$state" != "open" ] || [ "$draft" = "true" ] || [ "$base_branch" != "main" ]; then
+            echo "PR #$pr_number is no longer an open, ready PR targeting main; nothing to merge."
             exit 0
           fi
 
@@ -64,10 +70,30 @@ jobs:
             exit 0
           fi
 
-          # Match the validated SHA again at the merge endpoint to prevent a
-          # newer commit from being merged under an older successful result.
-          gh pr merge "$pr_number" \
-            --repo "$REPOSITORY" \
-            --squash \
-            --delete-branch \
-            --match-head-commit "$RUN_SHA"
+          # Supplying the validated SHA to the merge endpoint makes GitHub
+          # reject the merge if the PR head changed after the check completed.
+          merge_payload="$(jq -nc --arg sha "$RUN_SHA" '
+            {sha: $sha, merge_method: "squash"}
+          ')"
+          merge_result="$(curl --fail --silent --show-error \
+            "${auth_headers[@]}" \
+            -H "Content-Type: application/json" \
+            -X PUT \
+            -d "$merge_payload" \
+            "$api/pulls/$pr_number/merge")"
+          jq -e '.merged == true' >/dev/null <<<"$merge_result"
+          echo "Merged PR #$pr_number at $(jq -r '.sha' <<<"$merge_result")."
+
+          # Delete the head branch when it belongs to this repository, matching
+          # the previous --delete-branch behavior without touching fork branches.
+          head_repo="$(jq -r '.head.repo.full_name // empty' <<<"$pr")"
+          head_ref="$(jq -r '.head.ref // empty' <<<"$pr")"
+          if [ "$head_repo" = "$REPOSITORY" ] && [ -n "$head_ref" ]; then
+            encoded_ref="$(jq -nr --arg ref "heads/$head_ref" '
+              $ref | split("/") | map(@uri) | join("/")
+            ')"
+            if ! curl --fail --silent --show-error "${auth_headers[@]}" \
+              -X DELETE "$api/git/refs/$encoded_ref" >/dev/null; then
+              echo "PR merged; branch $head_ref could not be deleted."
+            fi
+          fi
