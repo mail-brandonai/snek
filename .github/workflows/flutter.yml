@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: flutter-checks-self-hosted
+  group: snek-flutter-checks
   cancel-in-progress: true
 
 permissions:
@@ -13,22 +13,43 @@ permissions:
 
 jobs:
   test:
-    runs-on: self-hosted
+    runs-on: [self-hosted, linux, x64, snek]
+    timeout-minutes: 60
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: false
-
-      - name: Install dependencies
-        run: flutter pub get
-
       - name: Prepare CI logs
         run: mkdir -p ci-logs
+
+      - name: Verify preinstalled Snek toolchain
+        id: toolchain
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          flutter_version="$(flutter --version --machine | jq -r '.frameworkVersion')"
+          echo "Flutter $flutter_version"
+          test "$flutter_version" = "3.47.5"
+          java -version
+          "$CHROME_EXECUTABLE" --version
+          chromedriver --version
+          adb version
+          emulator -version
+          sdkmanager --version
+          android_packages="$(sdkmanager --list_installed 2>&1)"
+          for package in \
+            "platform-tools" \
+            "platforms;android-35" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "system-images;android-35;google_apis;x86_64" \
+            "ndk;28.2.13676358" \
+            "cmake;3.22.1"; do
+            grep -Fq "$package" <<< "$android_packages" || {
+              echo "Missing preinstalled Android package: $package"
+              exit 1
+            }
+          done
 
       - name: Prepare web platform
         id: web_platform
@@ -55,150 +76,6 @@ jobs:
             df0066e75363a9bed59a14eedbbded421c1f5910f8379812df164716aa2e6eed \
             web/drift_worker.js | sha256sum --check
 
-      - name: Install browser and emulator runtime libraries
-        id: linux_runtime
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          marker="$RUNNER_TOOL_CACHE/snek-linux-runtime-libs-v1"
-          if [ ! -f "$marker" ]; then
-            packages=(
-              libasound2 libatk-bridge2.0-0 libatk1.0-0 libatspi2.0-0
-              libcairo2 libcups2 libdbus-1-3 libdrm2 libfontconfig1
-              libfreetype6 libgbm1 libglib2.0-0 libgtk-3-0 libnspr4
-              libnss3 libpango-1.0-0 libpangocairo-1.0-0 libpulse0
-              libx11-6 libx11-xcb1 libxcb-dri3-0 libxcb1 libxcomposite1
-              libxdamage1 libxext6 libxfixes3 libxi6 libxkbcommon0
-              libxrandr2 libxrender1 libxshmfence1 libxss1 libxtst6
-            )
-            if [ "$(id -u)" -eq 0 ]; then
-              apt-get update
-              apt-get install -y "${packages[@]}"
-            elif command -v sudo >/dev/null 2>&1 && sudo -n true; then
-              sudo apt-get update
-              sudo apt-get install -y "${packages[@]}"
-            else
-              echo "The self-hosted runner needs the Chrome/Android emulator runtime libraries installed by its administrator."
-              exit 1
-            fi
-            touch "$marker"
-          fi
-
-      - name: Install Chrome for Web tests
-        id: chrome_setup
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          metadata="$RUNNER_TEMP/chrome-for-testing.json"
-          curl --fail --location --silent --show-error \
-            https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json \
-            --output "$metadata"
-          chrome_version="$(jq -r '.channels.Stable.version' "$metadata")"
-          chrome_url="$(jq -r '.channels.Stable.downloads.chrome[] | select(.platform == "linux64") | .url' "$metadata")"
-          chrome_root="$RUNNER_TOOL_CACHE/chrome-for-testing"
-          chrome_dir="$chrome_root/$chrome_version"
-          chrome_binary="$chrome_dir/chrome-linux64/chrome"
-          if [ ! -x "$chrome_binary" ]; then
-            mkdir -p "$chrome_dir"
-            curl --fail --location --silent --show-error "$chrome_url" \
-              --output "$RUNNER_TEMP/chrome-for-testing.zip"
-            unzip -q "$RUNNER_TEMP/chrome-for-testing.zip" -d "$chrome_dir"
-          fi
-          test -x "$chrome_binary"
-          echo "CHROME_EXECUTABLE=$chrome_binary" >> "$GITHUB_ENV"
-          "$chrome_binary" --version | tee ci-logs/chrome-version.log
-
-      - name: Set up Java for Android
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Install Android SDK and start emulator
-        id: android_platform
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          android_sdk="$RUNNER_TOOL_CACHE/android-sdk"
-          mkdir -p "$android_sdk/cmdline-tools"
-          command_line_url="commandlinetools-linux-15859902_latest.zip"
-          command_line_sha256="4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583"
-          if [ ! -x "$android_sdk/cmdline-tools/latest/bin/sdkmanager" ]; then
-            mkdir -p "$RUNNER_TEMP/android-command-line-tools"
-            curl --fail --location --silent --show-error \
-              "https://dl.google.com/android/repository/$command_line_url" \
-              --output "$RUNNER_TEMP/android-command-line-tools.zip"
-            printf '%s  %s\n' "$command_line_sha256" \
-              "$RUNNER_TEMP/android-command-line-tools.zip" | sha256sum --check
-            unzip -q "$RUNNER_TEMP/android-command-line-tools.zip" \
-              -d "$RUNNER_TEMP/android-command-line-tools"
-            mkdir -p "$android_sdk/cmdline-tools/latest"
-            cp -a "$RUNNER_TEMP/android-command-line-tools/cmdline-tools/." \
-              "$android_sdk/cmdline-tools/latest/"
-          fi
-          export ANDROID_HOME="$android_sdk"
-          export ANDROID_SDK_ROOT="$android_sdk"
-          export PATH="$android_sdk/cmdline-tools/latest/bin:$android_sdk/platform-tools:$android_sdk/emulator:$PATH"
-          set +e
-          yes | sdkmanager --sdk_root="$android_sdk" --licenses >/dev/null 2>&1
-          license_status="${PIPESTATUS[1]}"
-          set -e
-          if [ "$license_status" -ne 0 ]; then
-            echo "Android SDK license acceptance failed."
-            exit "$license_status"
-          fi
-          set +e
-          yes | sdkmanager --sdk_root="$android_sdk" \
-            "platform-tools" "platforms;android-36" "build-tools;36.0.0" \
-            "emulator" "system-images;android-35;google_apis;x86_64" \
-            2>&1 | tee ci-logs/android-sdk-install.log
-          sdk_status="${PIPESTATUS[1]}"
-          set -e
-          if [ "$sdk_status" -ne 0 ]; then
-            exit "$sdk_status"
-          fi
-          echo "ANDROID_HOME=$android_sdk" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$android_sdk" >> "$GITHUB_ENV"
-          echo "$android_sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          echo "$android_sdk/platform-tools" >> "$GITHUB_PATH"
-          echo "$android_sdk/emulator" >> "$GITHUB_PATH"
-          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
-          mkdir -p "$ANDROID_AVD_HOME"
-          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
-          echo "no" | avdmanager create avd --force --name snek-ci \
-            --package "system-images;android-35;google_apis;x86_64" \
-            --device pixel_2
-          acceleration="off"
-          if [ -c /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
-            acceleration="on"
-          fi
-          emulator -avd snek-ci -no-window -no-audio -no-boot-anim \
-            -no-snapshot -gpu swiftshader_indirect -accel "$acceleration" \
-            > "$RUNNER_TEMP/snek-emulator.log" 2>&1 &
-          adb start-server
-          if ! timeout 180s adb wait-for-device; then
-            cat "$RUNNER_TEMP/snek-emulator.log"
-            echo "Android emulator did not become available to adb within 180 seconds."
-            exit 1
-          fi
-          booted=false
-          for attempt in $(seq 1 300); do
-            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)" = "1" ]; then
-              booted=true
-              break
-            fi
-            sleep 2
-          done
-          if [ "$booted" != true ]; then
-            cat "$RUNNER_TEMP/snek-emulator.log"
-            echo "Android emulator did not finish booting."
-            exit 1
-          fi
-          adb shell settings put global window_animation_scale 0
-          adb shell settings put global transition_animation_scale 0
-          adb shell settings put global animator_duration_scale 0
-          adb devices
-
       - name: Generate Drift database code
         id: drift_codegen
         continue-on-error: true
@@ -211,7 +88,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          dart format --output=none --set-exit-if-changed lib test integration_test 2>&1 | tee ci-logs/format.log
+          dart format --output=none --set-exit-if-changed lib test integration_test test_driver 2>&1 | tee ci-logs/format.log
 
       - name: Analyze
         id: analyze
@@ -230,25 +107,85 @@ jobs:
       - name: Web persistence probe
         id: web_storage
         continue-on-error: true
+        timeout-minutes: 10
         run: |
-          set -o pipefail
-          flutter test --platform chrome integration_test/web_persistence_probe_test.dart 2>&1 | tee ci-logs/web-storage.log
+          set -euo pipefail
+          chromedriver --port=4444 > ci-logs/chromedriver.log 2>&1 &
+          chromedriver_pid=$!
+          trap 'kill "$chromedriver_pid" 2>/dev/null || true; wait "$chromedriver_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4444/status >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:4444/status >/dev/null
+          flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/web_persistence_probe_test.dart \
+            -d chrome 2>&1 | tee ci-logs/web-storage.log
+
+      - name: Start Android emulator
+        id: android_platform
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          echo "no" | avdmanager create avd --force --name snek-ci \
+            --package "system-images;android-35;google_apis;x86_64" \
+            --device pixel_2
+          emulator -avd snek-ci -no-window -no-audio -no-boot-anim \
+            -no-snapshot -gpu swiftshader_indirect -accel off \
+            > "$RUNNER_TEMP/snek-emulator.log" 2>&1 &
+          adb start-server
+          if ! timeout 180s adb wait-for-device; then
+            cat "$RUNNER_TEMP/snek-emulator.log"
+            echo "Android emulator did not become available to adb within 180 seconds."
+            exit 1
+          fi
+          booted=false
+          for attempt in $(seq 1 300); do
+            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" = "1" ]; then
+              booted=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$booted" != true ]; then
+            cat "$RUNNER_TEMP/snek-emulator.log"
+            echo "Android emulator did not finish booting."
+            exit 1
+          fi
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          adb devices
 
       - name: Android persistence probe
         id: android_storage
         continue-on-error: true
+        timeout-minutes: 15
         run: |
           set -o pipefail
           android_device="$(adb devices | awk 'NR > 1 && $2 == "device" { print $1; exit }')"
           if [ -z "$android_device" ]; then
-            echo "No Android device or emulator is attached to this self-hosted runner." | tee ci-logs/android-storage.log
+            echo "No Android emulator is available." | tee ci-logs/android-storage.log
             exit 1
           fi
-          flutter test integration_test/android_persistence_probe_test.dart --device-id "$android_device" 2>&1 | tee ci-logs/android-storage.log
+          flutter test integration_test/android_persistence_probe_test.dart \
+            --device-id "$android_device" 2>&1 | tee ci-logs/android-storage.log
+
+      - name: Stop Android emulator
+        if: always()
+        run: adb emu kill >/dev/null 2>&1 || true
 
       - name: Build Android debug APK
         id: build_android
         continue-on-error: true
+        timeout-minutes: 20
         run: |
           set -o pipefail
           flutter build apk --debug 2>&1 | tee ci-logs/build-android.log
@@ -256,6 +193,7 @@ jobs:
       - name: Build web release
         id: build_web
         continue-on-error: true
+        timeout-minutes: 15
         run: |
           set -o pipefail
           flutter build web --release 2>&1 | tee ci-logs/build-web.log
@@ -267,31 +205,29 @@ jobs:
             echo "Flutter CI summary"
             echo "run_id=${{ github.run_id }}"
             echo "commit=${{ github.sha }}"
+            echo "toolchain=${{ steps.toolchain.outcome }}"
+            echo "web_platform=${{ steps.web_platform.outcome }}"
+            echo "drift_web_assets=${{ steps.drift_web_assets.outcome }}"
+            echo "drift_codegen=${{ steps.drift_codegen.outcome }}"
             echo "format=${{ steps.format.outcome }}"
             echo "analyze=${{ steps.analyze.outcome }}"
             echo "test=${{ steps.test.outcome }}"
-            echo "drift_codegen=${{ steps.drift_codegen.outcome }}"
-            echo "web_platform=${{ steps.web_platform.outcome }}"
-            echo "drift_web_assets=${{ steps.drift_web_assets.outcome }}"
-            echo "linux_runtime=${{ steps.linux_runtime.outcome }}"
-            echo "chrome_setup=${{ steps.chrome_setup.outcome }}"
-            echo "android_platform=${{ steps.android_platform.outcome }}"
             echo "web_storage=${{ steps.web_storage.outcome }}"
+            echo "android_platform=${{ steps.android_platform.outcome }}"
             echo "android_storage=${{ steps.android_storage.outcome }}"
             echo "build_android=${{ steps.build_android.outcome }}"
             echo "build_web=${{ steps.build_web.outcome }}"
           } | tee ci-logs/summary.txt
 
+          test "${{ steps.toolchain.outcome }}" = success
+          test "${{ steps.web_platform.outcome }}" = success
+          test "${{ steps.drift_web_assets.outcome }}" = success
+          test "${{ steps.drift_codegen.outcome }}" = success
           test "${{ steps.format.outcome }}" = success
           test "${{ steps.analyze.outcome }}" = success
           test "${{ steps.test.outcome }}" = success
-          test "${{ steps.drift_codegen.outcome }}" = success
-          test "${{ steps.web_platform.outcome }}" = success
-          test "${{ steps.drift_web_assets.outcome }}" = success
-          test "${{ steps.linux_runtime.outcome }}" = success
-          test "${{ steps.chrome_setup.outcome }}" = success
-          test "${{ steps.android_platform.outcome }}" = success
           test "${{ steps.web_storage.outcome }}" = success
+          test "${{ steps.android_platform.outcome }}" = success
           test "${{ steps.android_storage.outcome }}" = success
           test "${{ steps.build_android.outcome }}" = success
           test "${{ steps.build_web.outcome }}" = success
