@@ -465,13 +465,15 @@ class SlitherGame extends FlameGame {
     canvas.drawPath(_visibleGridShadeEdgePath, _gridShadeEdgePaint);
 
     final viewportRadius = math.sqrt(size.x * size.x + size.y * size.y) / 2;
+    final cameraDistance =
+        math.sqrt(cameraX * cameraX + cameraY * cameraY);
     final warningRadius = math
         .max(
           0.0,
           radius - simulation.config.arenaBoundaryWarningBuffer,
         )
         .toDouble();
-    if ((math.sqrt(cameraX * cameraX + cameraY * cameraY) - warningRadius).abs() <= viewportRadius + 24) {
+    if ((cameraDistance - warningRadius).abs() <= viewportRadius + 24) {
       _effectPaint
         ..color = const Color(0xffff9f43).withValues(alpha: 0.08)
         ..style = ui.PaintingStyle.stroke
@@ -484,7 +486,7 @@ class SlitherGame extends FlameGame {
       canvas.drawCircle(Offset.zero, warningRadius, _effectPaint);
     }
 
-    if ((math.sqrt(cameraX * cameraX + cameraY * cameraY) - radius).abs() <= viewportRadius + 28) {
+    if ((cameraDistance - radius).abs() <= viewportRadius + 28) {
       _effectPaint
         ..color = const Color(0xffff4d5f).withValues(alpha: 0.16)
         ..style = ui.PaintingStyle.stroke
