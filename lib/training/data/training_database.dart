@@ -42,7 +42,7 @@ class RunChunks extends Table {
 
 @DriftDatabase(tables: [RunHeaders, RunChunks])
 class TrainingDatabase extends _$TrainingDatabase {
-  TrainingDatabase(QueryExecutor executor) : super(executor);
+  TrainingDatabase(super.e);
 
   factory TrainingDatabase.persistent() {
     return TrainingDatabase(
