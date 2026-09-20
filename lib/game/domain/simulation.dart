@@ -684,10 +684,15 @@ class _MutableBodyPoint extends Vec2 {
   _MutableBodyPoint(double x, double y)
       : _x = x,
         _y = y,
+        _previousX = x,
+        _previousY = y,
         super(0, 0);
 
   double _x;
   double _y;
+  double _previousX;
+  double _previousY;
+  bool _hasCoordinates = false;
 
   @override
   double get x => _x;
@@ -695,9 +700,25 @@ class _MutableBodyPoint extends Vec2 {
   @override
   double get y => _y;
 
-  void setCoordinates(double x, double y) {
+  double get previousX => _previousX;
+
+  double get previousY => _previousY;
+
+  void setCoordinates(
+    double x,
+    double y, {
+    bool preservePrevious = true,
+  }) {
+    if (preservePrevious && _hasCoordinates) {
+      _previousX = _x;
+      _previousY = _y;
+    } else {
+      _previousX = x;
+      _previousY = y;
+    }
     _x = x;
     _y = y;
+    _hasCoordinates = true;
   }
 }
 
@@ -978,6 +999,35 @@ class GameSimulation {
   }
 
   double get observedPlayerEscapeSideBias => _playerBehavior.escapeSideBias;
+
+  /// Blend between the last two fixed simulation states for smooth rendering.
+  double get renderInterpolationAlpha {
+    if (gameOver) return 1;
+    return (_simulationAccumulator / math.max(0.001, config.simulationStep))
+        .clamp(0.0, 1.0)
+        .toDouble();
+  }
+
+  double renderBodyX(SnakeState snake, int index, double alpha) {
+    if (index == 0) {
+      return _interpolate(snake.previousHead.x, snake.head.x, alpha);
+    }
+    final point = snake.body[index];
+    if (point is! _MutableBodyPoint) return point.x;
+    return _interpolate(point.previousX, point.x, alpha);
+  }
+
+  double renderBodyY(SnakeState snake, int index, double alpha) {
+    if (index == 0) {
+      return _interpolate(snake.previousHead.y, snake.head.y, alpha);
+    }
+    final point = snake.body[index];
+    if (point is! _MutableBodyPoint) return point.y;
+    return _interpolate(point.previousY, point.y, alpha);
+  }
+
+  double _interpolate(double previous, double current, double alpha) =>
+      previous + (current - previous) * alpha;
 
   void reset() {
     _random = math.Random(seed);
@@ -5190,6 +5240,7 @@ class GameSimulation {
 
   void _moveSnake(SnakeState snake, double dt) {
     final currentHead = snake.head;
+    snake.previousHead = currentHead;
     final distance = _effectiveSpeed(snake) * dt;
     final nextHead = Vec2(
       currentHead.x + snake.heading.x * distance,
@@ -5219,6 +5270,7 @@ class GameSimulation {
   }
 
   void _reflowBody(SnakeState snake) {
+    final previousBodyLength = snake.body.length;
     final fullLength = snake.fullyExpressedLength;
     final extension = snake.growthExtensionDistance;
     final maximumDistance = fullLength <= 0
@@ -5237,7 +5289,11 @@ class GameSimulation {
     final pointPool =
         _bodyPointPools.putIfAbsent(snake.id, () => <_MutableBodyPoint>[]);
 
-    void sampleInto(double distance, _MutableBodyPoint target) {
+    void sampleInto(
+      double distance,
+      _MutableBodyPoint target, {
+      required bool snapPrevious,
+    }) {
       while (trailIndex > 0) {
         final start = trail[trailIndex];
         final end = trail[trailIndex - 1];
@@ -5253,6 +5309,7 @@ class GameSimulation {
           target.setCoordinates(
             start.x + deltaX * fraction,
             start.y + deltaY * fraction,
+            preservePrevious: !snapPrevious,
           );
           return;
         }
@@ -5262,7 +5319,11 @@ class GameSimulation {
 
       final last = trail.first;
       if (trail.length < 2) {
-        target.setCoordinates(last.x, last.y);
+        target.setCoordinates(
+          last.x,
+          last.y,
+          preservePrevious: !snapPrevious,
+        );
         return;
       }
       final directionX = last.x - trail[1].x;
@@ -5274,11 +5335,13 @@ class GameSimulation {
         target.setCoordinates(
           last.x - snake.heading.x * remaining,
           last.y - snake.heading.y * remaining,
+          preservePrevious: !snapPrevious,
         );
       } else {
         target.setCoordinates(
           last.x + directionX / directionLength * remaining,
           last.y + directionY / directionLength * remaining,
+          preservePrevious: !snapPrevious,
         );
       }
     }
@@ -5303,7 +5366,11 @@ class GameSimulation {
       final distance = index < fullLength
           ? index * snake.segmentSpacing
           : (fullLength - 1) * snake.segmentSpacing + extension;
-      sampleInto(distance, target);
+      sampleInto(
+        distance,
+        target,
+        snapPrevious: index >= previousBodyLength,
+      );
       if (index < snake.body.length) {
         snake.body[index] = target;
       } else {
