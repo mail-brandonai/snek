@@ -465,8 +465,7 @@ class SlitherGame extends FlameGame {
     canvas.drawPath(_visibleGridShadeEdgePath, _gridShadeEdgePaint);
 
     final viewportRadius = math.sqrt(size.x * size.x + size.y * size.y) / 2;
-    final cameraDistance =
-        math.sqrt(cameraX * cameraX + cameraY * cameraY);
+    final cameraDistance = math.sqrt(cameraX * cameraX + cameraY * cameraY);
     final warningRadius = math
         .max(
           0.0,
@@ -542,11 +541,7 @@ class SlitherGame extends FlameGame {
     }
   }
 
-  void _drawSnake(
-    ui.Canvas canvas,
-    SnakeState snake,
-    double interpolation,
-  ) {
+  void _drawSnake(ui.Canvas canvas, SnakeState snake, double interpolation) {
     if (snake.body.isEmpty) return;
     final renderStride = snake.body.length > 420 ? 2 : 1;
     final headX = simulation.renderBodyX(snake, 0, interpolation);
@@ -1431,21 +1426,13 @@ class _MinimapPainter extends CustomPainter {
             alpha: marker.sprinting ? 0.8 : 0.45,
           )
           ..strokeWidth = marker.sprinting ? 2 : 1;
-        canvas.drawCircle(
-          position,
-          marker.isPlayer ? 10 : 7,
-          _ringPaint,
-        );
+        canvas.drawCircle(position, marker.isPlayer ? 10 : 7, _ringPaint);
       }
       if (showTacticalSignals && marker.intent == ActorIntent.retreating) {
         _ringPaint
           ..color = colour.withValues(alpha: 0.65)
           ..strokeWidth = 1;
-        canvas.drawCircle(
-          position,
-          marker.isPlayer ? 12 : 6,
-          _ringPaint,
-        );
+        canvas.drawCircle(position, marker.isPlayer ? 12 : 6, _ringPaint);
       }
       if (showTacticalSignals && marker.threatUrgency > 0) {
         _ringPaint
