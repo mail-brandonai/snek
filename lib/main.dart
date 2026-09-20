@@ -977,8 +977,7 @@ class _TacticsHudToggle extends StatelessWidget {
     return TextButton.icon(
       onPressed: onPressed,
       style: TextButton.styleFrom(
-        foregroundColor:
-            enabled ? ArenaSkin.accent : ArenaSkin.textPrimary,
+        foregroundColor: enabled ? ArenaSkin.accent : ArenaSkin.textPrimary,
         backgroundColor: ArenaSkin.panelBottom,
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
         textStyle: const TextStyle(
