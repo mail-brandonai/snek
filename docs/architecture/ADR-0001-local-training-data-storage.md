@@ -82,3 +82,8 @@ This workspace has no local Flutter/Dart executable and no repository checkout. 
 - Drift Flutter adapter and platform setup: https://pub.dev/packages/drift_flutter
 - Sembast Web IndexedDB behavior and memory model: https://pub.dev/packages/sembast_web
 - Shared Preferences scope and durability note: https://pub.dev/packages/shared_preferences
+
+
+## Sprint 0 execution
+
+A minimal Drift run-header/chunk store and persistence probe now exercise chunk ordering, checksums, interrupted recording recovery after closing and reopening the database, idempotent finalization, status/date lookup, and deletion. The CI workflow downloads version-matched Drift WebAssembly/worker assets and runs Web persistence tests in Chrome plus Android integration persistence tests on the self-hosted runner. These checks are pending; this section will be updated from their results.
