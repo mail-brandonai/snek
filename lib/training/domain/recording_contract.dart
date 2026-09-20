@@ -208,7 +208,7 @@ class MatchParticipantDto {
     required this.actorId,
     required this.role,
     required this.controller,
-    required this.soulRevisionIds,
+    required List<String> soulRevisionIds,
     this.snekProfileId,
     this.schemaVersion = currentTrainingRecordSchemaVersion,
   }) : soulRevisionIds = List<String>.unmodifiable(soulRevisionIds);
