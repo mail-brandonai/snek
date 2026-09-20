@@ -37,6 +37,12 @@ jobs:
           set -o pipefail
           dart format --output=none --set-exit-if-changed lib test 2>&1 | tee ci-logs/format.log
 
+      - name: Capture formatter corrections
+        if: always()
+        run: |
+          dart format lib/main.dart
+          git diff -- lib/main.dart | tee ci-logs/format-corrections.diff
+
       - name: Analyze
         id: analyze
         continue-on-error: true
