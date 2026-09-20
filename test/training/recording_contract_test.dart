@@ -7,7 +7,7 @@ import 'package:slither/training/domain/recording_contract.dart';
 void main() {
   group('versioned recording DTOs', () {
     test('RunHeaderDto round trips through JSON', () {
-      final value = RunHeaderDto(
+      const value = RunHeaderDto(
         runId: 'run-1',
         mode: 'training',
         seed: 42,
