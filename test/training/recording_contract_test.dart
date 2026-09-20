@@ -94,7 +94,7 @@ void main() {
 
     test('all DTOs reject an unsupported schema version', () {
       final values = <Map<String, Object?> Function()>[
-        () => RunHeaderDto(
+        () => const RunHeaderDto(
               runId: 'run-1',
               mode: 'training',
               seed: 1,
@@ -169,7 +169,7 @@ void main() {
 
   group('controller contract', () {
     test('a fake controller consumes an immutable observation', () {
-      final observation = ActorObservation(
+      const observation = ActorObservation(
         tick: 20,
         headingX: 1,
         headingY: 0,
