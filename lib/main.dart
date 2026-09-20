@@ -264,6 +264,8 @@ class SlitherGame extends FlameGame {
   bool _keyboardSprint = false;
   bool advancedHudEnabled = false;
   double _hudTimer = 0;
+  double _renderCameraX = 0;
+  double _renderCameraY = 0;
 
   bool get sprinting =>
       simulation.canSprint && (_pointerSprint || _keyboardSprint);
@@ -310,16 +312,21 @@ class SlitherGame extends FlameGame {
     canvas.drawColor(ArenaSkin.background, ui.BlendMode.srcOver);
     if (size.x == 0 || size.y == 0) return;
 
+    final interpolation = simulation.renderInterpolationAlpha;
+    _renderCameraX =
+        simulation.renderBodyX(simulation.player, 0, interpolation);
+    _renderCameraY =
+        simulation.renderBodyY(simulation.player, 0, interpolation);
     canvas.save();
     canvas.translate(
-      size.x / 2 - simulation.player.head.x,
-      size.y / 2 - simulation.player.head.y,
+      size.x / 2 - _renderCameraX,
+      size.y / 2 - _renderCameraY,
     );
-    _drawArena(canvas);
+    _drawArena(canvas, _renderCameraX, _renderCameraY);
     _drawPellets(canvas, simulation.pellets, dropped: false);
     _drawPellets(canvas, simulation.droppedMass, dropped: true);
     for (final snake in simulation.snakes) {
-      if (snake.alive) _drawSnake(canvas, snake);
+      if (snake.alive) _drawSnake(canvas, snake, interpolation);
     }
     canvas.restore();
   }
@@ -355,7 +362,9 @@ class SlitherGame extends FlameGame {
         telegraphEvents: simulation.telegraphEvents,
         arenaRadius: simulation.config.arenaRadius,
       ),
-      tacticalDiagnostics: simulation.tacticalDiagnostics,
+      tacticalDiagnostics: advancedHudEnabled
+          ? simulation.tacticalDiagnostics
+          : '',
       advancedHudEnabled: advancedHudEnabled,
     );
   }
@@ -369,14 +378,13 @@ class SlitherGame extends FlameGame {
         .toDouble();
   }
 
-  void _drawArena(ui.Canvas canvas) {
+  void _drawArena(ui.Canvas canvas, double cameraX, double cameraY) {
     const spacing = 92.0;
     final radius = simulation.config.arenaRadius;
-    final camera = simulation.player.head;
-    final minimumX = camera.x - size.x / 2 - spacing;
-    final maximumX = camera.x + size.x / 2 + spacing;
-    final minimumY = camera.y - size.y / 2 - spacing;
-    final maximumY = camera.y + size.y / 2 + spacing;
+    final minimumX = cameraX - size.x / 2 - spacing;
+    final maximumX = cameraX + size.x / 2 + spacing;
+    final minimumY = cameraY - size.y / 2 - spacing;
+    final maximumY = cameraY + size.y / 2 + spacing;
     final maximumGridIndex = (radius * 2 / spacing).floor();
     final startColumn = ((minimumX + radius) / spacing)
         .floor()
@@ -463,7 +471,7 @@ class SlitherGame extends FlameGame {
           radius - simulation.config.arenaBoundaryWarningBuffer,
         )
         .toDouble();
-    if ((camera.length - warningRadius).abs() <= viewportRadius + 24) {
+    if ((math.sqrt(cameraX * cameraX + cameraY * cameraY) - warningRadius).abs() <= viewportRadius + 24) {
       _effectPaint
         ..color = const Color(0xffff9f43).withValues(alpha: 0.08)
         ..style = ui.PaintingStyle.stroke
@@ -476,7 +484,7 @@ class SlitherGame extends FlameGame {
       canvas.drawCircle(Offset.zero, warningRadius, _effectPaint);
     }
 
-    if ((camera.length - radius).abs() <= viewportRadius + 28) {
+    if ((math.sqrt(cameraX * cameraX + cameraY * cameraY) - radius).abs() <= viewportRadius + 28) {
       _effectPaint
         ..color = const Color(0xffff4d5f).withValues(alpha: 0.16)
         ..style = ui.PaintingStyle.stroke
@@ -532,15 +540,21 @@ class SlitherGame extends FlameGame {
     }
   }
 
-  void _drawSnake(ui.Canvas canvas, SnakeState snake) {
+  void _drawSnake(
+    ui.Canvas canvas,
+    SnakeState snake,
+    double interpolation,
+  ) {
     if (snake.body.isEmpty) return;
     final renderStride = snake.body.length > 420 ? 2 : 1;
+    final headX = simulation.renderBodyX(snake, 0, interpolation);
+    final headY = simulation.renderBodyY(snake, 0, interpolation);
     final minimumTaper =
         simulation.config.collisionTailTaper.clamp(0.0, 1.0).toDouble();
-    final viewMinimumX = simulation.player.head.x - size.x / 2;
-    final viewMaximumX = simulation.player.head.x + size.x / 2;
-    final viewMinimumY = simulation.player.head.y - size.y / 2;
-    final viewMaximumY = simulation.player.head.y + size.y / 2;
+    final viewMinimumX = _renderCameraX - size.x / 2;
+    final viewMaximumX = _renderCameraX + size.x / 2;
+    final viewMinimumY = _renderCameraY - size.y / 2;
+    final viewMaximumY = _renderCameraY + size.y / 2;
     final padding = snake.radius + 12;
     var hasVisibleChunk = false;
     for (final chunk in snake.bodyChunks) {
@@ -571,9 +585,9 @@ class SlitherGame extends FlameGame {
         )
         ..style = ui.PaintingStyle.stroke
         ..strokeWidth = snake.sprinting ? 3 : 2;
-      if (_isVisible(snake.head, snake.radius + 20)) {
+      if (_isVisibleAt(headX, headY, snake.radius + 20)) {
         canvas.drawCircle(
-          Offset(snake.head.x, snake.head.y),
+          Offset(headX, headY),
           snake.radius + 8 + (1 - pulse.clamp(0.0, 1.0)) * 8,
           _effectPaint,
         );
@@ -601,10 +615,11 @@ class SlitherGame extends FlameGame {
         if (strideOffset != 0) index += auraStride - strideOffset;
         final end = math.min(chunk.endIndex, snake.body.length);
         for (; index < end; index += auraStride) {
-          final segment = snake.body[index];
-          if (!_isVisible(segment, padding)) continue;
+          final x = simulation.renderBodyX(snake, index, interpolation);
+          final y = simulation.renderBodyY(snake, index, interpolation);
+          if (!_isVisibleAt(x, y, padding)) continue;
           canvas.drawCircle(
-            Offset(segment.x, segment.y),
+            Offset(x, y),
             snake.radius * (1.45 + pulse * 0.18),
             _effectPaint,
           );
@@ -616,9 +631,9 @@ class SlitherGame extends FlameGame {
         )
         ..style = ui.PaintingStyle.stroke
         ..strokeWidth = 1.5 + pulse;
-      if (_isVisible(snake.head, snake.radius + 20)) {
+      if (_isVisibleAt(headX, headY, snake.radius + 20)) {
         canvas.drawCircle(
-          Offset(snake.head.x, snake.head.y),
+          Offset(headX, headY),
           snake.radius * (1.55 + pulse * 0.25),
           _effectPaint,
         );
@@ -644,41 +659,42 @@ class SlitherGame extends FlameGame {
       final tailStrideOffset = (snake.body.length - 1 - index) % renderStride;
       if (tailStrideOffset != 0) index -= renderStride - tailStrideOffset;
       for (; index >= math.max(1, chunk.startIndex); index -= renderStride) {
-        final segment = snake.body[index];
-        if (!_isVisible(segment, padding)) continue;
+        final x = simulation.renderBodyX(snake, index, interpolation);
+        final y = simulation.renderBodyY(snake, index, interpolation);
+        if (!_isVisibleAt(x, y, padding)) continue;
         final double taper = (1 - index / (snake.body.length * 1.5))
             .clamp(minimumTaper, 1.0)
             .toDouble();
         _drawShadedCircle(
           canvas,
-          Offset(segment.x, segment.y),
+          Offset(x, y),
           snake.radius * taper * (renderStride == 1 ? 1 : 1.22),
           bodyPaint,
         );
       }
     }
-    final head = snake.head;
-    if (!_isVisible(head, snake.radius + 12)) return;
+    if (!_isVisibleAt(headX, headY, snake.radius + 12)) return;
     _drawShadedCircle(
       canvas,
-      Offset(head.x, head.y),
+      Offset(headX, headY),
       snake.radius + 2,
       bodyPaint,
     );
-    final perpendicular = Vec2(-snake.heading.y, snake.heading.x);
+    final headingX = snake.heading.x;
+    final headingY = snake.heading.y;
+    final perpendicularX = -headingY;
+    final perpendicularY = headingX;
     for (final side in const [-1.0, 1.0]) {
-      final eye = head + snake.heading * 5 + perpendicular * (side * 5);
-      canvas.drawCircle(Offset(eye.x, eye.y), 3.8, _eyePaint);
+      final eyeX = headX + headingX * 5 + perpendicularX * (side * 5);
+      final eyeY = headY + headingY * 5 + perpendicularY * (side * 5);
+      canvas.drawCircle(Offset(eyeX, eyeY), 3.8, _eyePaint);
       canvas.drawCircle(
-        Offset(
-          eye.x + snake.heading.x * 1.5,
-          eye.y + snake.heading.y * 1.5,
-        ),
+        Offset(eyeX + headingX * 1.5, eyeY + headingY * 1.5),
         1.9,
         _pupilPaint,
       );
       canvas.drawCircle(
-        Offset(eye.x - 0.9, eye.y - 1.1),
+        Offset(eyeX - 0.9, eyeY - 1.1),
         0.8,
         _eyeGlintPaint,
       );
@@ -699,10 +715,12 @@ class SlitherGame extends FlameGame {
     canvas.restore();
   }
 
-  bool _isVisible(Vec2 position, double padding) {
-    final centre = simulation.player.head;
-    return (position.x - centre.x).abs() <= size.x / 2 + padding &&
-        (position.y - centre.y).abs() <= size.y / 2 + padding;
+  bool _isVisible(Vec2 position, double padding) =>
+      _isVisibleAt(position.x, position.y, padding);
+
+  bool _isVisibleAt(double x, double y, double padding) {
+    return (x - _renderCameraX).abs() <= size.x / 2 + padding &&
+        (y - _renderCameraY).abs() <= size.y / 2 + padding;
   }
 }
 
@@ -1273,65 +1291,83 @@ class _MinimapPainter extends CustomPainter {
   final List<MinimapTelegraphEvent> events;
   final bool showTacticalSignals;
 
-  @override
-  void paint(ui.Canvas canvas, ui.Size size) {
+  static ui.Size? _backgroundSize;
+  static ui.Path? _panelPath;
+  static ui.RRect? _panelRect;
+  static ui.RRect? _panelBorderRect;
+  static final ui.Paint _panelPaint = ui.Paint();
+  static final ui.Paint _panelBorderPaint = ui.Paint()
+    ..color = ArenaSkin.panelRim
+    ..style = ui.PaintingStyle.stroke
+    ..strokeWidth = 1;
+  static final ui.Paint _arenaFillPaint = ui.Paint();
+  static final ui.Paint _gridPaint = ui.Paint()
+    ..color = const Color(0x1e9fc0e0)
+    ..style = ui.PaintingStyle.stroke
+    ..strokeWidth = 0.7;
+  static final ui.Paint _arenaPaint = ui.Paint()
+    ..color = const Color(0xffff7180).withValues(alpha: 0.84)
+    ..style = ui.PaintingStyle.stroke
+    ..strokeWidth = 2;
+  static final ui.Paint _ringPaint = ui.Paint()
+    ..style = ui.PaintingStyle.stroke;
+  static final ui.Paint _fillPaint = ui.Paint();
+  static final ui.Paint _markerShadowPaint = ui.Paint()
+    ..color = const Color(0x99000000);
+
+  static void _prepareStaticBackground(ui.Size size) {
+    if (_backgroundSize == size) return;
+    _backgroundSize = size;
+
     final rect = ui.Rect.fromLTWH(0, 0, size.width, size.height);
     final panelRect = ui.RRect.fromRectAndRadius(
       rect,
       const ui.Radius.circular(12),
     );
-    final panelPath = ui.Path()..addRRect(panelRect);
+    _panelPath = ui.Path()..addRRect(panelRect);
+    _panelRect = panelRect;
+    _panelBorderRect = ui.RRect.fromRectAndRadius(
+      rect.deflate(1),
+      const ui.Radius.circular(11),
+    );
+    _panelPaint.shader = ui.Gradient.linear(
+      Offset.zero,
+      Offset(size.width, size.height),
+      const <Color>[ArenaSkin.panelTop, ArenaSkin.panelBottom],
+      null,
+      ui.TileMode.clamp,
+    );
+
+    final arenaCentre = Offset(size.width / 2, size.height / 2);
+    _arenaFillPaint.shader = ui.Gradient.radial(
+      arenaCentre,
+      size.width * 0.37,
+      const <Color>[Color(0xff172941), Color(0xff091421)],
+      null,
+      ui.TileMode.clamp,
+    );
+  }
+
+  @override
+  void paint(ui.Canvas canvas, ui.Size size) {
+    _prepareStaticBackground(size);
+    final panelRect = _panelRect!;
     canvas.drawShadow(
-      panelPath,
+      _panelPath!,
       const Color(0xc0000000),
       7,
       true,
     );
-    final panelPaint = ui.Paint()
-      ..shader = ui.Gradient.linear(
-        Offset.zero,
-        Offset(size.width, size.height),
-        const <Color>[ArenaSkin.panelTop, ArenaSkin.panelBottom],
-        null,
-        ui.TileMode.clamp,
-      );
-    canvas.drawRRect(panelRect, panelPaint);
-
-    final borderPaint = ui.Paint()
-      ..color = ArenaSkin.panelRim
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 1;
-    canvas.drawRRect(
-      ui.RRect.fromRectAndRadius(
-        rect.deflate(1),
-        const ui.Radius.circular(11),
-      ),
-      borderPaint,
-    );
+    canvas.drawRRect(panelRect, _panelPaint);
+    canvas.drawRRect(_panelBorderRect!, _panelBorderPaint);
 
     final arenaCentre = Offset(size.width / 2, size.height / 2);
     final arenaRadius = size.width * 0.37;
-    final arenaFillPaint = ui.Paint()
-      ..shader = ui.Gradient.radial(
-        arenaCentre,
-        arenaRadius,
-        const <Color>[Color(0xff172941), Color(0xff091421)],
-        null,
-        ui.TileMode.clamp,
-      );
-    canvas.drawCircle(arenaCentre, arenaRadius, arenaFillPaint);
-    final gridPaint = ui.Paint()
-      ..color = const Color(0x1e9fc0e0)
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 0.7;
+    canvas.drawCircle(arenaCentre, arenaRadius, _arenaFillPaint);
     for (var index = 1; index <= 3; index++) {
-      canvas.drawCircle(arenaCentre, arenaRadius * index / 4, gridPaint);
+      canvas.drawCircle(arenaCentre, arenaRadius * index / 4, _gridPaint);
     }
-    final arenaPaint = ui.Paint()
-      ..color = const Color(0xffff7180).withValues(alpha: 0.84)
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 2;
-    canvas.drawCircle(arenaCentre, arenaRadius, arenaPaint);
+    canvas.drawCircle(arenaCentre, arenaRadius, _arenaPaint);
 
     for (final ping in pings) {
       final position = Offset(
@@ -1339,18 +1375,16 @@ class _MinimapPainter extends CustomPainter {
         ping.y * size.height,
       );
       final progress = ping.progress;
-      final ring = ui.Paint()
+      _ringPaint
         ..color = const Color(0xffffd166).withValues(
           alpha: 0.9 * (1 - progress),
         )
-        ..style = ui.PaintingStyle.stroke
         ..strokeWidth = 1.5;
-      canvas.drawCircle(position, 5 + progress * 17, ring);
-      final centre = ui.Paint()
-        ..color = const Color(0xffffd166).withValues(
-          alpha: 0.75 * (1 - progress),
-        );
-      canvas.drawCircle(position, 2, centre);
+      canvas.drawCircle(position, 5 + progress * 17, _ringPaint);
+      _fillPaint.color = const Color(0xffffd166).withValues(
+        alpha: 0.75 * (1 - progress),
+      );
+      canvas.drawCircle(position, 2, _fillPaint);
     }
 
     if (showTacticalSignals) {
@@ -1359,11 +1393,10 @@ class _MinimapPainter extends CustomPainter {
         final colour = event.kind == TelegraphEventKind.sprintStarted
             ? const Color(0xffffa72f)
             : const Color(0xff55d7ff);
-        final ring = ui.Paint()
+        _ringPaint
           ..color = colour.withValues(alpha: 0.55 * (1 - event.progress))
-          ..style = ui.PaintingStyle.stroke
           ..strokeWidth = 1.2;
-        canvas.drawCircle(position, 4 + event.progress * 12, ring);
+        canvas.drawCircle(position, 4 + event.progress * 12, _ringPaint);
       }
     }
 
@@ -1373,57 +1406,62 @@ class _MinimapPainter extends CustomPainter {
         marker.y * size.height,
       );
       final colour = _snakeColour(marker.colorIndex);
-      final paint = ui.Paint()
-        ..color = colour
-        ..style = ui.PaintingStyle.fill;
       canvas.drawCircle(
         position + const Offset(1, 1.5),
         marker.isPlayer ? 5.5 : 3.5,
-        ui.Paint()..color = const Color(0x99000000),
+        _markerShadowPaint,
       );
-      canvas.drawCircle(position, marker.isPlayer ? 5 : 3, paint);
+      _fillPaint
+        ..color = colour
+        ..style = ui.PaintingStyle.fill;
+      canvas.drawCircle(position, marker.isPlayer ? 5 : 3, _fillPaint);
       if (marker.isPlayer) {
+        _fillPaint.color = const Color(0xfff7fbff);
         canvas.drawCircle(
           position - const Offset(1.4, 1.4),
           1.25,
-          ui.Paint()..color = const Color(0xfff7fbff),
+          _fillPaint,
         );
       }
       if (marker.sprintAnticipating || marker.sprinting) {
-        final ring = ui.Paint()
+        _ringPaint
           ..color = colour.withValues(
             alpha: marker.sprinting ? 0.8 : 0.45,
           )
-          ..style = ui.PaintingStyle.stroke
           ..strokeWidth = marker.sprinting ? 2 : 1;
-        canvas.drawCircle(position, marker.isPlayer ? 10 : 7, ring);
+        canvas.drawCircle(
+          position,
+          marker.isPlayer ? 10 : 7,
+          _ringPaint,
+        );
       }
       if (showTacticalSignals && marker.intent == ActorIntent.retreating) {
-        final retreatPaint = ui.Paint()
+        _ringPaint
           ..color = colour.withValues(alpha: 0.65)
-          ..style = ui.PaintingStyle.stroke
           ..strokeWidth = 1;
-        canvas.drawCircle(position, marker.isPlayer ? 12 : 6, retreatPaint);
+        canvas.drawCircle(
+          position,
+          marker.isPlayer ? 12 : 6,
+          _ringPaint,
+        );
       }
       if (showTacticalSignals && marker.threatUrgency > 0) {
-        final threatPaint = ui.Paint()
+        _ringPaint
           ..color = const Color(0xffff5f56).withValues(
             alpha: 0.35 + marker.threatUrgency * 0.55,
           )
-          ..style = ui.PaintingStyle.stroke
           ..strokeWidth = 1.5;
         canvas.drawCircle(
           position,
           (marker.isPlayer ? 12 : 7) + marker.threatUrgency * 7,
-          threatPaint,
+          _ringPaint,
         );
       }
       if (marker.isPlayer) {
-        final ring = ui.Paint()
+        _ringPaint
           ..color = colour.withValues(alpha: 0.35)
-          ..style = ui.PaintingStyle.stroke
           ..strokeWidth = 1;
-        canvas.drawCircle(position, 9, ring);
+        canvas.drawCircle(position, 9, _ringPaint);
       }
     }
   }
