@@ -207,7 +207,8 @@ class SnakeState {
     this.radius = 10,
     this.segmentSpacing = 12,
     int initialLength = 12,
-  })  : heading = const Vec2(1, 0),
+  })  : previousHead = position,
+        heading = const Vec2(1, 0),
         spawnLength = initialLength,
         _logicalLength = initialLength,
         body = List<Vec2>.generate(
@@ -230,6 +231,7 @@ class SnakeState {
   final List<Vec2> movementTrail = [];
   final List<BodyChunkBounds> bodyChunks = [];
   Vec2 heading;
+  Vec2 previousHead;
   int _logicalLength;
   double _growthExpressionRemaining = 0;
   double sprintDrainAccumulator = 0;
