@@ -213,6 +213,7 @@ jobs:
             echo "run_id=${{ github.run_id }}"
             echo "commit=${{ github.sha }}"
             echo "toolchain=${{ steps.toolchain.outcome }}"
+            echo "dependencies=${{ steps.dependencies.outcome }}"
             echo "web_platform=${{ steps.web_platform.outcome }}"
             echo "drift_web_assets=${{ steps.drift_web_assets.outcome }}"
             echo "drift_codegen=${{ steps.drift_codegen.outcome }}"
@@ -227,6 +228,7 @@ jobs:
           } | tee ci-logs/summary.txt
 
           test "${{ steps.toolchain.outcome }}" = success
+          test "${{ steps.dependencies.outcome }}" = success
           test "${{ steps.web_platform.outcome }}" = success
           test "${{ steps.drift_web_assets.outcome }}" = success
           test "${{ steps.drift_codegen.outcome }}" = success
