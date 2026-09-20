@@ -128,7 +128,7 @@ jobs:
             curl --fail --location --silent --show-error \
               "https://dl.google.com/android/repository/$command_line_url" \
               --output "$RUNNER_TEMP/android-command-line-tools.zip"
-            printf '%s  %s\\n' "$command_line_sha256" \
+            printf '%s  %s\n' "$command_line_sha256" \
               "$RUNNER_TEMP/android-command-line-tools.zip" | sha256sum --check
             unzip -q "$RUNNER_TEMP/android-command-line-tools.zip" \
               -d "$RUNNER_TEMP/android-command-line-tools"
