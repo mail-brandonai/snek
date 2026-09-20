@@ -723,13 +723,17 @@ class _MutableBodyPoint extends Vec2 {
 }
 
 class GameSimulation {
-  GameSimulation({this.config = const SimulationConfig(), this.seed = 7})
-      : _random = math.Random(seed) {
+  GameSimulation({
+    this.config = const SimulationConfig(),
+    this.seed = 7,
+    this.playerColorIndex = 0,
+  }) : _random = math.Random(seed) {
     reset();
   }
 
   final SimulationConfig config;
   final int seed;
+  int playerColorIndex;
   math.Random _random;
   final List<SnakeState> snakes = [];
   final List<FoodPellet> pellets = [];
@@ -1112,7 +1116,7 @@ class GameSimulation {
         id: 'player',
         kind: SnakeKind.player,
         position: Vec2.zero,
-        colorIndex: 0,
+        colorIndex: playerColorIndex,
         speed: config.playerSpeed,
         initialLength: config.minimumSprintLength,
         segmentSpacing: config.segmentSpacing,

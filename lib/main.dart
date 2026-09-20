@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -11,6 +12,7 @@ import 'game/domain/minimap.dart';
 import 'game/domain/simulation.dart';
 import 'game/domain/vec2.dart';
 import 'game/presentation/arena_skin.dart';
+import 'game/presentation/snek_pen.dart';
 
 const _snakeColours = ArenaSkin.snakeColours;
 
@@ -25,10 +27,22 @@ class SlitherApp extends StatefulWidget {
   State<SlitherApp> createState() => _SlitherAppState();
 }
 
+enum _AppScreen { landing, pen, create, playing }
+
 class _SlitherAppState extends State<SlitherApp> {
   late final SlitherGame game;
   late final FocusNode _focusNode;
   bool _pointerButtonHeld = false;
+  bool _penLoaded = false;
+  bool _penLoading = false;
+  _AppScreen _screen = _AppScreen.landing;
+  List<SnekProfile> _sneks = <SnekProfile>[SnekProfile.starter];
+  String _selectedSnekId = SnekProfile.starter.id;
+
+  SnekProfile get _selectedSnek => _sneks.firstWhere(
+        (snek) => snek.id == _selectedSnekId,
+        orElse: () => _sneks.first,
+      );
 
   @override
   void initState() {
@@ -42,6 +56,191 @@ class _SlitherAppState extends State<SlitherApp> {
     game.hud.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _openPen() async {
+    if (_penLoading) return;
+    if (!_penLoaded) {
+      setState(() => _penLoading = true);
+      var snapshot = SnekPenSnapshot.defaults;
+      try {
+        snapshot = await SnekPenStore.load();
+      } catch (_) {
+        // Keep the starter snek available if local storage is unavailable.
+      }
+      if (!mounted) return;
+      setState(() {
+        _sneks = snapshot.sneks.isEmpty
+            ? <SnekProfile>[SnekProfile.starter]
+            : snapshot.sneks;
+        _selectedSnekId = _sneks.any(
+          (snek) => snek.id == snapshot.selectedSnekId,
+        )
+            ? snapshot.selectedSnekId
+            : _sneks.first.id;
+        _penLoaded = true;
+        _penLoading = false;
+        _screen = _AppScreen.pen;
+      });
+      return;
+    }
+    setState(() => _screen = _AppScreen.pen);
+  }
+
+  void _selectSnek(String id) {
+    setState(() => _selectedSnekId = id);
+    unawaited(_persistPen());
+  }
+
+  void _saveNewSnek(String name, int colorIndex) {
+    final snek = SnekProfile(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      name: name,
+      colorIndex: colorIndex,
+    );
+    setState(() {
+      _sneks = <SnekProfile>[..._sneks, snek];
+      _selectedSnekId = snek.id;
+      _screen = _AppScreen.pen;
+    });
+    unawaited(_persistPen());
+  }
+
+  Future<void> _persistPen() async {
+    try {
+      await SnekPenStore.save(
+        SnekPenSnapshot(
+          sneks: _sneks,
+          selectedSnekId: _selectedSnekId,
+        ),
+      );
+    } catch (error) {
+      debugPrint('Could not save the Snek Pen: $error');
+    }
+  }
+
+  void _playSelectedSnek() {
+    game.startWithSnek(_selectedSnek);
+    setState(() => _screen = _AppScreen.playing);
+    _focusNode.requestFocus();
+  }
+
+  void _returnHome() {
+    game.leaveGame();
+    setState(() => _screen = _AppScreen.landing);
+  }
+
+  void _returnToPen() {
+    game.leaveGame();
+    setState(() => _screen = _AppScreen.pen);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(useMaterial3: true).copyWith(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: ArenaSkin.accent,
+          brightness: Brightness.dark,
+        ),
+        scaffoldBackgroundColor: ArenaSkin.background,
+      ),
+      home: Scaffold(
+        backgroundColor: ArenaSkin.background,
+        body: SafeArea(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (_screen == _AppScreen.playing)
+                Focus(
+                  focusNode: _focusNode,
+                  autofocus: true,
+                  onFocusChange: (focused) {
+                    if (!focused) game.setKeyboardSprint(false);
+                  },
+                  onKeyEvent: (node, event) {
+                    if (event.logicalKey == LogicalKeyboardKey.space) {
+                      final isPressed =
+                          event is KeyDownEvent || event is KeyRepeatEvent;
+                      final isReleased = event is KeyUpEvent;
+                      if (isPressed || isReleased) {
+                        game.setKeyboardSprint(isPressed);
+                      }
+                      return KeyEventResult.handled;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: MouseRegion(
+                    onHover: (event) => game.setPointer(event.localPosition),
+                    child: Listener(
+                      onPointerDown: _handlePointerDown,
+                      onPointerMove: _handlePointerMove,
+                      onPointerUp: _handlePointerUp,
+                      onPointerCancel: _handlePointerCancel,
+                      child: GameWidget(game: game),
+                    ),
+                  ),
+                )
+              else
+                const ColoredBox(color: ArenaSkin.background),
+              ValueListenableBuilder<GameHud>(
+                valueListenable: game.hud,
+                builder: (context, state, child) => Stack(
+                  children: [
+                    IgnorePointer(
+                      ignoring:
+                          _screen != _AppScreen.playing || !state.gameOver,
+                      child: _Hud(
+                        state: state,
+                        onRestart: game.restart,
+                        onChangeSnek: _returnToPen,
+                      ),
+                    ),
+                    if (_screen == _AppScreen.playing)
+                      Positioned(
+                        top: 62,
+                        left: 16,
+                        child: _TacticsHudToggle(
+                          enabled: state.advancedHudEnabled,
+                          onPressed: game.toggleAdvancedHud,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (_screen == _AppScreen.landing)
+                Positioned.fill(
+                  child: SnekLandingScreen(
+                    selectedSnek: _selectedSnek,
+                    onOpenPen: _openPen,
+                  ),
+                ),
+              if (_screen == _AppScreen.pen)
+                Positioned.fill(
+                  child: SnekPenScreen(
+                    sneks: _sneks,
+                    selectedSnekId: _selectedSnekId,
+                    onBack: _returnHome,
+                    onSelect: _selectSnek,
+                    onCreate: () => setState(() => _screen = _AppScreen.create),
+                    onPlay: _playSelectedSnek,
+                  ),
+                ),
+              if (_screen == _AppScreen.create)
+                Positioned.fill(
+                  child: SnekCreateScreen(
+                    initialName: 'Snek ${_sneks.length + 1}',
+                    initialColorIndex: _selectedSnek.colorIndex,
+                    onBack: () => setState(() => _screen = _AppScreen.pen),
+                    onSave: _saveNewSnek,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _handlePointerDown(PointerDownEvent event) {
@@ -79,89 +278,12 @@ class _SlitherAppState extends State<SlitherApp> {
       game.setPointerSprint(false);
     }
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true).copyWith(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: ArenaSkin.accent,
-          brightness: Brightness.dark,
-        ),
-        scaffoldBackgroundColor: ArenaSkin.background,
-      ),
-      home: Scaffold(
-        backgroundColor: ArenaSkin.background,
-        body: SafeArea(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Focus(
-                focusNode: _focusNode,
-                autofocus: true,
-                onFocusChange: (focused) {
-                  if (!focused) game.setKeyboardSprint(false);
-                },
-                onKeyEvent: (node, event) {
-                  if (event.logicalKey == LogicalKeyboardKey.space) {
-                    final isPressed =
-                        event is KeyDownEvent || event is KeyRepeatEvent;
-                    final isReleased = event is KeyUpEvent;
-                    if (isPressed || isReleased) {
-                      game.setKeyboardSprint(isPressed);
-                    }
-                    return KeyEventResult.handled;
-                  }
-                  return KeyEventResult.ignored;
-                },
-                child: MouseRegion(
-                  onHover: (event) => game.setPointer(event.localPosition),
-                  child: Listener(
-                    onPointerDown: _handlePointerDown,
-                    onPointerMove: _handlePointerMove,
-                    onPointerUp: _handlePointerUp,
-                    onPointerCancel: _handlePointerCancel,
-                    child: GameWidget(game: game),
-                  ),
-                ),
-              ),
-              ValueListenableBuilder<GameHud>(
-                valueListenable: game.hud,
-                builder: (context, state, child) => Stack(
-                  children: [
-                    IgnorePointer(
-                      // During play, the HUD must not become a competing
-                      // hit-test target while the mouse is being dragged.
-                      // It remains interactive after game over for PLAY AGAIN.
-                      ignoring: !state.gameOver,
-                      child: _Hud(
-                        state: state,
-                        onRestart: game.restart,
-                      ),
-                    ),
-                    Positioned(
-                      top: 62,
-                      left: 16,
-                      child: _TacticsHudToggle(
-                        enabled: state.advancedHudEnabled,
-                        onPressed: game.toggleAdvancedHud,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class GameHud {
   const GameHud({
     required this.score,
+    required this.playerName,
     required this.length,
     required this.rank,
     required this.survivalSeconds,
@@ -181,6 +303,7 @@ class GameHud {
   });
 
   final int score;
+  final String playerName;
   final int length;
   final int rank;
   final double survivalSeconds;
@@ -200,11 +323,13 @@ class GameHud {
 }
 
 class SlitherGame extends FlameGame {
-  SlitherGame({SimulationConfig config = const SimulationConfig()})
-      : simulation = GameSimulation(config: config),
+  SlitherGame({
+    SimulationConfig config = const SimulationConfig(),
+  })  : simulation = GameSimulation(config: config),
         hud = ValueNotifier(
           const GameHud(
             score: 0,
+            playerName: 'Snek',
             length: 0,
             rank: 1,
             survivalSeconds: 0,
@@ -266,6 +391,8 @@ class SlitherGame extends FlameGame {
   double _hudTimer = 0;
   double _renderCameraX = 0;
   double _renderCameraY = 0;
+  String playerName = 'Snek';
+  bool _isActive = false;
 
   bool get sprinting =>
       simulation.canSprint && (_pointerSprint || _keyboardSprint);
@@ -275,7 +402,20 @@ class SlitherGame extends FlameGame {
     steering = Vec2(point.dx - centre.dx, point.dy - centre.dy);
   }
 
+  void startWithSnek(SnekProfile snek) {
+    playerName = snek.name;
+    simulation.playerColorIndex = snek.colorIndex;
+    restart();
+  }
+
+  void leaveGame() {
+    _isActive = false;
+    _pointerSprint = false;
+    _keyboardSprint = false;
+  }
+
   void restart() {
+    _isActive = true;
     _pointerSprint = false;
     _keyboardSprint = false;
     simulation.restart();
@@ -297,6 +437,7 @@ class SlitherGame extends FlameGame {
 
   @override
   void update(double dt) {
+    if (!_isActive) return;
     super.update(dt);
     simulation.update(dt, steering, sprinting: sprinting);
     _hudTimer += dt;
@@ -335,6 +476,7 @@ class SlitherGame extends FlameGame {
     final threats = simulation.playerThreats;
     hud.value = GameHud(
       score: simulation.score,
+      playerName: playerName,
       length: simulation.player.length,
       rank: simulation.playerRank,
       survivalSeconds: simulation.elapsed,
@@ -845,10 +987,15 @@ class _StatsPanel extends StatelessWidget {
 }
 
 class _Hud extends StatelessWidget {
-  const _Hud({required this.state, required this.onRestart});
+  const _Hud({
+    required this.state,
+    required this.onRestart,
+    required this.onChangeSnek,
+  });
 
   final GameHud state;
   final VoidCallback onRestart;
+  final VoidCallback onChangeSnek;
 
   String get _gameOverTitle {
     switch (state.gameOverReason) {
@@ -889,6 +1036,7 @@ class _Hud extends StatelessWidget {
           child: _LeaderboardPanel(
             entries: state.leaderboard,
             playerRank: state.rank,
+            playerName: state.playerName,
           ),
         ),
         Positioned(
@@ -950,6 +1098,14 @@ class _Hud extends StatelessWidget {
                       'The run has ended',
                       style: TextStyle(color: Colors.white60),
                     ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Snek ${state.playerName}',
+                      style: const TextStyle(
+                        color: ArenaSkin.accent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Score ${state.score}',
@@ -963,9 +1119,20 @@ class _Hud extends StatelessWidget {
                       style: const TextStyle(color: Colors.white70),
                     ),
                     const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: onRestart,
-                      child: const Text('PLAY AGAIN'),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 10,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton(
+                          onPressed: onRestart,
+                          child: const Text('PLAY AGAIN'),
+                        ),
+                        OutlinedButton(
+                          onPressed: onChangeSnek,
+                          child: const Text('SNEK PEN'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1022,10 +1189,15 @@ String _formatDuration(double seconds) {
 }
 
 class _LeaderboardPanel extends StatelessWidget {
-  const _LeaderboardPanel({required this.entries, required this.playerRank});
+  const _LeaderboardPanel({
+    required this.entries,
+    required this.playerRank,
+    required this.playerName,
+  });
 
   final List<LeaderboardEntry> entries;
   final int playerRank;
+  final String playerName;
 
   @override
   Widget build(BuildContext context) {
@@ -1042,11 +1214,12 @@ class _LeaderboardPanel extends StatelessWidget {
               style: TextStyle(fontSize: 10, letterSpacing: 1.2),
             ),
             const SizedBox(height: 5),
-            for (final entry in entries) _LeaderboardRow(entry: entry),
+            for (final entry in entries)
+              _LeaderboardRow(entry: entry, playerName: playerName),
             if (entries.every((entry) => !entry.isPlayer)) ...[
               const Divider(height: 8, color: Colors.white24),
               Text(
-                'YOU  #$playerRank',
+                '${playerName.toUpperCase()}  #$playerRank',
                 style: const TextStyle(
                   color: Color(0xffffc766),
                   fontSize: 10,
@@ -1062,16 +1235,20 @@ class _LeaderboardPanel extends StatelessWidget {
 }
 
 class _LeaderboardRow extends StatelessWidget {
-  const _LeaderboardRow({required this.entry});
+  const _LeaderboardRow({
+    required this.entry,
+    required this.playerName,
+  });
 
   final LeaderboardEntry entry;
+  final String playerName;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Text(
-        '${entry.rank}. ${entry.isPlayer ? 'YOU' : entry.id.toUpperCase()}  ${entry.length}',
+        '${entry.rank}. ${entry.isPlayer ? playerName.toUpperCase() : entry.id.toUpperCase()}  ${entry.length}',
         style: TextStyle(
           color: entry.isPlayer ? const Color(0xffffc766) : Colors.white70,
           fontSize: 10,
