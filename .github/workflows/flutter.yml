@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -22,7 +22,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true
+          cache: false
 
       - name: Install dependencies
         run: flutter pub get

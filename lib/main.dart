@@ -10,19 +10,9 @@ import 'game/domain/game_state.dart';
 import 'game/domain/minimap.dart';
 import 'game/domain/simulation.dart';
 import 'game/domain/vec2.dart';
+import 'game/presentation/arena_skin.dart';
 
-const _snakeColours = <Color>[
-  Color(0xffffa72f),
-  Color(0xff55d7ff),
-  Color(0xffd875ff),
-  Color(0xff79e36c),
-  Color(0xffff6f91),
-  Color(0xfff2d15c),
-  Color(0xff8d9eff),
-  Color(0xff48d1b5),
-  Color(0xffff8a4c),
-  Color(0xffc77dff),
-];
+const _snakeColours = ArenaSkin.snakeColours;
 
 void main() {
   runApp(const SlitherApp());
@@ -94,9 +84,15 @@ class _SlitherAppState extends State<SlitherApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true),
+      theme: ThemeData.dark(useMaterial3: true).copyWith(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: ArenaSkin.accent,
+          brightness: Brightness.dark,
+        ),
+        scaffoldBackgroundColor: ArenaSkin.background,
+      ),
       home: Scaffold(
-        backgroundColor: const Color(0xff080d18),
+        backgroundColor: ArenaSkin.background,
         body: SafeArea(
           child: Stack(
             fit: StackFit.expand,
@@ -231,29 +227,34 @@ class SlitherGame extends FlameGame {
   final GameSimulation simulation;
   final ValueNotifier<GameHud> hud;
   final ui.Paint _gridPaint = ui.Paint()
-    ..color = const Color(0xff172238)
+    ..color = ArenaSkin.tileLine
     ..style = ui.PaintingStyle.stroke
-    ..strokeWidth = 1;
-  final ui.Paint _naturalPelletPaint = ui.Paint()
-    ..color = const Color(0xcc54e8d1);
-  final List<ui.Paint> _droppedPelletPaints = List<ui.Paint>.generate(
-    _snakeColours.length,
-    (index) => ui.Paint()..color = _snakeColours[index].withValues(alpha: 0.95),
-  );
+    ..strokeWidth = 1.2;
+  final ui.Paint _gridFacePaint = ui.Paint()..color = ArenaSkin.tileFace;
+  final ui.Paint _gridLightEdgePaint = ui.Paint()
+    ..color = ArenaSkin.tileHighlight.withValues(alpha: 0.72)
+    ..style = ui.PaintingStyle.stroke
+    ..strokeWidth = 1.4;
+  final ui.Paint _gridShadeEdgePaint = ui.Paint()
+    ..color = ArenaSkin.tileShade.withValues(alpha: 0.92)
+    ..style = ui.PaintingStyle.stroke
+    ..strokeWidth = 1.8;
+  final ui.Paint _naturalPelletPaint = ArenaSkin.naturalPelletPaint;
+  final List<ui.Paint> _droppedPelletPaints = ArenaSkin.droppedPelletPaints;
   final List<ui.Paint> _droppedGlowPaints = List<ui.Paint>.generate(
     _snakeColours.length,
     (index) => ui.Paint()..color = _snakeColours[index].withValues(alpha: 0.13),
   );
-  final List<ui.Paint> _snakeBodyPaints = List<ui.Paint>.generate(
-    _snakeColours.length,
-    (index) => ui.Paint()
-      ..color = _snakeColours[index]
-      ..style = ui.PaintingStyle.fill,
-  );
+  final List<ui.Paint> _snakeBodyPaints = ArenaSkin.snakeBodyPaints;
   final ui.Paint _effectPaint = ui.Paint();
-  final ui.Paint _eyePaint = ui.Paint()..color = Colors.white;
-  final ui.Paint _pupilPaint = ui.Paint()..color = const Color(0xff142033);
+  final ui.Paint _eyePaint = ui.Paint()..color = const Color(0xfff7fbff);
+  final ui.Paint _pupilPaint = ui.Paint()..color = const Color(0xff07111d);
+  final ui.Paint _eyeGlintPaint = ui.Paint()
+    ..color = const Color(0xffffffff).withValues(alpha: 0.92);
   final ui.Path _visibleGridPath = ui.Path();
+  final ui.Path _visibleGridFacePath = ui.Path();
+  final ui.Path _visibleGridLightEdgePath = ui.Path();
+  final ui.Path _visibleGridShadeEdgePath = ui.Path();
   int _gridStartColumn = -1;
   int _gridEndColumn = -1;
   int _gridStartRow = -1;
@@ -306,7 +307,7 @@ class SlitherGame extends FlameGame {
   @override
   void render(ui.Canvas canvas) {
     super.render(canvas);
-    canvas.drawColor(const Color(0xff080d18), ui.BlendMode.srcOver);
+    canvas.drawColor(ArenaSkin.background, ui.BlendMode.srcOver);
     if (size.x == 0 || size.y == 0) return;
 
     canvas.save();
@@ -402,6 +403,9 @@ class SlitherGame extends FlameGame {
       _gridStartRow = startRow;
       _gridEndRow = endRow;
       _visibleGridPath.reset();
+      _visibleGridFacePath.reset();
+      _visibleGridLightEdgePath.reset();
+      _visibleGridShadeEdgePath.reset();
       for (var column = startColumn; column <= endColumn; column++) {
         final x = -radius + column * spacing;
         for (var row = startRow; row <= endRow; row++) {
@@ -410,23 +414,47 @@ class SlitherGame extends FlameGame {
             x + ((y ~/ spacing).isOdd ? spacing / 2 : 0),
             y,
           );
+          final vertices = <Offset>[];
           for (var index = 0; index < 6; index++) {
             final angle = index * 3.141592653589793 / 3;
             final point = Offset(
               centre.dx + 44 * math.cos(angle),
               centre.dy + 44 * math.sin(angle),
             );
+            vertices.add(point);
             if (index == 0) {
               _visibleGridPath.moveTo(point.dx, point.dy);
+              _visibleGridFacePath.moveTo(point.dx, point.dy);
             } else {
               _visibleGridPath.lineTo(point.dx, point.dy);
+              _visibleGridFacePath.lineTo(point.dx, point.dy);
             }
           }
           _visibleGridPath.close();
+          _visibleGridFacePath.close();
+
+          for (var index = 0; index < 6; index++) {
+            final start = vertices[index];
+            final end = vertices[(index + 1) % 6];
+            if (index == 3 || index == 4) {
+              _visibleGridLightEdgePath
+                ..moveTo(start.dx, start.dy)
+                ..lineTo(end.dx, end.dy);
+            }
+            if (index == 0 || index == 1) {
+              _visibleGridShadeEdgePath
+                ..moveTo(start.dx, start.dy)
+                ..lineTo(end.dx, end.dy);
+            }
+          }
         }
       }
     }
+
+    canvas.drawPath(_visibleGridFacePath, _gridFacePaint);
     canvas.drawPath(_visibleGridPath, _gridPaint);
+    canvas.drawPath(_visibleGridLightEdgePath, _gridLightEdgePaint);
+    canvas.drawPath(_visibleGridShadeEdgePath, _gridShadeEdgePaint);
 
     final viewportRadius = math.sqrt(size.x * size.x + size.y * size.y) / 2;
     final warningRadius = math
@@ -488,7 +516,8 @@ class SlitherGame extends FlameGame {
           (pellet.sourceColorIndex ?? 0).abs() % _snakeColours.length;
       final paint =
           dropped ? _droppedPelletPaints[colourIndex] : _naturalPelletPaint;
-      canvas.drawCircle(
+      _drawShadedCircle(
+        canvas,
         Offset(pellet.position.x, pellet.position.y),
         isDefeatDrop ? 8 : 4,
         paint,
@@ -620,7 +649,8 @@ class SlitherGame extends FlameGame {
         final double taper = (1 - index / (snake.body.length * 1.5))
             .clamp(minimumTaper, 1.0)
             .toDouble();
-        canvas.drawCircle(
+        _drawShadedCircle(
+          canvas,
           Offset(segment.x, segment.y),
           snake.radius * taper * (renderStride == 1 ? 1 : 1.22),
           bodyPaint,
@@ -629,26 +659,174 @@ class SlitherGame extends FlameGame {
     }
     final head = snake.head;
     if (!_isVisible(head, snake.radius + 12)) return;
-    canvas.drawCircle(Offset(head.x, head.y), snake.radius + 2, bodyPaint);
+    _drawShadedCircle(
+      canvas,
+      Offset(head.x, head.y),
+      snake.radius + 2,
+      bodyPaint,
+    );
     final perpendicular = Vec2(-snake.heading.y, snake.heading.x);
     for (final side in const [-1.0, 1.0]) {
       final eye = head + snake.heading * 5 + perpendicular * (side * 5);
-      canvas.drawCircle(Offset(eye.x, eye.y), 3.5, _eyePaint);
+      canvas.drawCircle(Offset(eye.x, eye.y), 3.8, _eyePaint);
       canvas.drawCircle(
         Offset(
           eye.x + snake.heading.x * 1.5,
           eye.y + snake.heading.y * 1.5,
         ),
-        1.8,
+        1.9,
         _pupilPaint,
       );
+      canvas.drawCircle(
+        Offset(eye.x - 0.9, eye.y - 1.1),
+        0.8,
+        _eyeGlintPaint,
+      );
     }
+  }
+
+  void _drawShadedCircle(
+    ui.Canvas canvas,
+    Offset centre,
+    double radius,
+    ui.Paint paint,
+  ) {
+    canvas
+      ..save()
+      ..translate(centre.dx, centre.dy)
+      ..scale(radius);
+    canvas.drawCircle(Offset.zero, 1, paint);
+    canvas.restore();
   }
 
   bool _isVisible(Vec2 position, double padding) {
     final centre = simulation.player.head;
     return (position.x - centre.x).abs() <= size.x / 2 + padding &&
         (position.y - centre.y).abs() <= size.y / 2 + padding;
+  }
+}
+
+class _HudMetric extends StatelessWidget {
+  const _HudMetric({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: ArenaSkin.textMuted,
+            fontSize: 8,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.1,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            color: accent,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            height: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HudStatusBadge extends StatelessWidget {
+  const _HudStatusBadge({required this.label, required this.accent});
+
+  final String label;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: accent.withValues(alpha: 0.48)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: accent,
+            fontSize: 8,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.9,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatsPanel extends StatelessWidget {
+  const _StatsPanel({required this.state});
+
+  final GameHud state;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: ArenaSkin.glassPanel(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 11,
+          runSpacing: 5,
+          children: [
+            _HudMetric(
+              label: 'SCORE',
+              value: state.score.toString(),
+              accent: ArenaSkin.accent,
+            ),
+            _HudMetric(
+              label: 'LENGTH',
+              value: state.length.toString(),
+              accent: const Color(0xff72e5f2),
+            ),
+            _HudMetric(
+              label: 'RANK',
+              value: '#${state.rank}',
+              accent: const Color(0xffc9d8ef),
+            ),
+            _HudMetric(
+              label: 'TIME',
+              value: _formatDuration(state.survivalSeconds),
+              accent: const Color(0xffc9d8ef),
+            ),
+            if (state.sprinting)
+              const _HudStatusBadge(
+                label: 'SPRINT',
+                accent: ArenaSkin.accent,
+              ),
+            if (state.boundaryWarningProgress > 0.45)
+              const _HudStatusBadge(
+                label: 'EDGE',
+                accent: ArenaSkin.danger,
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -670,6 +848,7 @@ class _Hud extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 420;
     return Stack(
       children: [
         if (state.boundaryWarningProgress > 0)
@@ -691,7 +870,7 @@ class _Hud extends StatelessWidget {
             ),
           ),
         Positioned(
-          top: 16,
+          top: compact ? 92 : 16,
           right: 16,
           child: _LeaderboardPanel(
             entries: state.leaderboard,
@@ -702,6 +881,7 @@ class _Hud extends StatelessWidget {
           right: 16,
           bottom: 16,
           child: _Minimap(
+            dimension: compact ? 112 : 142,
             markers: state.minimap,
             pings: state.minimapPings,
             events: state.minimapTelegraphEvents,
@@ -711,7 +891,7 @@ class _Hud extends StatelessWidget {
         if (state.advancedHudEnabled && state.threats.isNotEmpty)
           Positioned(
             left: 16,
-            top: 58,
+            top: compact ? 156 : 58,
             child: _ThreatPanel(threat: state.threats.first),
           ),
         if (state.advancedHudEnabled && state.tacticalDiagnostics.isNotEmpty)
@@ -730,30 +910,15 @@ class _Hud extends StatelessWidget {
         Positioned(
           top: 16,
           left: 16,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xcc0b1323),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 9,
-              ),
-              child: Text(
-                'SCORE  ${state.score}   LENGTH  ${state.length}'
-                '   RANK  ${state.rank}   TIME  ${_formatDuration(state.survivalSeconds)}'
-                '${state.sprinting ? '   SPRINT' : ''}'
-                '${state.boundaryWarningProgress > 0.45 ? '   EDGE' : ''}',
-                style: const TextStyle(fontSize: 12, letterSpacing: 1.2),
-              ),
-            ),
-          ),
+          child: _StatsPanel(state: state),
         ),
         if (state.gameOver)
           Center(
-            child: Card(
-              color: const Color(0xee101b30),
+            child: DecoratedBox(
+              decoration: ArenaSkin.glassPanel(
+                borderColor: const Color(0xff7191b1),
+                radius: 18,
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -812,10 +977,19 @@ class _TacticsHudToggle extends StatelessWidget {
     return TextButton.icon(
       onPressed: onPressed,
       style: TextButton.styleFrom(
-        foregroundColor: enabled ? const Color(0xffffc766) : Colors.white70,
-        backgroundColor: const Color(0xcc0b1323),
+        foregroundColor: enabled ? ArenaSkin.accent : ArenaSkin.textPrimary,
+        backgroundColor: ArenaSkin.panelBottom,
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        textStyle: const TextStyle(fontSize: 9, letterSpacing: 0.8),
+        textStyle: const TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(9),
+          side: const BorderSide(color: ArenaSkin.panelRim),
+        ),
+        elevation: enabled ? 4 : 1,
       ),
       icon: Icon(
         enabled ? Icons.visibility : Icons.visibility_off,
@@ -842,10 +1016,7 @@ class _LeaderboardPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xcc0b1323),
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: ArenaSkin.glassPanel(),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
         child: Column(
@@ -903,10 +1074,7 @@ class _ControlHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xcc0b1323),
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: ArenaSkin.glassPanel(),
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         child: Text(
@@ -920,12 +1088,14 @@ class _ControlHint extends StatelessWidget {
 
 class _Minimap extends StatelessWidget {
   const _Minimap({
+    required this.dimension,
     required this.markers,
     required this.pings,
     required this.events,
     required this.showTacticalSignals,
   });
 
+  final double dimension;
   final List<MinimapMarker> markers;
   final List<MinimapPing> pings;
   final List<MinimapTelegraphEvent> events;
@@ -934,8 +1104,8 @@ class _Minimap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 142,
-      height: 142,
+      width: dimension,
+      height: dimension,
       child: CustomPaint(
         painter: _MinimapPainter(
           markers,
@@ -956,10 +1126,9 @@ class _TacticalDiagnosticsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xcc16253b),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xff4f6f92)),
+      decoration: ArenaSkin.glassPanel(
+        borderColor: const Color(0xff5d83a3),
+        radius: 10,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
@@ -1002,10 +1171,9 @@ class _ThreatPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final urgency = (threat.urgency * 100).round();
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xcc301923),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xffa64655)),
+      decoration: ArenaSkin.glassPanel(
+        borderColor: const Color(0xffc35d6d),
+        radius: 10,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
@@ -1108,14 +1276,29 @@ class _MinimapPainter extends CustomPainter {
   @override
   void paint(ui.Canvas canvas, ui.Size size) {
     final rect = ui.Rect.fromLTWH(0, 0, size.width, size.height);
-    final panelPaint = ui.Paint()..color = const Color(0xcc0b1323);
-    canvas.drawRRect(
-      ui.RRect.fromRectAndRadius(rect, const ui.Radius.circular(12)),
-      panelPaint,
+    final panelRect = ui.RRect.fromRectAndRadius(
+      rect,
+      const ui.Radius.circular(12),
     );
+    final panelPath = ui.Path()..addRRect(panelRect);
+    canvas.drawShadow(
+      panelPath,
+      const Color(0xc0000000),
+      7,
+      true,
+    );
+    final panelPaint = ui.Paint()
+      ..shader = ui.Gradient.linear(
+        Offset.zero,
+        Offset(size.width, size.height),
+        const <Color>[ArenaSkin.panelTop, ArenaSkin.panelBottom],
+        null,
+        ui.TileMode.clamp,
+      );
+    canvas.drawRRect(panelRect, panelPaint);
 
     final borderPaint = ui.Paint()
-      ..color = const Color(0xff31415f)
+      ..color = ArenaSkin.panelRim
       ..style = ui.PaintingStyle.stroke
       ..strokeWidth = 1;
     canvas.drawRRect(
@@ -1126,15 +1309,29 @@ class _MinimapPainter extends CustomPainter {
       borderPaint,
     );
 
+    final arenaCentre = Offset(size.width / 2, size.height / 2);
+    final arenaRadius = size.width * 0.37;
+    final arenaFillPaint = ui.Paint()
+      ..shader = ui.Gradient.radial(
+        arenaCentre,
+        arenaRadius,
+        const <Color>[Color(0xff172941), Color(0xff091421)],
+        null,
+        ui.TileMode.clamp,
+      );
+    canvas.drawCircle(arenaCentre, arenaRadius, arenaFillPaint);
+    final gridPaint = ui.Paint()
+      ..color = const Color(0x1e9fc0e0)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 0.7;
+    for (var index = 1; index <= 3; index++) {
+      canvas.drawCircle(arenaCentre, arenaRadius * index / 4, gridPaint);
+    }
     final arenaPaint = ui.Paint()
-      ..color = const Color(0xffff5263).withValues(alpha: 0.7)
+      ..color = const Color(0xffff7180).withValues(alpha: 0.84)
       ..style = ui.PaintingStyle.stroke
       ..strokeWidth = 2;
-    canvas.drawCircle(
-      Offset(size.width / 2, size.height / 2),
-      size.width * 0.37,
-      arenaPaint,
-    );
+    canvas.drawCircle(arenaCentre, arenaRadius, arenaPaint);
 
     for (final ping in pings) {
       final position = Offset(
@@ -1176,8 +1373,22 @@ class _MinimapPainter extends CustomPainter {
         marker.y * size.height,
       );
       final colour = _snakeColour(marker.colorIndex);
-      final paint = ui.Paint()..color = colour;
+      final paint = ui.Paint()
+        ..color = colour
+        ..style = ui.PaintingStyle.fill;
+      canvas.drawCircle(
+        position + const Offset(1, 1.5),
+        marker.isPlayer ? 5.5 : 3.5,
+        ui.Paint()..color = const Color(0x99000000),
+      );
       canvas.drawCircle(position, marker.isPlayer ? 5 : 3, paint);
+      if (marker.isPlayer) {
+        canvas.drawCircle(
+          position - const Offset(1.4, 1.4),
+          1.25,
+          ui.Paint()..color = const Color(0xfff7fbff),
+        );
+      }
       if (marker.sprintAnticipating || marker.sprinting) {
         final ring = ui.Paint()
           ..color = colour.withValues(
