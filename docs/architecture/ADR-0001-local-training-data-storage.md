@@ -1,7 +1,7 @@
 # ADR 0001: Local persistence for Training Arena data
 
 - Date: 2026-09-20
-- Status: Candidate selected; Sprint 0 runtime validation is still required
+- Status: Drift selected; Sprint 0 runtime validation gates remain open
 - Scope: Snek Training Arena records, Soul lineages, profile bindings, and local match history
 
 ## Context
@@ -72,10 +72,13 @@ Run the same contract against Drift and a small Sembast comparison fixture where
 
 ## Current evidence and remaining gate
 
-Repository review on 2026-09-20 confirmed default branch `main`, current commit `4c50fb459bc21cdf6110597f5f88fc92959c5fbc`, Flutter/Flame targets, the profile store, and existing test seams. `.github/workflows/flutter.yml` and `.github/workflows/auto-merge.yml` both use `runs-on: self-hosted`. The Flutter workflow runs formatting, analysis, unit tests, and a Web release build; it does not currently run Android build/runtime checks.
+The Sprint 0 prototype is implemented in draft PR #5 on `sprint-0/storage-adapter-adr`, currently at `db5284843f2af6de822f885d88eadb6b445b026d`. It adds the Drift database and run store, versioned JSON DTOs with schema rejection, a pure-Dart controller boundary, persistence probes, and self-hosted CI coverage. All GitHub Actions jobs use `runs-on: self-hosted`; the workflow does not require `gh`.
 
-This workspace has no local Flutter/Dart executable and no repository checkout. Therefore no storage benchmark, Android runtime test, or browser persistence probe has been run here. Do not treat the 1 ms target or Drift's platform behavior as empirically confirmed. The Sprint 0 exit gate remains the validation matrix above, run on the configured self-hosted platforms before Sprint 1 adopts the adapter.
+Self-hosted workflow runs [#21](https://github.com/mail-brandonai/snek/actions/runs/35541287710) and [#22](https://github.com/mail-brandonai/snek/actions/runs/35541362952) verify code generation, formatting, analysis, unit tests, and the Web release build. They both end as failed checks because this runner lacks Chrome, `adb`, and the Android SDK: the Web probe reports no supported browser, the Android probe cannot find `adb`, and APK build reports no Android SDK. The compile error and analyzer findings from run #20 were fixed and the later analyze/unit-test steps pass.
 
+The persistence probe, when run on a platform, creates a run, writes ordered checksummed chunks, closes and reopens the database in the same process, finalizes idempotently, queries the record, and deletes it. It does not yet prove a page refresh or process-death restart, exhaustive crash/corruption recovery, deployed Web storage capabilities, or quota handling. No recording-on/off frame-time benchmark has been captured, and the provisional less-than-1-ms p95 target remains unmeasured. Do not report it as achieved.
+
+Sprint 0 is still open. Before adopting Drift in Sprint 1, run the probes on a self-hosted runner with Chrome and Android SDK/device support, add restart/recovery coverage, and capture the agreed recording-on/off performance measurements on identified reference hardware.
 ## References
 
 - Drift Web platform and storage-selection documentation: https://drift.simonbinder.eu/platforms/web/
@@ -86,4 +89,13 @@ This workspace has no local Flutter/Dart executable and no repository checkout. 
 
 ## Sprint 0 execution
 
-A minimal Drift run-header/chunk store and persistence probe now exercise chunk ordering, checksums, interrupted recording recovery after closing and reopening the database, idempotent finalization, status/date lookup, and deletion. The CI workflow downloads version-matched Drift WebAssembly/worker assets and runs Web persistence tests in Chrome plus Android integration persistence tests on the self-hosted runner. These checks are pending; this section will be updated from their results.
+Implementation and domain-contract work is in draft PR #5. The Drift store validates ordered chunk append, SHA-256 checksums, finalization integrity, idempotent finalization, status/date lookup, and deletion. Versioned run, control, observation, event, Soul revision, and participant DTOs reject unsupported schema versions. A pure-Dart controller interface and fake-controller test establish the simulation boundary.
+
+Latest code checks on self-hosted runner `on-prem-devbox-02` (Debian 12), for commit `db5284843f2af6de822f885d88eadb6b445b026d`:
+
+- Passed: Drift code generation, formatting, analysis, unit tests, Web platform preparation, Drift worker/WASM checksum verification, and Web release build.
+- Blocked by runner capabilities: Web persistence test (no Chrome device), Android persistence test (`adb: command not found`), and Android APK build (no Android SDK).
+- Overall Actions checks remain failed because the required platform jobs cannot run on the configured self-hosted runner.
+- Not measured: recorder overhead, recording-on/off frame timing, recovery after browser refresh or Android process death, and Web quota/storage-selection behavior.
+
+The CI workflow remains self-hosted-only. PR #5 remains a draft while these gates are open. Sprint 1 is not authorized by this ADR until the missing platform and performance evidence is recorded.
