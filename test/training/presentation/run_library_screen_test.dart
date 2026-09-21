@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -36,6 +37,48 @@ void main() {
 
   tearDown(() async {
     await database.close();
+  });
+
+  testWidgets('shows the debrief while analysis is pending', (
+    tester,
+  ) async {
+    await _createPendingRun(lifecycle, chunks, 'run-loading');
+    final analysisCompleter = Completer<Map<String, Object?>>();
+    Map<String, Object?>? analysisInput;
+    final delayedReview = RunReviewService(
+      runs: runs,
+      chunks: chunks,
+      lifecycle: lifecycle,
+      analysisRunner: (input) {
+        analysisInput = input;
+        return analysisCompleter.future;
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RunLibraryScreen(
+          service: delayedReview,
+          initialRunId: 'run-loading',
+          onBack: () {},
+        ),
+      ),
+    );
+    for (var attempt = 0; attempt < 20 && analysisInput == null; attempt++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+
+    expect(analysisInput, isNotNull);
+    expect(find.text('RUN DEBRIEF'), findsOneWidget);
+    expect(find.text('Test Snek'), findsOneWidget);
+    expect(find.text('Analyzing recorded behavior'), findsOneWidget);
+    expect(find.text('BEHAVIOR SIGNATURE'), findsOneWidget);
+
+    analysisCompleter.complete(analyzeRunReviewChunks(analysisInput!));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Analyzing recorded behavior'), findsNothing);
+    expect(find.text('OBSERVED EVIDENCE'), findsNWidgets(7));
   });
 
   testWidgets(

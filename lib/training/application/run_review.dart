@@ -93,14 +93,18 @@ class RunReviewService {
         .toList(growable: false);
   }
 
-  Future<RunReviewItem?> loadRun(String runId) async {
+  Future<TrainingRun?> loadRunHeader(String runId) async {
     final run = await runs.getRun(runId);
     if (run == null) return null;
     if (run.status == TrainingRunStatus.recording ||
         run.status == TrainingRunStatus.discarded) {
       throw StateError('Run is not available for review');
     }
-    final payloads = await chunks.chunkPayloadsFor(runId);
+    return run;
+  }
+
+  Future<RunReviewItem> analyzeRun(TrainingRun run) async {
+    final payloads = await chunks.chunkPayloadsFor(run.id);
     final result = await analysisRunner(<String, Object?>{
       'runId': run.id,
       'recordSchemaVersion': run.schemaVersion,
@@ -108,6 +112,12 @@ class RunReviewService {
       'chunkPayloads': payloads,
     });
     return RunReviewItem.fromWorkerResult(run, result);
+  }
+
+  Future<RunReviewItem?> loadRun(String runId) async {
+    final run = await loadRunHeader(runId);
+    if (run == null) return null;
+    return analyzeRun(run);
   }
 
   Future<void> keepRun(String runId) async {

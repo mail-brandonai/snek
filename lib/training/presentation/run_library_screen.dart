@@ -30,10 +30,13 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   late final Future<RunReviewService> _service;
   List<TrainingRun> _runs = const <TrainingRun>[];
   String? _selectedRunId;
+  TrainingRun? _selectedRun;
   RunReviewItem? _selectedItem;
   _RunFilter _filter = _RunFilter.pending;
   bool _loading = true;
+  bool _analysisLoading = false;
   bool _busy = false;
+  int _loadGeneration = 0;
   String? _error;
 
   @override
@@ -47,26 +50,40 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   }
 
   Future<void> _refresh() async {
+    final generation = ++_loadGeneration;
     setState(() {
       _loading = true;
+      _analysisLoading = false;
       _error = null;
     });
     try {
       final service = await _service;
       final runs = await service.listRuns();
       final selectedId = _selectedRunId;
-      final detail =
-          selectedId == null ? null : await service.loadRun(selectedId);
-      if (!mounted) return;
+      final selectedRun = selectedId == null
+          ? null
+          : await service.loadRunHeader(selectedId);
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _runs = runs;
-        _selectedItem = detail;
+        _selectedRun = selectedRun;
+        _selectedItem = null;
         _loading = false;
+        _analysisLoading = selectedRun != null;
+      });
+      if (selectedRun == null) return;
+
+      final detail = await service.analyzeRun(selectedRun);
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _selectedItem = detail;
+        _analysisLoading = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _loading = false;
+        _analysisLoading = false;
         _error = _errorMessage(error);
       });
     }
@@ -75,8 +92,10 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   Future<void> _openRun(String runId) async {
     setState(() {
       _selectedRunId = runId;
+      _selectedRun = null;
       _selectedItem = null;
       _loading = true;
+      _analysisLoading = false;
       _error = null;
     });
     await _refresh();
@@ -84,9 +103,12 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
 
   void _back() {
     if (_selectedRunId != null) {
+      _loadGeneration++;
       setState(() {
         _selectedRunId = null;
+        _selectedRun = null;
         _selectedItem = null;
+        _analysisLoading = false;
         _error = null;
       });
       return;
@@ -237,7 +259,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
               ),
             ),
             IconButton(
-              onPressed: _loading || _busy ? null : _refresh,
+              onPressed: _loading || _analysisLoading || _busy ? null : _refresh,
               tooltip: 'Refresh runs',
               icon: const Icon(Icons.refresh),
             ),
@@ -315,11 +337,99 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
     );
   }
 
+  Widget _analysisLoadingDetail(TrainingRun run) {
+    final configuredName = run.config['playerName'];
+    final playerName = configuredName is String &&
+            configuredName.trim().isNotEmpty
+        ? configuredName
+        : 'Unknown Snek';
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: Card(
+            color: const Color(0xff101d2a),
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          playerName,
+                          style: const TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      _statusBadge(run.status),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    run.mode.toUpperCase() +
+                        ' run  ·  ' +
+                        _formatDate(run.createdAtMs),
+                    style: const TextStyle(color: ArenaSkin.textMuted),
+                  ),
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _metric('Score', '—'),
+                      _metric('Length', '—'),
+                      _metric('Survival', '—'),
+                      _metric('Rank', '—'),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  _detailLine('Seed', run.seed.toString()),
+                  _detailLine('Run ID', run.id),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'BEHAVIOR SIGNATURE',
+                    style: TextStyle(
+                      color: ArenaSkin.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Row(
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text('Analyzing recorded behavior'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _detail() {
     final item = _selectedItem;
-    if (item == null) {
+    final run = item?.run ?? _selectedRun;
+    if (run == null) {
       return _messagePanel('Run not found or no longer available.');
     }
+    if (item == null) return _analysisLoadingDetail(run);
     final incomplete = item.run.status == TrainingRunStatus.incomplete;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 24),
