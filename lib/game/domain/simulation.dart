@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'game_state.dart';
+import 'simulation_capture.dart';
 import 'vec2.dart';
 
 class SimulationConfig {
@@ -294,6 +295,148 @@ class SimulationConfig {
   final double botResourceFieldRadius;
   final int botResourceFieldMinimumValue;
   final double botPlayerSprintRecoveryDuration;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'arenaRadius': arenaRadius,
+        'arenaBoundaryWarningBuffer': arenaBoundaryWarningBuffer,
+        'playerSpeed': playerSpeed,
+        'botSpeed': botSpeed,
+        'botTurnRate': botTurnRate,
+        'botSenseRadius': botSenseRadius,
+        'botBoundaryBuffer': botBoundaryBuffer,
+        'botSpawnRadius': botSpawnRadius,
+        'segmentSpacing': segmentSpacing,
+        'growthExpressionRate': growthExpressionRate,
+        'sprintMultiplier': sprintMultiplier,
+        'sprintDrainInterval': sprintDrainInterval,
+        'naturalPelletValue': naturalPelletValue,
+        'sprintDropValue': sprintDropValue,
+        'defeatDropValue': defeatDropValue,
+        'minimumSprintLength': minimumSprintLength,
+        'initialPellets': initialPellets,
+        'pelletRefillThreshold': pelletRefillThreshold,
+        'pelletRefillRate': pelletRefillRate,
+        'botCount': botCount,
+        'maxBotCount': maxBotCount,
+        'initialLength': initialLength,
+        'botRespawnDelay': botRespawnDelay,
+        'botRespawnSafeDistance': botRespawnSafeDistance,
+        'botRespawnAttempts': botRespawnAttempts,
+        'botPopulationInterval': botPopulationInterval,
+        'botPressureRadius': botPressureRadius,
+        'botPressureWeight': botPressureWeight,
+        'botInterceptLeadTime': botInterceptLeadTime,
+        'botDroppedMassWeight': botDroppedMassWeight,
+        'botGrowthMultiplier': botGrowthMultiplier,
+        'botRetreatLength': botRetreatLength,
+        'botRetreatBoundaryBuffer': botRetreatBoundaryBuffer,
+        'botRetreatWeight': botRetreatWeight,
+        'botSizeSpeedPenalty': botSizeSpeedPenalty,
+        'botSprintMultiplier': botSprintMultiplier,
+        'botSprintDuration': botSprintDuration,
+        'botSprintCooldown': botSprintCooldown,
+        'botSprintMinimumLength': botSprintMinimumLength,
+        'botSprintTriggerDistance': botSprintTriggerDistance,
+        'botMaximumLength': botMaximumLength,
+        'collisionPingDuration': collisionPingDuration,
+        'sprintAnticipationDuration': sprintAnticipationDuration,
+        'sprintPulseDuration': sprintPulseDuration,
+        'telegraphEventDuration': telegraphEventDuration,
+        'telegraphEventLimit': telegraphEventLimit,
+        'threatProjectionSeconds': threatProjectionSeconds,
+        'threatRadius': threatRadius,
+        'threatCommitmentThreshold': threatCommitmentThreshold,
+        'botTacticDecisionMin': botTacticDecisionMin,
+        'botTacticDecisionMax': botTacticDecisionMax,
+        'botTacticTurnVariance': botTacticTurnVariance,
+        'botTacticSpeedBoost': botTacticSpeedBoost,
+        'botTacticBrakeMultiplier': botTacticBrakeMultiplier,
+        'botTacticWeaveStrength': botTacticWeaveStrength,
+        'botCutoffLeadTime': botCutoffLeadTime,
+        'botFlankDistance': botFlankDistance,
+        'botEncircleGapDistance': botEncircleGapDistance,
+        'botBaitDistance': botBaitDistance,
+        'botEngagementRadius': botEngagementRadius,
+        'botEngagementLeadTime': botEngagementLeadTime,
+        'botEngagementWeight': botEngagementWeight,
+        'botEngagementLaneDistance': botEngagementLaneDistance,
+        'botEngagementSafetyRadius': botEngagementSafetyRadius,
+        'botCollisionLookahead': botCollisionLookahead,
+        'botCollisionSampleCount': botCollisionSampleCount,
+        'botCollisionAvoidanceRadius': botCollisionAvoidanceRadius,
+        'botCollisionAvoidanceWeight': botCollisionAvoidanceWeight,
+        'botPeerSeparationRadius': botPeerSeparationRadius,
+        'botPeerSeparationWeight': botPeerSeparationWeight,
+        'botDroppedMassSenseRadius': botDroppedMassSenseRadius,
+        'botDroppedMassClusterRadius': botDroppedMassClusterRadius,
+        'botDroppedMassControlWeight': botDroppedMassControlWeight,
+        'botDroppedMassGuardDistance': botDroppedMassGuardDistance,
+        'botDroppedMassGuardRadius': botDroppedMassGuardRadius,
+        'botRouteAvoidanceRadius': botRouteAvoidanceRadius,
+        'botRouteAvoidanceWeight': botRouteAvoidanceWeight,
+        'botDefensiveAvoidanceRadius': botDefensiveAvoidanceRadius,
+        'botDefensiveAvoidanceWeight': botDefensiveAvoidanceWeight,
+        'botAdaptiveLeadTime': botAdaptiveLeadTime,
+        'botClosedLoopWeight': botClosedLoopWeight,
+        'botCurvedRouteLeadTime': botCurvedRouteLeadTime,
+        'botEvasionReplanDistance': botEvasionReplanDistance,
+        'botScreenDistance': botScreenDistance,
+        'botDenyDistance': botDenyDistance,
+        'botGeometryPressureWeight': botGeometryPressureWeight,
+        'botAttackAbortDistance': botAttackAbortDistance,
+        'botAttackAbortSafety': botAttackAbortSafety,
+        'botFormationCommitmentDuration': botFormationCommitmentDuration,
+        'botFormationReplanDistance': botFormationReplanDistance,
+        'botFormationSeparationDistance': botFormationSeparationDistance,
+        'botFormationPressureWeight': botFormationPressureWeight,
+        'botPeerHardAvoidanceRadius': botPeerHardAvoidanceRadius,
+        'botPeerHardAvoidanceThreshold': botPeerHardAvoidanceThreshold,
+        'botPeerAbortThreshold': botPeerAbortThreshold,
+        'botAdaptiveMaximumLength': botAdaptiveMaximumLength,
+        'botAdaptiveGrowthGap': botAdaptiveGrowthGap,
+        'maxDroppedMass': maxDroppedMass,
+        'droppedMassLifetime': droppedMassLifetime,
+        'droppedMassMergeRadius': droppedMassMergeRadius,
+        'botCatchUpDelay': botCatchUpDelay,
+        'botCatchUpRate': botCatchUpRate,
+        'botCatchUpTargetFraction': botCatchUpTargetFraction,
+        'botTacticalDecisionInterval': botTacticalDecisionInterval,
+        'botPlannerLookahead': botPlannerLookahead,
+        'botRouteReservationDistance': botRouteReservationDistance,
+        'movementTrailTrimSlackSegments': movementTrailTrimSlackSegments,
+        'spatialBucketSize': spatialBucketSize,
+        'busyPlanningLoadThreshold': busyPlanningLoadThreshold,
+        'busyPlanningIntervalMultiplier': busyPlanningIntervalMultiplier,
+        'simulationStep': simulationStep,
+        'maxSimulationStepsPerUpdate': maxSimulationStepsPerUpdate,
+        'bodyIndexStrideThreshold': bodyIndexStrideThreshold,
+        'botManeuverStageDuration': botManeuverStageDuration,
+        'botManeuverCommitDuration': botManeuverCommitDuration,
+        'botManeuverRecoveryDuration': botManeuverRecoveryDuration,
+        'botPlayerMemoryDecay': botPlayerMemoryDecay,
+        'botReservationHorizon': botReservationHorizon,
+        'botYieldSpeedMultiplier': botYieldSpeedMultiplier,
+        'botHunterInitialCount': botHunterInitialCount,
+        'botHunterMaximumCount': botHunterMaximumCount,
+        'botHunterSecondPopulation': botHunterSecondPopulation,
+        'botHunterReentryDistance': botHunterReentryDistance,
+        'collisionCoreScale': collisionCoreScale,
+        'collisionTailTaper': collisionTailTaper,
+        'botParallelAlignmentThreshold': botParallelAlignmentThreshold,
+        'botParallelClosingThreshold': botParallelClosingThreshold,
+        'botOpportunitySenseRadius': botOpportunitySenseRadius,
+        'botOpportunityResponderLimit': botOpportunityResponderLimit,
+        'botOpportunityCommitmentDuration': botOpportunityCommitmentDuration,
+        'botEnclosureGraceDuration': botEnclosureGraceDuration,
+        'botEnclosureSampleLimit': botEnclosureSampleLimit,
+        'botEnclosureMinimumSweep': botEnclosureMinimumSweep,
+        'botHookMinimumSweepRatio': botHookMinimumSweepRatio,
+        'botHookClosureRadiusMultiplier': botHookClosureRadiusMultiplier,
+        'botTacticalPrecisionSafetyRadius': botTacticalPrecisionSafetyRadius,
+        'botResourceFieldRadius': botResourceFieldRadius,
+        'botResourceFieldMinimumValue': botResourceFieldMinimumValue,
+        'botPlayerSprintRecoveryDuration': botPlayerSprintRecoveryDuration,
+      };
 }
 
 class _BotProfile {
@@ -727,12 +870,14 @@ class GameSimulation {
     this.config = const SimulationConfig(),
     this.seed = 7,
     this.playerColorIndex = 0,
+    this.captureSink,
   }) : _random = math.Random(seed) {
     reset();
   }
 
   final SimulationConfig config;
   final int seed;
+  SimulationCaptureSink? captureSink;
   int playerColorIndex;
   math.Random _random;
   final List<SnakeState> snakes = [];
@@ -790,6 +935,13 @@ class GameSimulation {
   double _lastEnclosureConfidence = 0;
   String? _lastEnclosedBotId;
   double _simulationAccumulator = 0;
+  int _currentSimulationTick = 0;
+  int simulationTick = 0;
+  bool _isProcessingFixedStep = false;
+  final Map<String, double> _capturedThreatUrgencies = {};
+  final Map<String, ThreatSignal> _currentCaptureThreats = {};
+  final Map<String, String> _capturedBotRoles = {};
+  final Map<String, String> _capturedBotManeuvers = {};
   double _playerTurnCommitmentRemaining = 0;
   bool _playerTurnWasSharp = false;
   bool _playerTurnReplanPending = false;
@@ -1094,6 +1246,13 @@ class GameSimulation {
     _lastEnclosureConfidence = 0;
     _lastEnclosedBotId = null;
     _simulationAccumulator = 0;
+    _currentSimulationTick = 0;
+    simulationTick = 0;
+    _isProcessingFixedStep = false;
+    _capturedThreatUrgencies.clear();
+    _currentCaptureThreats.clear();
+    _capturedBotRoles.clear();
+    _capturedBotManeuvers.clear();
     _playerTurnCommitmentRemaining = 0;
     _playerTurnWasSharp = false;
     _playerTurnReplanPending = false;
@@ -1154,6 +1313,14 @@ class GameSimulation {
     // now runs on a bounded fixed-step budget; excess time is intentionally
     // discarded while short-lived presentation state still ages in real time.
     final boundedDt = dt.clamp(0.0, 0.5).toDouble();
+    if (captureSink != null && dt > boundedDt) {
+      _emitCaptureEvent(
+        SimulationEventKind.elapsedTimeDiscarded,
+        actorId: 'simulation',
+        value: dt - boundedDt,
+        detail: 'frameDeltaCap',
+      );
+    }
     final stepSize = math.max(0.001, config.simulationStep).toDouble();
     final maximumSteps =
         math.max(1, config.maxSimulationStepsPerUpdate).toInt();
@@ -1177,6 +1344,18 @@ class GameSimulation {
       processedSteps++;
       lastFixedStepCount++;
       _simulationAccumulator -= step;
+      simulationTick++;
+      _currentSimulationTick = simulationTick;
+      _isProcessingFixedStep = true;
+      final normalizedSteering = steering.normalized();
+      captureSink?.recordControl(
+        SimulationControlSample(
+          tick: simulationTick,
+          steeringX: normalizedSteering.x,
+          steeringY: normalizedSteering.y,
+          sprintRequested: player.sprintRequested,
+        ),
+      );
       _advancePlayerSprint(step);
       _steerPlayer(steering, step);
       _observePlayerRoute(step);
@@ -1201,6 +1380,12 @@ class GameSimulation {
       _advanceBotRespawns(step);
       _advanceBotPopulation(step);
       _maintainPelletDensity(step);
+      if (captureSink != null) {
+        _recordTacticalCaptureEvents();
+        if (simulationTick % 6 == 0) _recordObservationCapture();
+        captureSink?.completeStep(simulationTick);
+      }
+      _isProcessingFixedStep = false;
     }
 
     // Keep at most one fractional step. This is the anti-spiral boundary: a
@@ -1208,6 +1393,16 @@ class GameSimulation {
     // burst of expensive work on the next frame.
     if (processedSteps >= maximumSteps &&
         _simulationAccumulator >= stepSize - 1e-9) {
+      final discardedSeconds =
+          _simulationAccumulator - (_simulationAccumulator % stepSize);
+      if (captureSink != null && discardedSeconds > 0) {
+        _emitCaptureEvent(
+          SimulationEventKind.elapsedTimeDiscarded,
+          actorId: 'simulation',
+          value: discardedSeconds,
+          detail: 'fixedStepBudget',
+        );
+      }
       _simulationAccumulator %= stepSize;
     }
 
@@ -1215,6 +1410,170 @@ class GameSimulation {
     // advance less authoritative simulation time than wall time, but it can
     // never turn one missed deadline into another multi-pass frame spike.
     _enforceDroppedMassLimit();
+  }
+
+  void abandon() {
+    _emitCaptureEvent(
+      SimulationEventKind.abandoned,
+      actorId: player.id,
+    );
+  }
+
+  void _emitCaptureEvent(
+    SimulationEventKind kind, {
+    required String actorId,
+    String? targetId,
+    double? value,
+    String? detail,
+    Map<String, Object?>? metadata,
+  }) {
+    captureSink?.recordEvent(
+      SimulationEventSnapshot(
+        tick: _isProcessingFixedStep
+            ? _currentSimulationTick
+            : _currentSimulationTick + 1,
+        kind: kind,
+        actorId: actorId,
+        targetId: targetId,
+        value: value,
+        detail: detail,
+        metadata: metadata,
+      ),
+    );
+  }
+
+  void _recordTacticalCaptureEvents() {
+    final signals = player.alive ? playerThreats : const <ThreatSignal>[];
+    _currentCaptureThreats
+      ..clear()
+      ..addEntries(signals.map((signal) => MapEntry(signal.actorId, signal)));
+    final currentUrgencies = <String, double>{};
+    for (final signal in signals) {
+      currentUrgencies[signal.actorId] = signal.urgency;
+      final previous = _capturedThreatUrgencies[signal.actorId];
+      if (previous == null) {
+        _emitCaptureEvent(
+          SimulationEventKind.botPressureStarted,
+          actorId: player.id,
+          targetId: signal.actorId,
+          value: signal.urgency,
+        );
+      } else if ((signal.urgency - previous).abs() >= 0.2) {
+        _emitCaptureEvent(
+          SimulationEventKind.botPressureEscalated,
+          actorId: player.id,
+          targetId: signal.actorId,
+          value: signal.urgency,
+          detail: signal.urgency > previous ? 'increased' : 'decreased',
+        );
+      }
+    }
+    for (final actorId in _capturedThreatUrgencies.keys.toList()) {
+      if (!currentUrgencies.containsKey(actorId)) {
+        _emitCaptureEvent(
+          SimulationEventKind.botPressureEnded,
+          actorId: player.id,
+          targetId: actorId,
+        );
+      }
+    }
+    _capturedThreatUrgencies
+      ..clear()
+      ..addAll(currentUrgencies);
+
+    for (final actor in snakes) {
+      if (actor.kind != SnakeKind.bot) continue;
+      final role = actor.publicIntent.name;
+      final previousRole = _capturedBotRoles[actor.id];
+      if (previousRole != null && previousRole != role) {
+        _emitCaptureEvent(
+          SimulationEventKind.botRoleChanged,
+          actorId: actor.id,
+          detail: role,
+        );
+      }
+      _capturedBotRoles[actor.id] = role;
+
+      final maneuver = _botManeuvers[actor.id];
+      final maneuverState = maneuver == null
+          ? 'none'
+          : maneuver.kind.name + ':' + maneuver.phase.name;
+      final previousManeuver = _capturedBotManeuvers[actor.id];
+      if (previousManeuver != null && previousManeuver != maneuverState) {
+        _emitCaptureEvent(
+          SimulationEventKind.botManeuverChanged,
+          actorId: actor.id,
+          detail: maneuverState,
+        );
+      }
+      _capturedBotManeuvers[actor.id] = maneuverState;
+    }
+  }
+
+  void _recordObservationCapture() {
+    final sink = captureSink;
+    if (sink == null) return;
+    final actorSnapshots = <SimulationActorSnapshot>[];
+    for (final actor in snakes) {
+      if (!actor.alive) continue;
+      final maneuver = actor.kind == SnakeKind.bot ? _botManeuvers[actor.id] : null;
+      actorSnapshots.add(
+        SimulationActorSnapshot(
+          actorId: actor.id,
+          role: actor.kind.name,
+          positionX: actor.head.x,
+          positionY: actor.head.y,
+          headingX: actor.heading.x,
+          headingY: actor.heading.y,
+          length: actor.length,
+          sprintRequested: actor.sprintRequested,
+          sprinting: actor.sprinting,
+          intent: actor.publicIntent.name,
+          maneuver: maneuver?.kind.name,
+          maneuverPhase: maneuver?.phase.name,
+        ),
+      );
+    }
+    final nearbyNaturalFood = _nearbyFood(
+      player.head,
+      config.threatRadius,
+      _pelletBuckets,
+    ).length;
+    final nearbyDroppedMass = _nearbyFood(
+      player.head,
+      config.threatRadius,
+      _droppedMassBuckets,
+    ).length;
+    final warningBuffer = config.arenaBoundaryWarningBuffer;
+    final boundaryRisk = warningBuffer <= 0
+        ? 0.0
+        : ((player.head.length -
+                    (config.arenaRadius - warningBuffer) +
+                    player.radius) /
+                warningBuffer)
+            .clamp(0.0, 1.0)
+            .toDouble();
+    final threatSignals = _currentCaptureThreats.values.toList()
+      ..sort((left, right) => right.urgency.compareTo(left.urgency));
+    sink.recordObservation(
+      SimulationObservationSnapshot(
+        tick: simulationTick,
+        elapsedSeconds: simulationTick * config.simulationStep,
+        playerPositionX: player.head.x,
+        playerPositionY: player.head.y,
+        playerHeadingX: player.heading.x,
+        playerHeadingY: player.heading.y,
+        playerLength: player.length,
+        playerSprinting: player.sprinting,
+        nearestThreatDistance:
+            threatSignals.isEmpty ? null : threatSignals.first.distance,
+        nearbyThreatCount: threatSignals.length,
+        nearbyNaturalFoodCount: nearbyNaturalFood,
+        nearbyDroppedMassCount: nearbyDroppedMass,
+        boundaryRisk: boundaryRisk,
+        actors: actorSnapshots,
+      ),
+    );
   }
 
   void restart() => reset();
@@ -1240,6 +1599,10 @@ class GameSimulation {
     }
     actor.sprintRequested = true;
     actor.sprintAnticipationRemaining = config.sprintAnticipationDuration;
+    _emitCaptureEvent(
+      SimulationEventKind.sprintRequested,
+      actorId: actor.id,
+    );
     _recordTelegraphEvent(actor, TelegraphEventKind.sprintAnticipation);
   }
 
@@ -5217,6 +5580,13 @@ class GameSimulation {
   }
 
   void _recordTelegraphEvent(SnakeState actor, TelegraphEventKind kind) {
+    final captureKind = switch (kind) {
+      TelegraphEventKind.sprintAnticipation =>
+        SimulationEventKind.sprintAnticipation,
+      TelegraphEventKind.sprintStarted => SimulationEventKind.sprintStarted,
+      TelegraphEventKind.sprintEnded => SimulationEventKind.sprintEnded,
+    };
+    _emitCaptureEvent(captureKind, actorId: actor.id);
     telegraphEvents.insert(
       0,
       TelegraphEvent(
@@ -5480,6 +5850,20 @@ class GameSimulation {
                 )
                 .toInt()
             : requestedGrowth;
+        _emitCaptureEvent(
+          SimulationEventKind.foodCollected,
+          actorId: snake.id,
+          targetId: pellet.kind.name,
+          value: pellet.value.toDouble(),
+        );
+        if (growth > 0) {
+          _emitCaptureEvent(
+            SimulationEventKind.growth,
+            actorId: snake.id,
+            value: growth.toDouble(),
+            detail: pellet.kind.name,
+          );
+        }
         if (growth > 0) snake.grow(growth);
         if (snake.kind == SnakeKind.player) score += pellet.value;
       }
@@ -5563,15 +5947,54 @@ class GameSimulation {
           if (snake.kind == SnakeKind.bot && other.kind == SnakeKind.bot) {
             botPeerCollisionDeaths++;
           }
-          _defeat(snake, GameOverReason.bodyCollision);
+          _defeat(
+            snake,
+            GameOverReason.bodyCollision,
+            targetId: other.id,
+          );
           break;
         }
       }
     }
   }
 
-  void _defeat(SnakeState snake, GameOverReason reason) {
+  void _defeat(
+    SnakeState snake,
+    GameOverReason reason, {
+    String? targetId,
+  }) {
     if (!snake.alive) return;
+    if (reason == GameOverReason.bodyCollision) {
+      _emitCaptureEvent(
+        SimulationEventKind.collision,
+        actorId: snake.id,
+        targetId: targetId,
+        detail: reason.name,
+      );
+    }
+    _emitCaptureEvent(
+      SimulationEventKind.defeat,
+      actorId: snake.id,
+      targetId: targetId,
+      detail: reason.name,
+    );
+    if (snake.kind == SnakeKind.player) {
+      _emitCaptureEvent(
+        SimulationEventKind.runEnded,
+        actorId: snake.id,
+        targetId: targetId,
+        value: score.toDouble(),
+        detail: reason.name,
+        metadata: <String, Object?>{
+          'score': score,
+          'length': snake.length,
+          'survivalSeconds': elapsed,
+          'simulationElapsedSeconds':
+              _currentSimulationTick * config.simulationStep,
+          'rank': _rankForLength(snake.length),
+        },
+      );
+    }
     snake.alive = false;
     if (reason == GameOverReason.bodyCollision) {
       collisionPings.add(

@@ -73,6 +73,38 @@ class RunLifecycleService {
     );
   }
 
+  Future<void> markIncomplete({
+    required String runId,
+    required int finalizedAtMs,
+  }) {
+    final chunkRepository = chunks;
+    if (chunkRepository == null) {
+      throw StateError(
+        'A run chunk repository is required to mark a run incomplete',
+      );
+    }
+    return chunkRepository.markIncomplete(
+      runId: runId,
+      finalizedAtMs: finalizedAtMs,
+    );
+  }
+
+  Future<List<String>> recoverInterruptedRuns({
+    required int recoveredAtMs,
+  }) async {
+    final chunkRepository = chunks;
+    if (chunkRepository == null) return const <String>[];
+    final interrupted =
+        await runs.listRuns(status: TrainingRunStatus.recording);
+    for (final run in interrupted) {
+      await chunkRepository.markIncomplete(
+        runId: run.id,
+        finalizedAtMs: recoveredAtMs,
+      );
+    }
+    return interrupted.map((run) => run.id).toList(growable: false);
+  }
+
   Future<void> review(String runId, {required bool retain}) =>
       runs.setRunReviewStatus(
         runId,

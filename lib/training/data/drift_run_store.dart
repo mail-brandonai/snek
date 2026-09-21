@@ -7,6 +7,7 @@ import 'training_database.dart';
 
 const _recordingStatus = 'recording';
 const _pendingReviewStatus = 'pendingReview';
+const _incompleteStatus = 'incomplete';
 
 class DriftRunStore implements RunChunkRepository {
   const DriftRunStore(this.database);
@@ -102,6 +103,31 @@ class DriftRunStore implements RunChunkRepository {
           .write(
         RunHeadersCompanion(
           status: const Value(_pendingReviewStatus),
+          finalizedAtMs: Value(finalizedAtMs),
+        ),
+      );
+    });
+  }
+
+  @override
+  Future<void> markIncomplete({
+    required String runId,
+    required int finalizedAtMs,
+  }) async {
+    await database.transaction(() async {
+      final header = await (database.select(database.runHeaders)
+            ..where((row) => row.id.equals(runId)))
+          .getSingleOrNull();
+      if (header == null) throw StateError('Run does not exist');
+      if (header.status == _incompleteStatus) return;
+      if (header.status != _recordingStatus) {
+        throw StateError('Only a recording run can be marked incomplete');
+      }
+      await (database.update(database.runHeaders)
+            ..where((row) => row.id.equals(runId)))
+          .write(
+        RunHeadersCompanion(
+          status: const Value(_incompleteStatus),
           finalizedAtMs: Value(finalizedAtMs),
         ),
       );

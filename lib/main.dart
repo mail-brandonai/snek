@@ -13,6 +13,7 @@ import 'game/domain/simulation.dart';
 import 'game/domain/vec2.dart';
 import 'game/presentation/arena_skin.dart';
 import 'game/presentation/snek_pen.dart';
+import 'training/application/fixed_step_run_recorder.dart';
 import 'training/data/training_services.dart';
 import 'training/domain/training_models.dart';
 
@@ -55,6 +56,7 @@ class _SlitherAppState extends State<SlitherApp> {
 
   @override
   void dispose() {
+    game.leaveGame();
     game.hud.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -122,7 +124,7 @@ class _SlitherAppState extends State<SlitherApp> {
   }
 
   void _playSelectedSnek() {
-    game.startWithSnek(_selectedSnek);
+    unawaited(game.startWithSnek(_selectedSnek));
     setState(() => _screen = _AppScreen.playing);
     _focusNode.requestFocus();
   }
@@ -382,6 +384,10 @@ class SlitherGame extends FlameGame {
   final ui.Path _visibleGridFacePath = ui.Path();
   final ui.Path _visibleGridLightEdgePath = ui.Path();
   final ui.Path _visibleGridShadeEdgePath = ui.Path();
+  SnekProfile? _activeSnek;
+  FixedStepRunRecorder? _recorder;
+  int _runGeneration = 0;
+  bool _recorderFinalizing = false;
   int _gridStartColumn = -1;
   int _gridEndColumn = -1;
   int _gridStartRow = -1;
@@ -404,24 +410,108 @@ class SlitherGame extends FlameGame {
     steering = Vec2(point.dx - centre.dx, point.dy - centre.dy);
   }
 
-  void startWithSnek(SnekProfile snek) {
+  Future<void> startWithSnek(SnekProfile snek) async {
+    final generation = ++_runGeneration;
+    final previous = _recorder;
+    if (previous != null && !simulation.gameOver) simulation.abandon();
+    simulation.captureSink = null;
+    if (previous != null) {
+      final completedAtMs = DateTime.now().millisecondsSinceEpoch;
+      if (simulation.gameOver) {
+        await previous.finalize(finalizedAtMs: completedAtMs);
+      } else {
+        await previous.abort(finalizedAtMs: completedAtMs);
+      }
+    }
+    if (generation != _runGeneration) return;
+
+    _recorder = null;
+    _recorderFinalizing = false;
+    _activeSnek = snek;
     playerName = snek.name;
     simulation.playerColorIndex = snek.colorIndex;
-    restart();
+    simulation.restart();
+    _pointerSprint = false;
+    _keyboardSprint = false;
+
+    final createdAtMs = DateTime.now().millisecondsSinceEpoch;
+    final participants = simulation.snakes
+        .map(
+          (actor) => <String, Object?>{
+            'actorId': actor.id,
+            'role': actor.kind.name,
+            'controller':
+                actor.kind == SnakeKind.player ? 'human' : 'builtin',
+            'profileId': actor.kind == SnakeKind.player ? snek.id : null,
+          },
+        )
+        .toList(growable: false);
+    final run = TrainingRun(
+      id: 'run-' + DateTime.now().microsecondsSinceEpoch.toString(),
+      mode: 'manual',
+      seed: simulation.seed,
+      tickRateHz:
+          (1 / math.max(0.001, simulation.config.simulationStep)).round(),
+      createdAtMs: createdAtMs,
+      status: TrainingRunStatus.recording,
+      config: <String, Object?>{
+        'gameRulesVersion': 'snek-v1',
+        'simulation': simulation.config.toJson(),
+        'playerProfileId': snek.id,
+        'playerName': snek.name,
+        'playerColorIndex': snek.colorIndex,
+        'participants': participants,
+      },
+    );
+
+    FixedStepRunRecorder? recorder;
+    try {
+      recorder = await TrainingServices.beginRun(run);
+    } catch (error) {
+      debugPrint('Could not start the run recorder: $error');
+    }
+    if (generation != _runGeneration) {
+      if (recorder != null) {
+        await recorder.abort(
+          finalizedAtMs: DateTime.now().millisecondsSinceEpoch,
+        );
+      }
+      return;
+    }
+
+    _recorder = recorder;
+    simulation.captureSink = recorder;
+    _isActive = true;
+    _publishHud();
   }
 
   void leaveGame() {
+    _runGeneration++;
     _isActive = false;
     _pointerSprint = false;
     _keyboardSprint = false;
+    final recorder = _recorder;
+    _recorder = null;
+    if (recorder == null) {
+      simulation.captureSink = null;
+      return;
+    }
+    if (!simulation.gameOver) simulation.abandon();
+    simulation.captureSink = null;
+
+    final finalizedAtMs = DateTime.now().millisecondsSinceEpoch;
+    final completion = simulation.gameOver
+        ? recorder.finalize(finalizedAtMs: finalizedAtMs)
+        : recorder.abort(finalizedAtMs: finalizedAtMs);
+    unawaited(
+      completion.then<void>((_) {}).catchError((Object error) {
+        debugPrint('Could not close the run recorder: $error');
+      }),
+    );
   }
 
   void restart() {
-    _isActive = true;
-    _pointerSprint = false;
-    _keyboardSprint = false;
-    simulation.restart();
-    _publishHud();
+    unawaited(startWithSnek(_activeSnek ?? SnekProfile.starter));
   }
 
   void setPointerSprint(bool active) {
@@ -442,11 +532,32 @@ class SlitherGame extends FlameGame {
     if (!_isActive) return;
     super.update(dt);
     simulation.update(dt, steering, sprinting: sprinting);
+    _finalizeCompletedRun();
     _hudTimer += dt;
     if (_hudTimer >= 0.1) {
       _hudTimer = 0;
       _publishHud();
     }
+  }
+
+  void _finalizeCompletedRun() {
+    final recorder = _recorder;
+    if (!simulation.gameOver || recorder == null || _recorderFinalizing) return;
+    _recorderFinalizing = true;
+    unawaited(
+      recorder
+          .finalize(finalizedAtMs: DateTime.now().millisecondsSinceEpoch)
+          .then<void>((_) {
+            if (identical(_recorder, recorder)) {
+              _recorder = null;
+              _recorderFinalizing = false;
+            }
+          })
+          .catchError((Object error) {
+            debugPrint('Could not finalize the run recorder: $error');
+            _recorderFinalizing = false;
+          }),
+    );
   }
 
   @override
