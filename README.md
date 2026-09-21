@@ -35,7 +35,8 @@ Install Flutter with Dart 3.9 or later, then run:
 flutter create --platforms=web,android .
 flutter pub get
 bash tool/prepare_drift_web_assets.sh
-dart run isolate_manager:generate --single
+dart pub global activate isolate_manager_generator 0.4.2
+dart pub global run isolate_manager_generator:isolate_manager_generator --single
 flutter test
 flutter run -d chrome
 flutter build web --release

@@ -69,7 +69,8 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          dart run isolate_manager:generate --single 2>&1 | tee ci-logs/web-workers.log
+          dart pub global activate isolate_manager_generator 0.4.2 2>&1 | tee ci-logs/web-worker-generator-install.log
+          dart pub global run isolate_manager_generator:isolate_manager_generator --single 2>&1 | tee ci-logs/web-workers.log
 
       - name: Check formatting
         id: format
