@@ -189,7 +189,7 @@ void main() {
   });
 
   test('unsupported schemas are returned as typed compatibility results', () {
-    final extractor = const SoulFeatureExtractor();
+    const extractor = SoulFeatureExtractor();
     final unsupportedRecord = extractor.extract(
       runId: 'run-1',
       recordSchemaVersion: 99,
