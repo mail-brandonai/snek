@@ -74,6 +74,12 @@ jobs:
           set -o pipefail
           dart run build_runner build --delete-conflicting-outputs 2>&1 | tee ci-logs/drift-codegen.log
 
+      - name: Show model formatter output
+        run: |
+          echo FORMAT_OUTPUT_START
+          dart format --output=show lib/training/domain/training_models.dart
+          echo FORMAT_OUTPUT_END
+
       - name: Check formatting
         id: format
         continue-on-error: true
