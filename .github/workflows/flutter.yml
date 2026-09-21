@@ -14,28 +14,72 @@ permissions:
 jobs:
   test:
     runs-on: [self-hosted, linux, x64, snek]
+    timeout-minutes: 60
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: false
-
-      - name: Install dependencies
-        run: flutter pub get
-
       - name: Prepare CI logs
         run: mkdir -p ci-logs
+
+      - name: Install dependencies
+        id: dependencies
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter pub get 2>&1 | tee ci-logs/pub-get.log
+
+      - name: Verify preinstalled Snek toolchain
+        id: toolchain
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          test "$RUNNER_OS" = "Linux"
+          test "$(uname -m)" = "x86_64"
+          flutter_version="$(flutter --version --machine | jq -r '.frameworkVersion')"
+          echo "Flutter $flutter_version"
+          test "$flutter_version" = "3.47.5"
+          "$CHROME_EXECUTABLE" --version
+          chromedriver --version
+
+      - name: Prepare web platform
+        id: web_platform
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter create --platforms=web . 2>&1 | tee ci-logs/web-platform.log
+
+      - name: Prepare Drift web runtime assets
+        id: drift_web_assets
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mkdir -p web ci-logs
+          curl --fail --location --silent --show-error \
+            https://github.com/simolus3/drift/releases/download/drift-2.35.0/sqlite3.wasm \
+            --output web/sqlite3.wasm
+          curl --fail --location --silent --show-error \
+            https://github.com/simolus3/drift/releases/download/drift-2.35.0/drift_worker.js \
+            --output web/drift_worker.js
+          printf '%s  %s\n' \
+            13d3f11d05b39ba0618a7115fb41640a5d48b6300f5d3f325f554b42bd6688a4 \
+            web/sqlite3.wasm \
+            df0066e75363a9bed59a14eedbbded421c1f5910f8379812df164716aa2e6eed \
+            web/drift_worker.js | sha256sum --check
+
+      - name: Generate Drift database code
+        id: drift_codegen
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          dart run build_runner build --delete-conflicting-outputs 2>&1 | tee ci-logs/drift-codegen.log
 
       - name: Check formatting
         id: format
         continue-on-error: true
         run: |
           set -o pipefail
-          dart format --output=none --set-exit-if-changed lib test 2>&1 | tee ci-logs/format.log
+          dart format --output=none --set-exit-if-changed lib test integration_test test_driver 2>&1 | tee ci-logs/format.log
 
       - name: Analyze
         id: analyze
@@ -51,16 +95,39 @@ jobs:
           set -o pipefail
           flutter test --coverage 2>&1 | tee ci-logs/test.log
 
-      - name: Prepare web platform
-        id: web_platform
+      - name: Web persistence probe
+        id: web_storage
         continue-on-error: true
+        timeout-minutes: 6
         run: |
-          set -o pipefail
-          flutter create --platforms=web . 2>&1 | tee ci-logs/web-platform.log
+          set -euo pipefail
+          chromedriver --verbose --log-path=ci-logs/chromedriver.log --port=4444 >/dev/null 2>&1 &
+          chromedriver_pid=$!
+          trap 'kill "$chromedriver_pid" 2>/dev/null || true; wait "$chromedriver_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4444/status >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:4444/status >/dev/null
+          set +e
+          timeout --kill-after=15s 240s flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/web_persistence_probe_test.dart \
+            -d web-server 2>&1 | tee ci-logs/web-storage.log
+          probe_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$probe_status" -ne 0 ]; then
+            echo "Web persistence probe failed (exit $probe_status). ChromeDriver log:"
+            cat ci-logs/chromedriver.log
+            exit "$probe_status"
+          fi
 
       - name: Build web release
         id: build_web
         continue-on-error: true
+        timeout-minutes: 15
         run: |
           set -o pipefail
           flutter build web --release 2>&1 | tee ci-logs/build-web.log
@@ -72,17 +139,27 @@ jobs:
             echo "Flutter CI summary"
             echo "run_id=${{ github.run_id }}"
             echo "commit=${{ github.sha }}"
+            echo "toolchain=${{ steps.toolchain.outcome }}"
+            echo "dependencies=${{ steps.dependencies.outcome }}"
+            echo "web_platform=${{ steps.web_platform.outcome }}"
+            echo "drift_web_assets=${{ steps.drift_web_assets.outcome }}"
+            echo "drift_codegen=${{ steps.drift_codegen.outcome }}"
             echo "format=${{ steps.format.outcome }}"
             echo "analyze=${{ steps.analyze.outcome }}"
             echo "test=${{ steps.test.outcome }}"
-            echo "web_platform=${{ steps.web_platform.outcome }}"
+            echo "web_storage=${{ steps.web_storage.outcome }}"
             echo "build_web=${{ steps.build_web.outcome }}"
           } | tee ci-logs/summary.txt
 
+          test "${{ steps.toolchain.outcome }}" = success
+          test "${{ steps.dependencies.outcome }}" = success
+          test "${{ steps.web_platform.outcome }}" = success
+          test "${{ steps.drift_web_assets.outcome }}" = success
+          test "${{ steps.drift_codegen.outcome }}" = success
           test "${{ steps.format.outcome }}" = success
           test "${{ steps.analyze.outcome }}" = success
           test "${{ steps.test.outcome }}" = success
-          test "${{ steps.web_platform.outcome }}" = success
+          test "${{ steps.web_storage.outcome }}" = success
           test "${{ steps.build_web.outcome }}" = success
 
       - name: Upload CI logs
@@ -102,4 +179,3 @@ jobs:
           path: build/web/
           if-no-files-found: error
           retention-days: 14
-
