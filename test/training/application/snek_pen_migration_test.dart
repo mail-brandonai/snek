@@ -6,7 +6,7 @@ import 'package:slither/training/domain/training_repositories.dart';
 void main() {
   test('v1 migration preserves profiles and selection before clearing old data',
       () async {
-    final raw = '{"sneks":['
+    const raw = '{"sneks":['
         '{"id":"a","name":"Alpha","colorIndex":3},'
         '{"id":"b","name":"Beta","colorIndex":7}],'
         '"selectedSnekId":"b"}';

@@ -26,6 +26,7 @@ class DriftRunStore implements RunChunkRepository {
         );
   }
 
+  @override
   Future<void> appendChunk({
     required String runId,
     required int sequence,
@@ -69,6 +70,7 @@ class DriftRunStore implements RunChunkRepository {
     });
   }
 
+  @override
   Future<void> finalizeRun({
     required String runId,
     required int expectedChunkCount,
@@ -127,6 +129,7 @@ class DriftRunStore implements RunChunkRepository {
     return row?.status;
   }
 
+  @override
   Future<int> chunkCountFor(String runId) async {
     final rows = await (database.select(database.runChunks)
           ..where((chunk) => chunk.runId.equals(runId)))
@@ -146,6 +149,7 @@ class DriftRunStore implements RunChunkRepository {
     return rows.map((row) => row.id).toList(growable: false);
   }
 
+  @override
   Future<List<Uint8List>> chunkPayloadsFor(String runId) async {
     final rows = await (database.select(database.runChunks)
           ..where((chunk) => chunk.runId.equals(runId))

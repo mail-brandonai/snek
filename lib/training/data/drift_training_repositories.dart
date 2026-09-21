@@ -46,7 +46,8 @@ class DriftTrainingRepositories
   }
 
   @override
-  Future<void> savePen(SnekPenSnapshot snapshot) => database.transaction(() async {
+  Future<void> savePen(SnekPenSnapshot snapshot) =>
+      database.transaction(() async {
         await _writeRecord(_penKind, _penId, snapshot.toJson());
       });
 
@@ -104,7 +105,9 @@ class DriftTrainingRepositories
   ) async {
     if (status != TrainingRunStatus.retained &&
         status != TrainingRunStatus.discarded) {
-      throw const TrainingValidationException('Review status must be retained or discarded');
+      throw const TrainingValidationException(
+        'Review status must be retained or discarded',
+      );
     }
     await database.transaction(() async {
       final row = await (database.select(database.runHeaders)
@@ -127,7 +130,9 @@ class DriftTrainingRepositories
       for (final row in rows) {
         final revision = SoulRevision.fromJson(jsonDecode(row.payload));
         if (revision.sourceRunIds.contains(id)) {
-          throw StateError('Run is referenced by Soul revision ${revision.revisionId}');
+          throw StateError(
+            'Run is referenced by Soul revision ${revision.revisionId}',
+          );
         }
       }
       await (database.delete(database.runChunks)
@@ -187,7 +192,9 @@ class DriftTrainingRepositories
     required SoulRevision revision,
   }) async {
     if (soul.id != revision.soulId) {
-      throw const TrainingValidationException('Revision belongs to a different Soul');
+      throw const TrainingValidationException(
+        'Revision belongs to a different Soul',
+      );
     }
     await database.transaction(() async {
       await _writeRecord(_soulKind, soul.id, soul.toJson());
@@ -227,15 +234,20 @@ class DriftTrainingRepositories
   Future<void> saveMatch(TrainingMatch match) async {
     await database.transaction(() async {
       final pen = await loadPen();
-      final profileIds = pen?.sneks.map((profile) => profile.id).toSet() ?? <String>{};
+      final profileIds =
+          pen?.sneks.map((profile) => profile.id).toSet() ?? <String>{};
       for (final participant in match.participants) {
         final profileId = participant.snekProfileId;
         if (profileId != null && !profileIds.contains(profileId)) {
-          throw StateError('Match references a missing Snek profile: $profileId');
+          throw StateError(
+            'Match references a missing Snek profile: $profileId',
+          );
         }
         for (final revisionId in participant.soulRevisionIds) {
           if (await _record(_revisionKind, revisionId) == null) {
-            throw StateError('Match references a missing Soul revision: $revisionId');
+            throw StateError(
+              'Match references a missing Soul revision: $revisionId',
+            );
           }
         }
       }

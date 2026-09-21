@@ -87,7 +87,9 @@ class SoulRevisionService {
 
   Future<void> publish(Soul soul, SoulRevision revision) async {
     if (soul.id != revision.soulId) {
-      throw const TrainingValidationException('Revision belongs to a different Soul');
+      throw const TrainingValidationException(
+        'Revision belongs to a different Soul',
+      );
     }
     await souls.saveSoulRevision(soul: soul, revision: revision);
   }

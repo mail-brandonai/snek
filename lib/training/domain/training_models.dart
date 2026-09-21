@@ -62,11 +62,16 @@ class SnekPenSnapshot {
       throw const TrainingValidationException('Pen must contain a profile');
     }
     final ids = this.sneks.map((profile) => profile.id).toList();
-    if (ids.any((id) => id.trim().isEmpty) || ids.toSet().length != ids.length) {
-      throw const TrainingValidationException('Profile IDs must be unique and non-empty');
+    if (ids.any((id) => id.trim().isEmpty) ||
+        ids.toSet().length != ids.length) {
+      throw const TrainingValidationException(
+        'Profile IDs must be unique and non-empty',
+      );
     }
     if (!ids.contains(selectedSnekId)) {
-      throw const TrainingValidationException('Selected profile does not exist');
+      throw const TrainingValidationException(
+        'Selected profile does not exist',
+      );
     }
   }
 
@@ -233,18 +238,27 @@ class SoulRevision {
     _requireId(revisionId, 'Revision ID');
     _requireId(trainerVersion, 'Trainer version');
     _requireId(featureVersion, 'Feature version');
-    if (parentRevisionId != null) _requireId(parentRevisionId!, 'Parent revision ID');
+    if (parentRevisionId != null) {
+      _requireId(parentRevisionId!, 'Parent revision ID');
+    }
     if (this.sourceRunIds.isEmpty ||
         this.sourceRunIds.any((id) => id.trim().isEmpty) ||
         this.sourceRunIds.toSet().length != this.sourceRunIds.length) {
-      throw const TrainingValidationException('Source run IDs must be unique and non-empty');
+      throw const TrainingValidationException(
+        'Source run IDs must be unique and non-empty',
+      );
     }
     if (this.weights.isEmpty ||
         this.weights.keys.any((key) => key.trim().isEmpty) ||
         this.weights.values.any((weight) => !weight.isFinite || weight < 0)) {
-      throw const TrainingValidationException('Soul weights must be finite and non-negative');
+      throw const TrainingValidationException(
+        'Soul weights must be finite and non-negative',
+      );
     }
-    final total = this.weights.values.fold<double>(0, (sum, value) => sum + value);
+    final total = this.weights.values.fold<double>(
+      0,
+      (sum, value) => sum + value,
+    );
     if ((total - 1).abs() > 0.000001) {
       throw const TrainingValidationException('Soul weights must sum to 1');
     }
@@ -309,7 +323,9 @@ class MatchParticipant {
     if (snekProfileId != null) _requireId(snekProfileId!, 'Profile ID');
     if (this.soulRevisionIds.any((id) => id.trim().isEmpty) ||
         this.soulRevisionIds.toSet().length != this.soulRevisionIds.length) {
-      throw const TrainingValidationException('Participant revision IDs must be unique and non-empty');
+      throw const TrainingValidationException(
+        'Participant revision IDs must be unique and non-empty',
+      );
     }
   }
 
@@ -362,7 +378,9 @@ class TrainingMatch {
     if (this.participants.isEmpty ||
         this.participants.map((item) => item.actorId).toSet().length !=
             this.participants.length) {
-      throw const TrainingValidationException('Match participants must be non-empty with distinct IDs');
+      throw const TrainingValidationException(
+        'Match participants must be non-empty with distinct IDs',
+      );
     }
     _checkJsonValue(this.outcome);
   }
@@ -395,8 +413,9 @@ class TrainingMatch {
       mode: _string(map, 'mode'),
       startedAtMs: _integer(map, 'startedAtMs'),
       endedAtMs: _nullableInteger(map, 'endedAtMs'),
-      participants:
-          rawParticipants.map(MatchParticipant.fromJson).toList(growable: false),
+      participants: rawParticipants
+          .map(MatchParticipant.fromJson)
+          .toList(growable: false),
       outcome: _object(map['outcome'], 'outcome'),
     );
   }
@@ -406,7 +425,9 @@ Map<String, Object?> _object(Object? value, String label) {
   if (value is! Map) throw FormatException('Expected $label object');
   final result = <String, Object?>{};
   for (final entry in value.entries) {
-    if (entry.key is! String) throw FormatException('Expected string key in $label');
+    if (entry.key is! String) {
+    throw FormatException('Expected string key in $label');
+  }
     result[entry.key as String] = entry.value;
   }
   return result;
@@ -417,7 +438,9 @@ Map<String, Object?> _versionedObject(Object? value) {
   final version = map['schemaVersion'];
   if (version is! int) throw const FormatException('Missing schema version');
   if (version != currentTrainingRecordSchemaVersion) {
-    throw UnsupportedError('Unsupported training record schema version: $version');
+    throw UnsupportedError(
+      'Unsupported training record schema version: $version',
+    );
   }
   return map;
 }
