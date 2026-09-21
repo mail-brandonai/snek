@@ -114,10 +114,10 @@ jobs:
       - name: Web persistence probe
         id: web_storage
         continue-on-error: true
-        timeout-minutes: 10
+        timeout-minutes: 6
         run: |
           set -euo pipefail
-          chromedriver --port=4444 > ci-logs/chromedriver.log 2>&1 &
+          chromedriver --verbose --log-path=ci-logs/chromedriver.log --port=4444 >/dev/null 2>&1 &
           chromedriver_pid=$!
           trap 'kill "$chromedriver_pid" 2>/dev/null || true; wait "$chromedriver_pid" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 30); do
@@ -127,10 +127,18 @@ jobs:
             sleep 1
           done
           curl --fail --silent http://127.0.0.1:4444/status >/dev/null
-          flutter drive \
+          set +e
+          timeout --kill-after=15s 240s flutter drive \
             --driver=test_driver/integration_test.dart \
             --target=integration_test/web_persistence_probe_test.dart \
-            -d chrome 2>&1 | tee ci-logs/web-storage.log
+            -d web-server 2>&1 | tee ci-logs/web-storage.log
+          probe_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$probe_status" -ne 0 ]; then
+            echo "Web persistence probe failed (exit $probe_status). ChromeDriver log:"
+            cat ci-logs/chromedriver.log
+            exit "$probe_status"
+          fi
 
       - name: Start Android emulator
         id: android_platform
