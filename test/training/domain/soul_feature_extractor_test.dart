@@ -44,6 +44,10 @@ void main() {
     expect(massSeeking.inferredInterpretation, contains('Dropped-mass pickups'));
     expect(forage.confidence, FeatureConfidence.high);
     expect(massSeeking.confidence, FeatureConfidence.high);
+    expect(
+      () => forageCounts['natural'] = 0,
+      throwsUnsupportedError,
+    );
   });
 
   test('sprint-heavy samples include lean size and turning evidence', () {
