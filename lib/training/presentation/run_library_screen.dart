@@ -557,7 +557,10 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                       letterSpacing: 0.6,
                     ),
                   ),
-                  Text(trait.inferredInterpretation ?? 'No interpretation available.'),
+                  Text(
+                    trait.inferredInterpretation ??
+                        'No interpretation available.',
+                  ),
                 ],
               ),
             ),
@@ -591,20 +594,12 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      '${episode.actorId} · tick ${episode.onsetTick}'
-                      '${episode.actorManeuver == null ? '' : ' · ${episode.actorManeuver}'}',
+                      _pressureEpisodeTitle(episode),
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
+                    Text(_pressureEpisodeResponse(episode)),
                     Text(
-                      'Urgency ${episode.urgencyAtOnset?.toStringAsFixed(2) ?? '—'}'
-                      ' · response ${episode.responseAction}'
-                      ' · latency ${episode.responseLatencyTicks?.toString() ?? '—'} ticks'
-                      ' · duration ${episode.durationSeconds?.toStringAsFixed(2) ?? '—'} s',
-                    ),
-                    Text(
-                      'Outcome: ${episode.outcome}'
-                      ' · collisions: ${episode.playerCollisionCount}'
-                      ' · sprint requested: ${episode.sprintRequestedDuringEpisode}',
+                      _pressureEpisodeOutcome(episode),
                       style: const TextStyle(color: ArenaSkin.textMuted),
                     ),
                   ],
@@ -698,6 +693,24 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
     );
   }
 }
+
+String _pressureEpisodeTitle(PressureEpisodeSummary episode) {
+  final maneuver = episode.actorManeuver;
+  return '${episode.actorId} · tick ${episode.onsetTick}'
+      '${maneuver == null ? '' : ' · $maneuver'}';
+}
+
+String _pressureEpisodeResponse(PressureEpisodeSummary episode) {
+  final urgency = episode.urgencyAtOnset?.toStringAsFixed(2) ?? '—';
+  final latency = episode.responseLatencyTicks?.toString() ?? '—';
+  final duration = episode.durationSeconds?.toStringAsFixed(2) ?? '—';
+  return 'Urgency $urgency · response ${episode.responseAction}'
+      ' · latency $latency ticks · duration $duration s';
+}
+
+String _pressureEpisodeOutcome(PressureEpisodeSummary episode) =>
+    'Outcome: ${episode.outcome} · collisions: ${episode.playerCollisionCount}'
+    ' · sprint requested: ${episode.sprintRequestedDuringEpisode}';
 
 String _confidenceLabel(FeatureConfidence confidence) => switch (confidence) {
       FeatureConfidence.insufficient => 'INSUFFICIENT EVIDENCE',
