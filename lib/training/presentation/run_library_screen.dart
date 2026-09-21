@@ -52,7 +52,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
       final service = await _service;
       final runs = await service.listRuns();
       final selectedId = _selectedRunId;
-      final detail = selectedId == null ? null : await service.loadRun(selectedId);
+      final detail =
+          selectedId == null ? null : await service.loadRun(selectedId);
       if (!mounted) return;
       setState(() {
         _runs = runs;
@@ -174,8 +175,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  List<TrainingRun> get _visibleRuns => _runs
-      .where((run) {
+  List<TrainingRun> get _visibleRuns => _runs.where((run) {
         switch (_filter) {
           case _RunFilter.pending:
             return run.status == TrainingRunStatus.pendingReview;
@@ -184,8 +184,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
           case _RunFilter.incomplete:
             return run.status == TrainingRunStatus.incomplete;
         }
-      })
-      .toList(growable: false);
+      }).toList(growable: false);
 
   int _count(TrainingRunStatus status) =>
       _runs.where((run) => run.status == status).length;
@@ -253,17 +252,20 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
             spacing: 8,
             children: [
               ChoiceChip(
-                label: Text('PENDING ${_count(TrainingRunStatus.pendingReview)}'),
+                label:
+                    Text('PENDING ${_count(TrainingRunStatus.pendingReview)}'),
                 selected: _filter == _RunFilter.pending,
                 onSelected: (_) => setState(() => _filter = _RunFilter.pending),
               ),
               ChoiceChip(
                 label: Text('KEPT ${_count(TrainingRunStatus.retained)}'),
                 selected: _filter == _RunFilter.retained,
-                onSelected: (_) => setState(() => _filter = _RunFilter.retained),
+                onSelected: (_) =>
+                    setState(() => _filter = _RunFilter.retained),
               ),
               ChoiceChip(
-                label: Text('INCOMPLETE ${_count(TrainingRunStatus.incomplete)}'),
+                label:
+                    Text('INCOMPLETE ${_count(TrainingRunStatus.incomplete)}'),
                 selected: _filter == _RunFilter.incomplete,
                 onSelected: (_) =>
                     setState(() => _filter = _RunFilter.incomplete),
@@ -289,9 +291,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                   itemBuilder: (context, index) {
                     final run = visible[index];
                     final playerName = run.config['playerName'];
-                    final title = playerName is String
-                        ? playerName
-                        : 'Unknown Snek';
+                    final title =
+                        playerName is String ? playerName : 'Unknown Snek';
                     return Card(
                       color: const Color(0xff101d2a),
                       child: ListTile(
@@ -356,7 +357,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                     children: [
                       _metric('Score', item.score?.toString() ?? '—'),
                       _metric('Length', item.length?.toString() ?? '—'),
-                      _metric('Survival', _formatDuration(item.survivalSeconds)),
+                      _metric(
+                          'Survival', _formatDuration(item.survivalSeconds)),
                       _metric('Rank', item.rank?.toString() ?? '—'),
                     ],
                   ),
@@ -375,7 +377,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _detailLine('Player controls', item.controlSampleCount.toString()),
+                  _detailLine(
+                      'Player controls', item.controlSampleCount.toString()),
                   _detailLine(
                     'Actor observations',
                     item.observationSampleCount.toString(),
@@ -413,12 +416,14 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                             label: const Text('KEEP RUN'),
                           ),
                         OutlinedButton.icon(
-                          onPressed: _busy ? null : () => _showSoulActionStub(false),
+                          onPressed:
+                              _busy ? null : () => _showSoulActionStub(false),
                           icon: const Icon(Icons.auto_awesome_outlined),
                           label: const Text('CREATE SOUL'),
                         ),
                         OutlinedButton.icon(
-                          onPressed: _busy ? null : () => _showSoulActionStub(true),
+                          onPressed:
+                              _busy ? null : () => _showSoulActionStub(true),
                           icon: const Icon(Icons.tune),
                           label: const Text('REFINE SOUL'),
                         ),
@@ -481,7 +486,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
           children: [
             SizedBox(
               width: 150,
-              child: Text(label, style: const TextStyle(color: ArenaSkin.textMuted)),
+              child: Text(label,
+                  style: const TextStyle(color: ArenaSkin.textMuted)),
             ),
             Expanded(child: SelectableText(value)),
           ],

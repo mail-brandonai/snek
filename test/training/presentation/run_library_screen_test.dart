@@ -198,7 +198,8 @@ void main() {
       find.textContaining('Run is referenced by Soul revision revision-1'),
       findsOneWidget,
     );
-    expect((await runs.getRun('run-4'))?.status, TrainingRunStatus.pendingReview);
+    expect(
+        (await runs.getRun('run-4'))?.status, TrainingRunStatus.pendingReview);
     expect(await chunks.chunkCountFor('run-4'), 1);
   });
 }
