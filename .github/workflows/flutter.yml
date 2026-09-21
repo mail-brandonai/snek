@@ -73,6 +73,7 @@ jobs:
           android_packages="$(sdkmanager --list_installed 2>&1)"
           for package in \
             "platform-tools" \
+            "emulator" \
             "platforms;android-35" \
             "platforms;android-36" \
             "build-tools;36.0.0" \
