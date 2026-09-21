@@ -128,7 +128,7 @@ jobs:
           timeout --kill-after=15s 240s flutter drive \
             --driver=test_driver/integration_test.dart \
             --target=integration_test/web_persistence_probe_test.dart \
-            -d web-server 2>&1 | tee ci-logs/web-storage.log
+            -d chrome 2>&1 | tee ci-logs/web-storage.log
           probe_status=${PIPESTATUS[0]}
           set -e
           if [ "$probe_status" -ne 0 ]; then
