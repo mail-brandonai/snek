@@ -69,6 +69,15 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
+          dart format lib/training/domain/soul_feature_extractor.dart test/training/domain/soul_feature_extractor_test.dart 2>&1 | tee ci-logs/formatter-preview.log
+          echo FORMATTED_SOUL_BEGIN
+          base64 -w0 lib/training/domain/soul_feature_extractor.dart
+          echo
+          echo FORMATTED_SOUL_END
+          echo FORMATTED_TEST_BEGIN
+          base64 -w0 test/training/domain/soul_feature_extractor_test.dart
+          echo
+          echo FORMATTED_TEST_END
           dart format --output=none --set-exit-if-changed lib test integration_test test_driver 2>&1 | tee ci-logs/format.log
 
       - name: Analyze
