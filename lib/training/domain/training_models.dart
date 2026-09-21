@@ -23,8 +23,11 @@ class SnekProfile {
     required this.colorIndex,
   });
 
-  static const starter =
-      SnekProfile(id: 'starter-snek', name: 'Snek', colorIndex: 1);
+  static const starter = SnekProfile(
+    id: 'starter-snek',
+    name: 'Snek',
+    colorIndex: 1,
+  );
 
   final String id;
   final String name;
@@ -41,8 +44,11 @@ class SnekProfile {
     final id = map['id'];
     final name = map['name'];
     final colorIndex = map['colorIndex'];
-    if (id is! String || id.trim().isEmpty ||
-        name is! String || colorIndex is! num || !colorIndex.isFinite) {
+    if (id is! String ||
+        id.trim().isEmpty ||
+        name is! String ||
+        colorIndex is! num ||
+        !colorIndex.isFinite) {
       throw const FormatException('Invalid saved snek');
     }
     return SnekProfile(
@@ -141,7 +147,8 @@ class TrainingRun {
   }) : config = Map<String, Object?>.unmodifiable(config) {
     _requireId(id, 'Run ID');
     _requireId(mode, 'Run mode');
-    if (tickRateHz <= 0 || createdAtMs < 0 ||
+    if (tickRateHz <= 0 ||
+        createdAtMs < 0 ||
         (finalizedAtMs != null && finalizedAtMs! < createdAtMs)) {
       throw const TrainingValidationException('Invalid run timing or rate');
     }
