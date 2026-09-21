@@ -1607,6 +1607,8 @@ class GameSimulation {
   }
 
   void _cancelSprintRequest(SnakeState actor) {
+    final wasAnticipating =
+        actor.sprintRequested || actor.sprintAnticipationRemaining > 0;
     actor.sprintRequested = false;
     actor.sprintAnticipationRemaining = 0;
     if (actor.sprinting) {
@@ -1620,6 +1622,13 @@ class GameSimulation {
       }
     } else {
       actor.sprintDrainAccumulator = 0;
+      if (wasAnticipating) {
+        _emitCaptureEvent(
+          SimulationEventKind.sprintEnded,
+          actorId: actor.id,
+          detail: 'cancelledBeforeStart',
+        );
+      }
     }
   }
 
