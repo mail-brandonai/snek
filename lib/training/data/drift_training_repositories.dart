@@ -152,31 +152,46 @@ class DriftTrainingRepositories
     return row == null ? null : Soul.fromJson(jsonDecode(row.payload));
   }
 
+  Future<void> _insertRevision(SoulRevision revision) async {
+    if (await _record(_soulKind, revision.soulId) == null) {
+      throw StateError('Soul does not exist');
+    }
+    if (await _record(_revisionKind, revision.revisionId) != null) {
+      throw StateError('Soul revision IDs are immutable and must be unique');
+    }
+    final parentId = revision.parentRevisionId;
+    if (parentId != null) {
+      final parentRow = await _record(_revisionKind, parentId);
+      if (parentRow == null) throw StateError('Parent revision does not exist');
+      final parent = SoulRevision.fromJson(jsonDecode(parentRow.payload));
+      if (parent.soulId != revision.soulId) {
+        throw StateError('Parent revision belongs to a different Soul');
+      }
+    }
+    for (final runId in revision.sourceRunIds) {
+      final exists = await (database.select(database.runHeaders)
+            ..where((item) => item.id.equals(runId)))
+          .getSingleOrNull();
+      if (exists == null) throw StateError('Source run does not exist: $runId');
+    }
+    await _writeRecord(_revisionKind, revision.revisionId, revision.toJson());
+  }
+
   @override
-  Future<void> saveRevision(SoulRevision revision) async {
+  Future<void> saveRevision(SoulRevision revision) =>
+      database.transaction(() => _insertRevision(revision));
+
+  @override
+  Future<void> saveSoulRevision({
+    required Soul soul,
+    required SoulRevision revision,
+  }) async {
+    if (soul.id != revision.soulId) {
+      throw const TrainingValidationException('Revision belongs to a different Soul');
+    }
     await database.transaction(() async {
-      if (await _record(_soulKind, revision.soulId) == null) {
-        throw StateError('Soul does not exist');
-      }
-      if (await _record(_revisionKind, revision.revisionId) != null) {
-        throw StateError('Soul revision IDs are immutable and must be unique');
-      }
-      final parentId = revision.parentRevisionId;
-      if (parentId != null) {
-        final parentRow = await _record(_revisionKind, parentId);
-        if (parentRow == null) throw StateError('Parent revision does not exist');
-        final parent = SoulRevision.fromJson(jsonDecode(parentRow.payload));
-        if (parent.soulId != revision.soulId) {
-          throw StateError('Parent revision belongs to a different Soul');
-        }
-      }
-      for (final runId in revision.sourceRunIds) {
-        final exists = await (database.select(database.runHeaders)
-              ..where((item) => item.id.equals(runId)))
-            .getSingleOrNull();
-        if (exists == null) throw StateError('Source run does not exist: $runId');
-      }
-      await _writeRecord(_revisionKind, revision.revisionId, revision.toJson());
+      await _writeRecord(_soulKind, soul.id, soul.toJson());
+      await _insertRevision(revision);
     });
   }
 

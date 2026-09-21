@@ -45,15 +45,32 @@ class SnekPenMigrationService {
 }
 
 class RunLifecycleService {
-  const RunLifecycleService(this.runs);
+  const RunLifecycleService(this.runs, [this.chunks]);
 
   final RunRepository runs;
+  final RunChunkRepository? chunks;
 
   Future<void> start(TrainingRun run) {
     if (run.status != TrainingRunStatus.recording) {
       throw const TrainingValidationException('New runs must start recording');
     }
     return runs.createRun(run);
+  }
+
+  Future<void> finalize({
+    required String runId,
+    required int expectedChunkCount,
+    required int finalizedAtMs,
+  }) {
+    final chunkRepository = chunks;
+    if (chunkRepository == null) {
+      throw StateError('A run chunk repository is required to finalize runs');
+    }
+    return chunkRepository.finalizeRun(
+      runId: runId,
+      expectedChunkCount: expectedChunkCount,
+      finalizedAtMs: finalizedAtMs,
+    );
   }
 
   Future<void> review(String runId, {required bool retain}) =>
@@ -72,7 +89,6 @@ class SoulRevisionService {
     if (soul.id != revision.soulId) {
       throw const TrainingValidationException('Revision belongs to a different Soul');
     }
-    await souls.saveSoul(soul);
-    await souls.saveRevision(revision);
+    await souls.saveSoulRevision(soul: soul, revision: revision);
   }
 }

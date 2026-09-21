@@ -1,12 +1,14 @@
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 
+import '../domain/training_repositories.dart';
+
 import 'training_database.dart';
 
 const _recordingStatus = 'recording';
 const _pendingReviewStatus = 'pendingReview';
 
-class DriftRunStore {
+class DriftRunStore implements RunChunkRepository {
   const DriftRunStore(this.database);
 
   final TrainingDatabase database;

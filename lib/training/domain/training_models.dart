@@ -1,8 +1,7 @@
 import 'dart:convert';
 
 import 'controller_contract.dart';
-
-const currentTrainingRecordSchemaVersion = 1;
+import 'recording_contract.dart' show currentTrainingRecordSchemaVersion;
 
 class TrainingValidationException implements Exception {
   const TrainingValidationException(this.message);
@@ -49,7 +48,7 @@ class SnekProfile {
     return SnekProfile(
       id: id,
       name: name.trim().isEmpty ? 'Snek' : name.trim(),
-      colorIndex: colorIndex.toInt().clamp(0, 9),
+      colorIndex: colorIndex.toInt().clamp(0, 9).toInt(),
     );
   }
 }
@@ -183,7 +182,12 @@ class TrainingRun {
 }
 
 class Soul {
-  Soul({required this.id, required this.name, required this.createdAtMs}) {
+  Soul({
+    required this.id,
+    required this.name,
+    required this.createdAtMs,
+    this.schemaVersion = currentTrainingRecordSchemaVersion,
+  }) {
     _requireId(id, 'Soul ID');
     _requireId(name, 'Soul name');
     if (createdAtMs < 0) {
@@ -191,18 +195,20 @@ class Soul {
     }
   }
 
+  final int schemaVersion;
   final String id;
   final String name;
   final int createdAtMs;
 
   Map<String, Object?> toJson() => {
+        'schemaVersion': schemaVersion,
         'id': id,
         'name': name,
         'createdAtMs': createdAtMs,
       };
 
   factory Soul.fromJson(Object? value) {
-    final map = _object(value, 'Soul');
+    final map = _versionedObject(value);
     return Soul(
       id: _string(map, 'id'),
       name: _string(map, 'name'),
