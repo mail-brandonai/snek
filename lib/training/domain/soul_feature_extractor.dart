@@ -530,9 +530,8 @@ BehaviorTraitSummary _resourceTrait(_RecordedTrace trace) {
       ? null
       : pickups['natural']! / naturalExposureSamples;
   final massPickups = pickups['sprintDrop']! + pickups['defeatDrop']!;
-  final massRate = massExposureSamples == 0
-      ? null
-      : massPickups / massExposureSamples;
+  final massRate =
+      massExposureSamples == 0 ? null : massPickups / massExposureSamples;
   String? interpretation;
   if (mixedExposureSamples >= 3 && naturalRate != null && massRate != null) {
     if ((naturalRate - massRate).abs() < 0.000001) {
@@ -592,13 +591,11 @@ BehaviorTraitSummary _sizeAndAgilityTrait(_RecordedTrace trace) {
     confidence: _confidence(count, coverage, minimumSamples: 3),
     observedEvidence: <String, Object?>{
       'lengthSampleCount': lengths.length,
-      'minimumObservedLength': lengths.isEmpty
-          ? null
-          : lengths.reduce((a, b) => a < b ? a : b),
+      'minimumObservedLength':
+          lengths.isEmpty ? null : lengths.reduce((a, b) => a < b ? a : b),
       'meanObservedLength': averageLength,
-      'maximumObservedLength': lengths.isEmpty
-          ? null
-          : lengths.reduce((a, b) => a > b ? a : b),
+      'maximumObservedLength':
+          lengths.isEmpty ? null : lengths.reduce((a, b) => a > b ? a : b),
       'turnSampleCount': turns.length,
       'meanTurnRadiansPerObservation': averageTurn,
       'meanTurnDegreesPerObservation':
@@ -626,9 +623,8 @@ BehaviorTraitSummary _movementTrait(_RecordedTrace trace) {
   if (positions.length >= 2 && pathLength > 0) {
     final dx = positions.last.positionX! - positions.first.positionX!;
     final dy = positions.last.positionY! - positions.first.positionY!;
-    efficiency = (math.sqrt(dx * dx + dy * dy) / pathLength)
-        .clamp(0.0, 1.0)
-        .toDouble();
+    efficiency =
+        (math.sqrt(dx * dx + dy * dy) / pathLength).clamp(0.0, 1.0).toDouble();
   }
   final sampleCount = positions.length > 1 ? positions.length - 1 : 0;
   final coverage = _ratio(positions.length, trace.observations.length);
@@ -636,9 +632,8 @@ BehaviorTraitSummary _movementTrait(_RecordedTrace trace) {
     id: 'movementShape',
     label: 'Movement shape',
     sampleCount: sampleCount,
-    opportunityCount: trace.observations.length > 1
-        ? trace.observations.length - 1
-        : 0,
+    opportunityCount:
+        trace.observations.length > 1 ? trace.observations.length - 1 : 0,
     coverage: coverage,
     confidence: _confidence(sampleCount, coverage, minimumSamples: 3),
     observedEvidence: <String, Object?>{
@@ -670,8 +665,7 @@ BehaviorTraitSummary _sprintTrait(_RecordedTrace trace) {
   final activeCount =
       sprintingSamples.where((sample) => sample.sprinting!).length;
   final sampleCount = controlCount + sprintingSamples.length;
-  final opportunityCount =
-      trace.controls.length + trace.observations.length;
+  final opportunityCount = trace.controls.length + trace.observations.length;
   final coverage = _ratio(sampleCount, opportunityCount);
   final requestShare = _ratio(requestedCount, controlCount);
   final activeShare = _ratio(activeCount, sprintingSamples.length);
@@ -814,8 +808,7 @@ BehaviorTraitSummary _botCounterStrategyTrait(_RecordedTrace trace) {
   for (final event in trace.events) {
     if (event.kind == 'botManeuverChanged' && event.detail != null) {
       final maneuver = event.detail!.split(':').first;
-      maneuverTransitions[maneuver] =
-          (maneuverTransitions[maneuver] ?? 0) + 1;
+      maneuverTransitions[maneuver] = (maneuverTransitions[maneuver] ?? 0) + 1;
     } else if (event.kind == 'botRoleChanged' && event.detail != null) {
       roleTransitions[event.detail!] =
           (roleTransitions[event.detail!] ?? 0) + 1;
@@ -832,8 +825,7 @@ BehaviorTraitSummary _botCounterStrategyTrait(_RecordedTrace trace) {
       }
       final maneuver = actor.maneuver;
       if (maneuver != null) {
-        observedManeuvers[maneuver] =
-            (observedManeuvers[maneuver] ?? 0) + 1;
+        observedManeuvers[maneuver] = (observedManeuvers[maneuver] ?? 0) + 1;
       }
     }
   }
@@ -986,10 +978,9 @@ List<PressureEpisodeSummary> _buildPressureEpisodes(
         ),
         playerLengthAtOnset: onsetLength,
         playerLengthAtEnd: endLength,
-        playerLengthChange:
-            onsetLength == null || endLength == null
-                ? null
-                : endLength - onsetLength,
+        playerLengthChange: onsetLength == null || endLength == null
+            ? null
+            : endLength - onsetLength,
       );
     }),
   );
@@ -1047,8 +1038,7 @@ _PressureDraft? _removeOpenPressure(
       continue;
     }
     final steerChanged = _steeringChanged(baseline, sample);
-    final sprintChanged =
-        sample.sprintRequested != baseline.sprintRequested;
+    final sprintChanged = sample.sprintRequested != baseline.sprintRequested;
     if (steerChanged || sprintChanged) {
       final action = steerChanged && sprintChanged
           ? 'steering and sprint change'
