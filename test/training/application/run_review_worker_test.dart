@@ -10,7 +10,6 @@ import 'package:slither/training/data/training_database.dart';
 import 'package:slither/training/domain/training_application.dart';
 import 'package:slither/training/domain/training_models.dart';
 import 'package:slither/training/domain/soul_feature_extractor.dart';
-import 'package:slither/training/domain/training_repositories.dart';
 
 void main() {
   test('review service analyzes a run through its native isolate', () async {
