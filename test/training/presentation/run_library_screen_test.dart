@@ -82,6 +82,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('DISCARD RUN').first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('DISCARD RUN').first);
     await tester.pumpAndSettle();
     expect(find.text('Discard this run?'), findsOneWidget);
@@ -108,12 +110,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('CREATE SOUL'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('CREATE SOUL'));
     await tester.pumpAndSettle();
     expect(find.textContaining('scheduled for Sprint 5'), findsOneWidget);
     await tester.tap(find.text('CLOSE'));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('REFINE SOUL'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('REFINE SOUL'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Choose a target Soul'), findsOneWidget);
@@ -180,6 +186,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('DISCARD RUN').first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('DISCARD RUN').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('DISCARD RUN').last);
