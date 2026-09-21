@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import '../domain/recording_contract.dart'
     show currentTrainingRecordSchemaVersion;
+import '../domain/soul_feature_extractor.dart';
 import '../domain/training_application.dart';
 import '../domain/training_models.dart';
 import '../domain/training_repositories.dart';
@@ -10,6 +11,7 @@ import '../domain/training_repositories.dart';
 class RunReviewItem {
   const RunReviewItem({
     required this.run,
+    required this.featureAnalysis,
     required this.controlSampleCount,
     required this.observationSampleCount,
     required this.eventCount,
@@ -23,6 +25,7 @@ class RunReviewItem {
   });
 
   final TrainingRun run;
+  final SoulFeatureExtractionResult featureAnalysis;
   final int controlSampleCount;
   final int observationSampleCount;
   final int eventCount;
@@ -90,8 +93,16 @@ class RunReviewItem {
       }
     }
 
+    final featureAnalysis = const SoulFeatureExtractor().extract(
+      runId: run.id,
+      recordSchemaVersion: run.schemaVersion,
+      tickRateHz: run.tickRateHz,
+      chunkPayloads: payloads,
+    );
+
     return RunReviewItem(
       run: run,
+      featureAnalysis: featureAnalysis,
       controlSampleCount: controlCount,
       observationSampleCount: observationCount,
       eventCount: eventCount,
