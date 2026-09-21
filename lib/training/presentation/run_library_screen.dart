@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import '../../game/presentation/arena_skin.dart';
 import '../application/run_review.dart';
 import '../data/training_services.dart';
-import '../domain/training_models.dart';
 import '../domain/soul_feature_extractor.dart';
+import '../domain/training_models.dart';
 
 class RunLibraryScreen extends StatefulWidget {
   const RunLibraryScreen({
