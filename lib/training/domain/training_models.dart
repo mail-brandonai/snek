@@ -102,10 +102,10 @@ class SnekPenSnapshot {
     }
     final profiles = raw.map(SnekProfile.fromJson).toList(growable: false);
     final selected = map['selectedSnekId'];
-    final selectedId = selected is String &&
-            profiles.any((profile) => profile.id == selected)
-        ? selected
-        : profiles.first.id;
+    final selectedId =
+        selected is String && profiles.any((profile) => profile.id == selected)
+            ? selected
+            : profiles.first.id;
     try {
       return SnekPenSnapshot(sneks: profiles, selectedSnekId: selectedId);
     } on TrainingValidationException catch (error) {
@@ -263,9 +263,9 @@ class SoulRevision {
       );
     }
     final total = this.weights.values.fold<double>(
-      0,
-      (sum, value) => sum + value,
-    );
+          0,
+          (sum, value) => sum + value,
+        );
     if ((total - 1).abs() > 0.000001) {
       throw const TrainingValidationException('Soul weights must sum to 1');
     }
@@ -433,8 +433,8 @@ Map<String, Object?> _object(Object? value, String label) {
   final result = <String, Object?>{};
   for (final entry in value.entries) {
     if (entry.key is! String) {
-    throw FormatException('Expected string key in $label');
-  }
+      throw FormatException('Expected string key in $label');
+    }
     result[entry.key as String] = entry.value;
   }
   return result;
