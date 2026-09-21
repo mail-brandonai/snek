@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:isolate_manager/isolate_manager.dart';
 
 import '../domain/soul_feature_extractor.dart';
@@ -63,16 +65,22 @@ class RunReviewItem {
   }
 }
 
+typedef RunReviewAnalysisRunner = Future<Map<String, Object?>> Function(
+  Map<String, Object?> input,
+);
+
 class RunReviewService {
   const RunReviewService({
     required this.runs,
     required this.chunks,
     required this.lifecycle,
+    this.analysisRunner = _analyzeRunReviewInBackground,
   });
 
   final RunRepository runs;
   final RunChunkRepository chunks;
   final RunLifecycleService lifecycle;
+  final RunReviewAnalysisRunner analysisRunner;
 
   Future<List<TrainingRun>> listRuns() async {
     final all = await runs.listRuns();
@@ -94,29 +102,13 @@ class RunReviewService {
       throw StateError('Run is not available for review');
     }
     final payloads = await chunks.chunkPayloadsFor(runId);
-    final worker =
-        IsolateManager<Map<String, Object?>, Map<String, Object?>>.create(
-      analyzeRunReviewChunks,
-      workerName: 'analyzeRunReviewChunks',
-      debugName: 'run-review-analysis',
-    );
-    try {
-      await worker.start();
-      final result = await worker.compute(
-        <String, Object?>{
-          'runId': run.id,
-          'recordSchemaVersion': run.schemaVersion,
-          'tickRateHz': run.tickRateHz,
-          'chunkPayloads': payloads,
-        },
-        transferables: payloads
-            .map((payload) => payload.buffer)
-            .toList(growable: false),
-      );
-      return RunReviewItem.fromWorkerResult(run, result);
-    } finally {
-      await worker.stop();
-    }
+    final result = await analysisRunner(<String, Object?>{
+      'runId': run.id,
+      'recordSchemaVersion': run.schemaVersion,
+      'tickRateHz': run.tickRateHz,
+      'chunkPayloads': payloads,
+    });
+    return RunReviewItem.fromWorkerResult(run, result);
   }
 
   Future<void> keepRun(String runId) async {
@@ -149,5 +141,30 @@ int? _integer(Object? value) {
 }
 
 double? _decimal(Object? value) => value is num ? value.toDouble() : null;
-
 String? _string(Object? value) => value is String ? value : null;
+
+Future<Map<String, Object?>> _analyzeRunReviewInBackground(
+  Map<String, Object?> input,
+) async {
+  final rawPayloads = input['chunkPayloads'];
+  if (rawPayloads is! List<Uint8List>) {
+    throw StateError('Run chunk payloads are unavailable for analysis');
+  }
+  final worker =
+      IsolateManager<Map<String, Object?>, Map<String, Object?>>.create(
+    analyzeRunReviewChunks,
+    workerName: 'analyzeRunReviewChunks',
+    debugName: 'run-review-analysis',
+  );
+  try {
+    await worker.start();
+    return await worker.compute(
+      input,
+      transferables: rawPayloads
+          .map((payload) => payload.buffer)
+          .toList(growable: false),
+    );
+  } finally {
+    await worker.stop();
+  }
+}

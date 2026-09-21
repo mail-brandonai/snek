@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Prepare CI logs
         run: mkdir -p ci-logs
@@ -77,8 +79,9 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          git fetch --no-tags origin main
-          mapfile -t dart_files < <(git diff --name-only --diff-filter=ACMR origin/main...HEAD -- '*.dart')
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=ACMR "$base_sha...$head_sha" -- '*.dart')
           if ((${#dart_files[@]} > 0)); then
             dart format --output=none --set-exit-if-changed "${dart_files[@]}" 2>&1 | tee ci-logs/format.log
           else

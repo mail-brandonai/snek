@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slither/game/domain/simulation_capture.dart';
 import 'package:slither/training/application/run_review.dart';
+import 'package:slither/training/application/run_review_worker.dart';
 import 'package:slither/training/data/drift_run_store.dart';
 import 'package:slither/training/data/drift_training_repositories.dart';
 import 'package:slither/training/data/training_database.dart';
@@ -29,6 +30,7 @@ void main() {
       runs: runs,
       chunks: chunks,
       lifecycle: lifecycle,
+      analysisRunner: (input) async => analyzeRunReviewChunks(input),
     );
   });
 
@@ -48,7 +50,7 @@ void main() {
         ),
       ),
     );
-    await _pumpAndSettleAfterWorker(tester);
+    await tester.pumpAndSettle();
 
     expect(find.text('RUN DEBRIEF'), findsOneWidget);
     expect(find.text('BEHAVIOR SIGNATURE'), findsOneWidget);
@@ -67,7 +69,7 @@ void main() {
     await tester.ensureVisible(find.text('KEEP RUN'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('KEEP RUN'));
-    await _pumpAndSettleAfterWorker(tester);
+    await tester.pumpAndSettle();
 
     expect(
       (await runs.getRun('run-1'))?.status,
@@ -88,7 +90,7 @@ void main() {
         ),
       ),
     );
-    await _pumpAndSettleAfterWorker(tester);
+    await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('DISCARD RUN').first);
     await tester.pumpAndSettle();
@@ -116,7 +118,7 @@ void main() {
         ),
       ),
     );
-    await _pumpAndSettleAfterWorker(tester);
+    await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('CREATE SOUL'));
     await tester.pumpAndSettle();
@@ -158,7 +160,7 @@ void main() {
         ),
       ),
     );
-    await _pumpAndSettleAfterWorker(tester);
+    await tester.pumpAndSettle();
 
     expect(find.text('INCOMPLETE'), findsOneWidget);
     expect(
@@ -192,7 +194,7 @@ void main() {
         ),
       ),
     );
-    await _pumpAndSettleAfterWorker(tester);
+    await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('DISCARD RUN').first);
     await tester.pumpAndSettle();
@@ -277,10 +279,3 @@ TrainingRun _run(String id) => TrainingRun(
         'playerProfileId': 'starter-snek',
       },
     );
-
-Future<void> _pumpAndSettleAfterWorker(WidgetTester tester) async {
-  await tester.runAsync(
-    () => Future<void>.delayed(const Duration(seconds: 1)),
-  );
-  await tester.pumpAndSettle();
-}
