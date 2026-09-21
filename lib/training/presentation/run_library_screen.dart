@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../game/presentation/arena_skin.dart';
 import '../application/run_review.dart';
 import '../data/training_services.dart';
 import '../domain/training_models.dart';
+import '../domain/soul_feature_extractor.dart';
 
 class RunLibraryScreen extends StatefulWidget {
   const RunLibraryScreen({
@@ -384,6 +387,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                     item.observationSampleCount.toString(),
                   ),
                   _detailLine('Semantic events', item.eventCount.toString()),
+                  _behaviorSignature(item.featureAnalysis),
                   if (incomplete) ...[
                     const SizedBox(height: 16),
                     const DecoratedBox(
@@ -451,6 +455,163 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _behaviorSignature(SoulFeatureExtractionResult result) {
+    final signature = result.signature;
+    final heading = const Text(
+      'BEHAVIOR SIGNATURE',
+      style: TextStyle(
+        color: ArenaSkin.accent,
+        fontSize: 12,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.1,
+      ),
+    );
+    if (!result.isReady || signature == null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            heading,
+            const SizedBox(height: 8),
+            Text(result.message ?? 'Behavior evidence is unavailable.'),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          heading,
+          const SizedBox(height: 8),
+          Text(
+            '${signature.featureVersion} · '
+            '${signature.controlSampleCount} controls · '
+            '${signature.observationSampleCount} observations · '
+            '${signature.eventCount} events',
+            style: const TextStyle(color: ArenaSkin.textMuted),
+          ),
+          const SizedBox(height: 10),
+          for (final trait in signature.traits)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0x332f4b64),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          trait.label,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      Text(
+                        _confidenceLabel(trait.confidence),
+                        style: const TextStyle(
+                          color: ArenaSkin.accent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${trait.sampleCount} samples · '
+                    '${trait.opportunityCount} opportunities · '
+                    '${(trait.coverage * 100).round()}% coverage',
+                    style: const TextStyle(color: ArenaSkin.textMuted),
+                  ),
+                  const SizedBox(height: 7),
+                  const Text(
+                    'OBSERVED EVIDENCE',
+                    style: TextStyle(
+                      color: ArenaSkin.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  SelectableText(jsonEncode(trait.observedEvidence)),
+                  const SizedBox(height: 5),
+                  const Text(
+                    'INFERRED INTERPRETATION',
+                    style: TextStyle(
+                      color: ArenaSkin.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  Text(trait.inferredInterpretation ?? 'No interpretation available.'),
+                ],
+              ),
+            ),
+          const SizedBox(height: 6),
+          const Text(
+            'PRESSURE EPISODES',
+            style: TextStyle(
+              color: ArenaSkin.accent,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (signature.pressureEpisodes.isEmpty)
+            const Text(
+              'No pressure episodes were recorded. Threat response has '
+              'insufficient evidence.',
+              style: TextStyle(color: ArenaSkin.textMuted),
+            ),
+          for (final episode in signature.pressureEpisodes)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0x332f4b64),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      '${episode.actorId} · tick ${episode.onsetTick}'
+                      '${episode.actorManeuver == null ? '' : ' · ${episode.actorManeuver}'}',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      'Urgency ${episode.urgencyAtOnset?.toStringAsFixed(2) ?? '—'}'
+                      ' · response ${episode.responseAction}'
+                      ' · latency ${episode.responseLatencyTicks?.toString() ?? '—'} ticks'
+                      ' · duration ${episode.durationSeconds?.toStringAsFixed(2) ?? '—'} s',
+                    ),
+                    Text(
+                      'Outcome: ${episode.outcome}'
+                      ' · collisions: ${episode.playerCollisionCount}'
+                      ' · sprint requested: ${episode.sprintRequestedDuringEpisode}',
+                      style: const TextStyle(color: ArenaSkin.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -537,6 +698,13 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
     );
   }
 }
+
+String _confidenceLabel(FeatureConfidence confidence) => switch (confidence) {
+      FeatureConfidence.insufficient => 'INSUFFICIENT EVIDENCE',
+      FeatureConfidence.low => 'LOW CONFIDENCE',
+      FeatureConfidence.moderate => 'MODERATE CONFIDENCE',
+      FeatureConfidence.high => 'HIGH CONFIDENCE',
+    };
 
 String _outcomeLabel(String? outcome) => switch (outcome) {
       'bodyCollision' => 'Body collision',
