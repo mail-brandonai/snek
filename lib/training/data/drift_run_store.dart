@@ -1,12 +1,14 @@
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 
+import '../domain/training_repositories.dart';
+
 import 'training_database.dart';
 
 const _recordingStatus = 'recording';
 const _pendingReviewStatus = 'pendingReview';
 
-class DriftRunStore {
+class DriftRunStore implements RunChunkRepository {
   const DriftRunStore(this.database);
 
   final TrainingDatabase database;
@@ -24,6 +26,7 @@ class DriftRunStore {
         );
   }
 
+  @override
   Future<void> appendChunk({
     required String runId,
     required int sequence,
@@ -67,6 +70,7 @@ class DriftRunStore {
     });
   }
 
+  @override
   Future<void> finalizeRun({
     required String runId,
     required int expectedChunkCount,
@@ -125,6 +129,7 @@ class DriftRunStore {
     return row?.status;
   }
 
+  @override
   Future<int> chunkCountFor(String runId) async {
     final rows = await (database.select(database.runChunks)
           ..where((chunk) => chunk.runId.equals(runId)))
@@ -144,6 +149,7 @@ class DriftRunStore {
     return rows.map((row) => row.id).toList(growable: false);
   }
 
+  @override
   Future<List<Uint8List>> chunkPayloadsFor(String runId) async {
     final rows = await (database.select(database.runChunks)
           ..where((chunk) => chunk.runId.equals(runId))

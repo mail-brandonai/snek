@@ -1,11 +1,10 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'arena_skin.dart';
+import '../../training/domain/training_models.dart';
 
 const _snekColorNames = <String>[
   'Solar',
@@ -19,102 +18,6 @@ const _snekColorNames = <String>[
   'Ember',
   'Lilac',
 ];
-
-class SnekProfile {
-  const SnekProfile({
-    required this.id,
-    required this.name,
-    required this.colorIndex,
-  });
-
-  static const starter = SnekProfile(
-    id: 'starter-snek',
-    name: 'Snek',
-    colorIndex: 1,
-  );
-
-  final String id;
-  final String name;
-  final int colorIndex;
-
-  Map<String, Object> toJson() => <String, Object>{
-        'id': id,
-        'name': name,
-        'colorIndex': colorIndex,
-      };
-
-  factory SnekProfile.fromJson(Object? value) {
-    if (value is! Map) throw const FormatException('Invalid saved snek');
-    final data = Map<String, Object?>.from(value);
-    final id = data['id'];
-    final name = data['name'];
-    final colorIndex = data['colorIndex'];
-    if (id is! String || name is! String || colorIndex is! num) {
-      throw const FormatException('Invalid saved snek');
-    }
-    return SnekProfile(
-      id: id,
-      name: name.trim().isEmpty ? 'Snek' : name.trim(),
-      colorIndex: colorIndex
-          .toInt()
-          .clamp(0, ArenaSkin.snakeColours.length - 1)
-          .toInt(),
-    );
-  }
-}
-
-class SnekPenSnapshot {
-  const SnekPenSnapshot({
-    required this.sneks,
-    required this.selectedSnekId,
-  });
-
-  final List<SnekProfile> sneks;
-  final String selectedSnekId;
-
-  static const defaults = SnekPenSnapshot(
-    sneks: <SnekProfile>[SnekProfile.starter],
-    selectedSnekId: 'starter-snek',
-  );
-}
-
-class SnekPenStore {
-  static const _key = 'snek.pen.profiles.v1';
-
-  static Future<SnekPenSnapshot> load() async {
-    final preferences = SharedPreferencesAsync();
-    final saved = await preferences.getString(_key);
-    if (saved == null) return SnekPenSnapshot.defaults;
-
-    try {
-      final decoded = jsonDecode(saved);
-      if (decoded is! Map) return SnekPenSnapshot.defaults;
-      final data = Map<String, Object?>.from(decoded);
-      final rawSneks = data['sneks'];
-      if (rawSneks is! List) return SnekPenSnapshot.defaults;
-      final sneks = rawSneks.map(SnekProfile.fromJson).toList();
-      if (sneks.isEmpty) return SnekPenSnapshot.defaults;
-      final savedSelection = data['selectedSnekId'];
-      final selectedId = sneks.any((snek) => snek.id == savedSelection)
-          ? savedSelection as String
-          : sneks.first.id;
-      return SnekPenSnapshot(sneks: sneks, selectedSnekId: selectedId);
-    } on FormatException {
-      return SnekPenSnapshot.defaults;
-    } on TypeError {
-      return SnekPenSnapshot.defaults;
-    }
-  }
-
-  static Future<void> save(SnekPenSnapshot snapshot) async {
-    final preferences = SharedPreferencesAsync();
-    final payload = jsonEncode(<String, Object>{
-      'sneks': snapshot.sneks.map((snek) => snek.toJson()).toList(),
-      'selectedSnekId': snapshot.selectedSnekId,
-    });
-    await preferences.setString(_key, payload);
-  }
-}
 
 class SnekLandingScreen extends StatelessWidget {
   const SnekLandingScreen({

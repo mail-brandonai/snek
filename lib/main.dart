@@ -13,6 +13,8 @@ import 'game/domain/simulation.dart';
 import 'game/domain/vec2.dart';
 import 'game/presentation/arena_skin.dart';
 import 'game/presentation/snek_pen.dart';
+import 'training/data/training_services.dart';
+import 'training/domain/training_models.dart';
 
 const _snakeColours = ArenaSkin.snakeColours;
 
@@ -64,7 +66,7 @@ class _SlitherAppState extends State<SlitherApp> {
       setState(() => _penLoading = true);
       var snapshot = SnekPenSnapshot.defaults;
       try {
-        snapshot = await SnekPenStore.load();
+        snapshot = await TrainingServices.loadPen();
       } catch (_) {
         // Keep the starter snek available if local storage is unavailable.
       }
@@ -108,7 +110,7 @@ class _SlitherAppState extends State<SlitherApp> {
 
   Future<void> _persistPen() async {
     try {
-      await SnekPenStore.save(
+      await TrainingServices.savePen(
         SnekPenSnapshot(
           sneks: _sneks,
           selectedSnekId: _selectedSnekId,
