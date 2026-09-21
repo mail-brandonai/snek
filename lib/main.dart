@@ -211,31 +211,32 @@ class _SlitherAppState extends State<SlitherApp> {
                 )
               else
                 const ColoredBox(color: ArenaSkin.background),
-              ValueListenableBuilder<GameHud>(
-                valueListenable: game.hud,
-                builder: (context, state, child) => Stack(
-                  children: [
-                    IgnorePointer(
-                      ignoring:
-                          _screen != _AppScreen.playing || !state.gameOver,
-                      child: _Hud(
-                        state: state,
-                        onRestart: game.restart,
-                        onChangeSnek: _returnToPen,
-                      ),
-                    ),
-                    if (_screen == _AppScreen.playing)
-                      Positioned(
-                        top: 62,
-                        left: 16,
-                        child: _TacticsHudToggle(
-                          enabled: state.advancedHudEnabled,
-                          onPressed: game.toggleAdvancedHud,
+              if (_screen == _AppScreen.playing)
+                ValueListenableBuilder<GameHud>(
+                  valueListenable: game.hud,
+                  builder: (context, state, child) => Stack(
+                    children: [
+                      IgnorePointer(
+                        ignoring:
+                            _screen != _AppScreen.playing || !state.gameOver,
+                        child: _Hud(
+                          state: state,
+                          onRestart: game.restart,
+                          onChangeSnek: _returnToPen,
                         ),
                       ),
-                  ],
+                      if (_screen == _AppScreen.playing)
+                        Positioned(
+                          top: 62,
+                          left: 16,
+                          child: _TacticsHudToggle(
+                            enabled: state.advancedHudEnabled,
+                            onPressed: game.toggleAdvancedHud,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
               if (_screen == _AppScreen.landing)
                 Positioned.fill(
                   child: SnekLandingScreen(
