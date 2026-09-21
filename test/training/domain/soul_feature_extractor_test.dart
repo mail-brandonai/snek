@@ -5,9 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slither/training/domain/soul_feature_extractor.dart';
 
 void main() {
-  test(
-    'resource collection evidence distinguishes forage from dropped mass',
-    () {
+  test('resource collection evidence distinguishes forage from dropped mass',
+      () {
     final observations = List<Map<String, Object?>>.generate(
       8,
       (index) => _observation(index + 1),
@@ -164,8 +163,8 @@ void main() {
   });
 
   test(
-    'no pressure and an abandoned run produce insufficient response evidence',
-    () {
+      'no pressure and an abandoned run produce insufficient response evidence',
+      () {
     final signature = _extract(
       observations: List<Map<String, Object?>>.generate(
         8,
@@ -219,8 +218,7 @@ void main() {
 
 SoulBehaviorSignature _extract({
   List<Map<String, Object?>> controls = const <Map<String, Object?>>[],
-  List<Map<String, Object?>> observations =
-      const <Map<String, Object?>>[],
+  List<Map<String, Object?>> observations = const <Map<String, Object?>>[],
   List<Map<String, Object?>> events = const <Map<String, Object?>>[],
   int lastTick = 100,
 }) {
@@ -247,8 +245,7 @@ BehaviorTraitSummary _trait(SoulBehaviorSignature signature, String id) =>
 Uint8List _chunk({
   int schemaVersion = 1,
   List<Map<String, Object?>> controls = const <Map<String, Object?>>[],
-  List<Map<String, Object?>> observations =
-      const <Map<String, Object?>>[],
+  List<Map<String, Object?>> observations = const <Map<String, Object?>>[],
   List<Map<String, Object?>> events = const <Map<String, Object?>>[],
   int lastTick = 100,
 }) =>
