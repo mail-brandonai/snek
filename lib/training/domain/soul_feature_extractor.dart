@@ -17,24 +17,53 @@ class SoulFeatureExtractionResult {
     this.message,
   });
 
-  const SoulFeatureExtractionResult.ready(SoulBehaviorSignature signature)
-      : this._(status: SoulFeatureStatus.ready, signature: signature);
+  SoulFeatureExtractionResult.ready(SoulBehaviorSignature signature)
+    : this._(status: SoulFeatureStatus.ready, signature: signature);
 
-  SoulFeatureExtractionResult.unsupportedSchema(int version)
-      : this._(
-          status: SoulFeatureStatus.unsupportedRecordSchema,
-          message: 'Run record schema version $version is not supported by '
-              '$currentSoulFeatureVersion',
-        );
+  const SoulFeatureExtractionResult.unsupportedSchema(int version)
+    : this._(
+        status: SoulFeatureStatus.unsupportedRecordSchema,
+        message:
+            'Run record schema version $version is not supported by '
+            '$currentSoulFeatureVersion',
+      );
 
   const SoulFeatureExtractionResult.invalidTrace(String message)
-      : this._(status: SoulFeatureStatus.invalidTrace, message: message);
+    : this._(status: SoulFeatureStatus.invalidTrace, message: message);
 
   final SoulFeatureStatus status;
   final SoulBehaviorSignature? signature;
   final String? message;
 
+  factory SoulFeatureExtractionResult.fromJson(Object? value) {
+    final object = _object(value, 'feature extraction result');
+    final rawStatus = object['status'];
+    if (rawStatus is! String) {
+      throw const FormatException('Feature result status is missing.');
+    }
+    final status = SoulFeatureStatus.values.firstWhere(
+      (candidate) => candidate.name == rawStatus,
+      orElse:
+          () => throw const FormatException('Unknown feature result status.'),
+    );
+    if (status == SoulFeatureStatus.ready) {
+      return SoulFeatureExtractionResult.ready(
+        SoulBehaviorSignature.fromJson(object['signature']),
+      );
+    }
+    return SoulFeatureExtractionResult._(
+      status: status,
+      message: _optionalString(object['message']),
+    );
+  }
+
   bool get isReady => status == SoulFeatureStatus.ready;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'status': status.name,
+    'signature': signature?.toJson(),
+    'message': message,
+  };
 }
 
 class BehaviorTraitSummary {
@@ -69,16 +98,42 @@ class BehaviorTraitSummary {
   /// The recorded facts remain available separately in [observedEvidence].
   final String? inferredInterpretation;
 
+  factory BehaviorTraitSummary.fromJson(Object? value) {
+    final object = _object(value, 'behavior trait');
+    final rawConfidence = object['confidence'];
+    if (rawConfidence is! String) {
+      throw const FormatException('Trait confidence is missing.');
+    }
+    final confidence = FeatureConfidence.values.firstWhere(
+      (candidate) => candidate.name == rawConfidence,
+      orElse: () => throw const FormatException('Unknown trait confidence.'),
+    );
+    final coverage = _optionalNumber(object['coverage']);
+    if (coverage == null) {
+      throw const FormatException('Trait coverage is missing.');
+    }
+    return BehaviorTraitSummary(
+      id: _requiredString(object, 'id'),
+      label: _requiredString(object, 'label'),
+      sampleCount: _requiredInt(object, 'sampleCount'),
+      opportunityCount: _requiredInt(object, 'opportunityCount'),
+      coverage: coverage,
+      confidence: confidence,
+      observedEvidence: _object(object['observedEvidence'], 'trait evidence'),
+      inferredInterpretation: _optionalString(object['inferredInterpretation']),
+    );
+  }
+
   Map<String, Object?> toJson() => <String, Object?>{
-        'id': id,
-        'label': label,
-        'sampleCount': sampleCount,
-        'opportunityCount': opportunityCount,
-        'coverage': coverage,
-        'confidence': confidence.name,
-        'observedEvidence': observedEvidence,
-        'inferredInterpretation': inferredInterpretation,
-      };
+    'id': id,
+    'label': label,
+    'sampleCount': sampleCount,
+    'opportunityCount': opportunityCount,
+    'coverage': coverage,
+    'confidence': confidence.name,
+    'observedEvidence': observedEvidence,
+    'inferredInterpretation': inferredInterpretation,
+  };
 }
 
 Map<String, Object?> _freezeEvidence(Map<String, Object?> evidence) =>
@@ -90,13 +145,11 @@ Map<String, Object?> _freezeEvidence(Map<String, Object?> evidence) =>
 
 Object? _freezeJsonValue(Object? value) {
   if (value is Map) {
-    return Map<String, Object?>.unmodifiable(
-      <String, Object?>{
-        for (final entry in value.entries)
-          if (entry.key is String)
-            entry.key as String: _freezeJsonValue(entry.value),
-      },
-    );
+    return Map<String, Object?>.unmodifiable(<String, Object?>{
+      for (final entry in value.entries)
+        if (entry.key is String)
+          entry.key as String: _freezeJsonValue(entry.value),
+    });
   }
   if (value is List) {
     return List<Object?>.unmodifiable(value.map(_freezeJsonValue));
@@ -141,23 +194,48 @@ class PressureEpisodeSummary {
   /// End minus onset length. This is descriptive and does not assign causality.
   final int? playerLengthChange;
 
+  factory PressureEpisodeSummary.fromJson(Object? value) {
+    final object = _object(value, 'pressure episode');
+    final sprintRequested = object['sprintRequestedDuringEpisode'];
+    if (sprintRequested is! bool) {
+      throw const FormatException('Pressure episode sprint state is missing.');
+    }
+    return PressureEpisodeSummary(
+      onsetTick: _requiredInt(object, 'onsetTick'),
+      durationSeconds: _optionalNumber(object['durationSeconds']),
+      endTick: _optionalInt(object['endTick']),
+      actorId: _requiredString(object, 'actorId'),
+      actorManeuver: _optionalString(object['actorManeuver']),
+      urgencyAtOnset: _optionalNumber(object['urgencyAtOnset']),
+      peakUrgency: _optionalNumber(object['peakUrgency']),
+      responseAction: _requiredString(object, 'responseAction'),
+      responseLatencyTicks: _optionalInt(object['responseLatencyTicks']),
+      outcome: _requiredString(object, 'outcome'),
+      playerCollisionCount: _requiredInt(object, 'playerCollisionCount'),
+      sprintRequestedDuringEpisode: sprintRequested,
+      playerLengthAtOnset: _optionalInt(object['playerLengthAtOnset']),
+      playerLengthAtEnd: _optionalInt(object['playerLengthAtEnd']),
+      playerLengthChange: _optionalInt(object['playerLengthChange']),
+    );
+  }
+
   Map<String, Object?> toJson() => <String, Object?>{
-        'onsetTick': onsetTick,
-        'durationSeconds': durationSeconds,
-        'endTick': endTick,
-        'actorId': actorId,
-        'actorManeuver': actorManeuver,
-        'urgencyAtOnset': urgencyAtOnset,
-        'peakUrgency': peakUrgency,
-        'responseAction': responseAction,
-        'responseLatencyTicks': responseLatencyTicks,
-        'outcome': outcome,
-        'playerCollisionCount': playerCollisionCount,
-        'sprintRequestedDuringEpisode': sprintRequestedDuringEpisode,
-        'playerLengthAtOnset': playerLengthAtOnset,
-        'playerLengthAtEnd': playerLengthAtEnd,
-        'playerLengthChange': playerLengthChange,
-      };
+    'onsetTick': onsetTick,
+    'durationSeconds': durationSeconds,
+    'endTick': endTick,
+    'actorId': actorId,
+    'actorManeuver': actorManeuver,
+    'urgencyAtOnset': urgencyAtOnset,
+    'peakUrgency': peakUrgency,
+    'responseAction': responseAction,
+    'responseLatencyTicks': responseLatencyTicks,
+    'outcome': outcome,
+    'playerCollisionCount': playerCollisionCount,
+    'sprintRequestedDuringEpisode': sprintRequestedDuringEpisode,
+    'playerLengthAtOnset': playerLengthAtOnset,
+    'playerLengthAtEnd': playerLengthAtEnd,
+    'playerLengthChange': playerLengthChange,
+  };
 }
 
 class SoulBehaviorSignature {
@@ -170,9 +248,10 @@ class SoulBehaviorSignature {
     required this.controlSampleCount,
     required this.observationSampleCount,
     required this.eventCount,
-  })  : traits = List<BehaviorTraitSummary>.unmodifiable(traits),
-        pressureEpisodes =
-            List<PressureEpisodeSummary>.unmodifiable(pressureEpisodes);
+  }) : traits = List<BehaviorTraitSummary>.unmodifiable(traits),
+       pressureEpisodes = List<PressureEpisodeSummary>.unmodifiable(
+         pressureEpisodes,
+       );
 
   final String runId;
   final int recordSchemaVersion;
@@ -183,17 +262,37 @@ class SoulBehaviorSignature {
   final int observationSampleCount;
   final int eventCount;
 
+  factory SoulBehaviorSignature.fromJson(Object? value) {
+    final object = _object(value, 'behavior signature');
+    return SoulBehaviorSignature(
+      runId: _requiredString(object, 'runId'),
+      recordSchemaVersion: _requiredInt(object, 'recordSchemaVersion'),
+      featureVersion: _requiredString(object, 'featureVersion'),
+      traits: _array(
+        object,
+        'traits',
+      ).map(BehaviorTraitSummary.fromJson).toList(growable: false),
+      pressureEpisodes: _array(
+        object,
+        'pressureEpisodes',
+      ).map(PressureEpisodeSummary.fromJson).toList(growable: false),
+      controlSampleCount: _requiredInt(object, 'controlSampleCount'),
+      observationSampleCount: _requiredInt(object, 'observationSampleCount'),
+      eventCount: _requiredInt(object, 'eventCount'),
+    );
+  }
+
   Map<String, Object?> toJson() => <String, Object?>{
-        'runId': runId,
-        'recordSchemaVersion': recordSchemaVersion,
-        'featureVersion': featureVersion,
-        'controlSampleCount': controlSampleCount,
-        'observationSampleCount': observationSampleCount,
-        'eventCount': eventCount,
-        'traits': traits.map((trait) => trait.toJson()).toList(),
-        'pressureEpisodes':
-            pressureEpisodes.map((episode) => episode.toJson()).toList(),
-      };
+    'runId': runId,
+    'recordSchemaVersion': recordSchemaVersion,
+    'featureVersion': featureVersion,
+    'controlSampleCount': controlSampleCount,
+    'observationSampleCount': observationSampleCount,
+    'eventCount': eventCount,
+    'traits': traits.map((trait) => trait.toJson()).toList(),
+    'pressureEpisodes':
+        pressureEpisodes.map((episode) => episode.toJson()).toList(),
+  };
 }
 
 /// Extracts versioned descriptive evidence from immutable run chunks.
@@ -208,11 +307,36 @@ class SoulFeatureExtractor {
     required int recordSchemaVersion,
     required int tickRateHz,
     required List<Uint8List> chunkPayloads,
+  }) => _extract(
+    runId: runId,
+    recordSchemaVersion: recordSchemaVersion,
+    tickRateHz: tickRateHz,
+    decodeChunks:
+        () => chunkPayloads
+            .map<Object?>((payload) => jsonDecode(utf8.decode(payload)))
+            .toList(growable: false),
+  );
+
+  SoulFeatureExtractionResult extractDecoded({
+    required String runId,
+    required int recordSchemaVersion,
+    required int tickRateHz,
+    required List<Object?> decodedChunks,
+  }) => _extract(
+    runId: runId,
+    recordSchemaVersion: recordSchemaVersion,
+    tickRateHz: tickRateHz,
+    decodeChunks: () => decodedChunks,
+  );
+
+  SoulFeatureExtractionResult _extract({
+    required String runId,
+    required int recordSchemaVersion,
+    required int tickRateHz,
+    required List<Object?> Function() decodeChunks,
   }) {
     if (recordSchemaVersion != currentTrainingRecordSchemaVersion) {
-      return SoulFeatureExtractionResult.unsupportedSchema(
-        recordSchemaVersion,
-      );
+      return SoulFeatureExtractionResult.unsupportedSchema(recordSchemaVersion);
     }
     if (runId.trim().isEmpty || tickRateHz <= 0) {
       return const SoulFeatureExtractionResult.invalidTrace(
@@ -221,7 +345,7 @@ class SoulFeatureExtractor {
     }
 
     try {
-      final trace = _readTrace(runId, chunkPayloads);
+      final trace = _readTrace(runId, decodeChunks());
       final episodes = _buildPressureEpisodes(trace, tickRateHz);
       final traits = _buildTraits(trace, episodes);
       return SoulFeatureExtractionResult.ready(
@@ -345,7 +469,7 @@ class _UnsupportedSchema implements Exception {
   final int version;
 }
 
-_RecordedTrace _readTrace(String runId, List<Uint8List> payloads) {
+_RecordedTrace _readTrace(String runId, List<Object?> decodedChunks) {
   final controls = <_ControlSample>[];
   final observations = <_ObservationSample>[];
   final events = <_RunEvent>[];
@@ -353,8 +477,7 @@ _RecordedTrace _readTrace(String runId, List<Uint8List> payloads) {
   int? previousLastTick;
   var eventOrder = 0;
 
-  for (final payload in payloads) {
-    final decoded = jsonDecode(utf8.decode(payload));
+  for (final decoded in decodedChunks) {
     final chunk = _object(decoded, 'run chunk');
     final schemaVersion = chunk['schemaVersion'];
     if (schemaVersion is! int) {
@@ -426,16 +549,20 @@ _RecordedTrace _readTrace(String runId, List<Uint8List> payloads) {
           headingX: _optionalNumber(sample['playerHeadingX']),
           headingY: _optionalNumber(sample['playerHeadingY']),
           length: _optionalInt(sample['playerLength']),
-          sprinting: sample['playerSprinting'] is bool
-              ? sample['playerSprinting'] as bool
-              : null,
-          nearestThreatDistance:
-              _optionalNumber(sample['nearestThreatDistance']),
+          sprinting:
+              sample['playerSprinting'] is bool
+                  ? sample['playerSprinting'] as bool
+                  : null,
+          nearestThreatDistance: _optionalNumber(
+            sample['nearestThreatDistance'],
+          ),
           nearbyThreatCount: _optionalInt(sample['nearbyThreatCount']),
-          nearbyNaturalFoodCount:
-              _optionalInt(sample['nearbyNaturalFoodCount']),
-          nearbyDroppedMassCount:
-              _optionalInt(sample['nearbyDroppedMassCount']),
+          nearbyNaturalFoodCount: _optionalInt(
+            sample['nearbyNaturalFoodCount'],
+          ),
+          nearbyDroppedMassCount: _optionalInt(
+            sample['nearbyDroppedMassCount'],
+          ),
           boundaryRisk: _optionalNumber(sample['boundaryRisk']),
           actors: Map<String, _ActorObservation>.unmodifiable(actors),
         ),
@@ -508,46 +635,58 @@ BehaviorTraitSummary _resourceTrait(_RecordedTrace trace) {
   }
 
   final validExposureSamples = trace.observations
-      .where((sample) =>
-          sample.nearbyNaturalFoodCount != null &&
-          sample.nearbyDroppedMassCount != null)
+      .where(
+        (sample) =>
+            sample.nearbyNaturalFoodCount != null &&
+            sample.nearbyDroppedMassCount != null,
+      )
       .toList(growable: false);
-  final naturalExposureSamples = validExposureSamples
-      .where((sample) => sample.nearbyNaturalFoodCount! > 0)
-      .length;
-  final massExposureSamples = validExposureSamples
-      .where((sample) => sample.nearbyDroppedMassCount! > 0)
-      .length;
-  final mixedExposureSamples = validExposureSamples
-      .where((sample) =>
-          sample.nearbyNaturalFoodCount! > 0 &&
-          sample.nearbyDroppedMassCount! > 0)
-      .length;
+  final naturalExposureSamples =
+      validExposureSamples
+          .where((sample) => sample.nearbyNaturalFoodCount! > 0)
+          .length;
+  final massExposureSamples =
+      validExposureSamples
+          .where((sample) => sample.nearbyDroppedMassCount! > 0)
+          .length;
+  final mixedExposureSamples =
+      validExposureSamples
+          .where(
+            (sample) =>
+                sample.nearbyNaturalFoodCount! > 0 &&
+                sample.nearbyDroppedMassCount! > 0,
+          )
+          .length;
   final pickupCount = pickups.values.fold<int>(0, (sum, count) => sum + count);
   final totalSamples = trace.observations.length;
   final coverage = _ratio(validExposureSamples.length, totalSamples);
-  final naturalRate = naturalExposureSamples == 0
-      ? null
-      : pickups['natural']! / naturalExposureSamples;
+  final naturalRate =
+      naturalExposureSamples == 0
+          ? null
+          : pickups['natural']! / naturalExposureSamples;
   final massPickups = pickups['sprintDrop']! + pickups['defeatDrop']!;
   final massRate =
       massExposureSamples == 0 ? null : massPickups / massExposureSamples;
   String? interpretation;
   if (mixedExposureSamples >= 3 && naturalRate != null && massRate != null) {
     if ((naturalRate - massRate).abs() < 0.000001) {
-      interpretation = 'Natural-food and dropped-mass pickups occurred at '
+      interpretation =
+          'Natural-food and dropped-mass pickups occurred at '
           'similar rates per observed exposure sample.';
     } else if (naturalRate > massRate) {
-      interpretation = 'Natural-food pickups were more frequent per observed '
+      interpretation =
+          'Natural-food pickups were more frequent per observed '
           'exposure sample; nearby availability is only an '
           'approximation of choice.';
     } else {
-      interpretation = 'Dropped-mass pickups were more frequent per observed '
+      interpretation =
+          'Dropped-mass pickups were more frequent per observed '
           'exposure sample; nearby availability is only an '
           'approximation of choice.';
     }
   } else {
-    interpretation = 'There are too few samples with both resource types '
+    interpretation =
+        'There are too few samples with both resource types '
         'nearby to compare collection rates.';
   }
 
@@ -577,8 +716,9 @@ BehaviorTraitSummary _sizeAndAgilityTrait(_RecordedTrace trace) {
       .where((length) => length > 0)
       .toList(growable: false);
   final turns = _turnAngles(trace.observations);
-  final averageLength =
-      _mean(lengths.map((value) => value.toDouble()).toList());
+  final averageLength = _mean(
+    lengths.map((value) => value.toDouble()).toList(),
+  );
   final averageTurn = _mean(turns);
   final count = lengths.length < turns.length ? lengths.length : turns.length;
   final coverage = _ratio(count, trace.observations.length);
@@ -601,11 +741,12 @@ BehaviorTraitSummary _sizeAndAgilityTrait(_RecordedTrace trace) {
       'meanTurnDegreesPerObservation':
           averageTurn == null ? null : averageTurn * 180 / math.pi,
     },
-    inferredInterpretation: averageTurn == null
-        ? 'Insufficient heading samples to describe turning behavior.'
-        : 'Average sampled heading change was '
-            '${(averageTurn * 180 / math.pi).toStringAsFixed(1)} '
-            'degrees per observation interval.',
+    inferredInterpretation:
+        averageTurn == null
+            ? 'Insufficient heading samples to describe turning behavior.'
+            : 'Average sampled heading change was '
+                '${(averageTurn * 180 / math.pi).toStringAsFixed(1)} '
+                'degrees per observation interval.',
   );
 }
 
@@ -641,11 +782,12 @@ BehaviorTraitSummary _movementTrait(_RecordedTrace trace) {
       'sampledPathDistance': pathLength,
       'pathEfficiency': efficiency,
     },
-    inferredInterpretation: efficiency == null
-        ? 'Insufficient position samples to describe path shape.'
-        : 'Recorded path efficiency was '
-            '${(efficiency * 100).toStringAsFixed(1)}% '
-            '(straight-line distance divided by sampled path distance).',
+    inferredInterpretation:
+        efficiency == null
+            ? 'Insufficient position samples to describe path shape.'
+            : 'Recorded path efficiency was '
+                '${(efficiency * 100).toStringAsFixed(1)}% '
+                '(straight-line distance divided by sampled path distance).',
   );
 }
 
@@ -685,30 +827,39 @@ BehaviorTraitSummary _sprintTrait(_RecordedTrace trace) {
       'sprintObservationCount': sprintingSamples.length,
       'activeShare': activeShare,
     },
-    inferredInterpretation: controlCount == 0 && sprintingSamples.isEmpty
-        ? 'No sprint samples were recorded.'
-        : 'Sprint was requested in '
-            '${(requestShare * 100).toStringAsFixed(1)}% of control samples and '
-            'active in ${(activeShare * 100).toStringAsFixed(1)}% of observations '
-            'with sprint state.',
+    inferredInterpretation:
+        controlCount == 0 && sprintingSamples.isEmpty
+            ? 'No sprint samples were recorded.'
+            : 'Sprint was requested in '
+                '${(requestShare * 100).toStringAsFixed(1)}% of control '
+                'samples and '
+                'active in ${(activeShare * 100).toStringAsFixed(1)}% of '
+                'observations '
+                'with sprint state.',
   );
 }
 
 BehaviorTraitSummary _riskTrait(_RecordedTrace trace) {
   final samples = trace.observations
-      .where((sample) =>
-          sample.boundaryRisk != null && sample.nearbyThreatCount != null)
+      .where(
+        (sample) =>
+            sample.boundaryRisk != null && sample.nearbyThreatCount != null,
+      )
       .toList(growable: false);
   final highBoundarySamples =
       samples.where((sample) => sample.boundaryRisk! >= 0.5).length;
   final threatSamples =
       samples.where((sample) => sample.nearbyThreatCount! > 0).length;
-  final playerCollisions = trace.events
-      .where((event) => event.kind == 'collision' && event.actorId == 'player')
-      .length;
-  final playerDefeats = trace.events
-      .where((event) => event.kind == 'defeat' && event.actorId == 'player')
-      .length;
+  final playerCollisions =
+      trace.events
+          .where(
+            (event) => event.kind == 'collision' && event.actorId == 'player',
+          )
+          .length;
+  final playerDefeats =
+      trace.events
+          .where((event) => event.kind == 'defeat' && event.actorId == 'player')
+          .length;
   final nearestDistances = trace.observations
       .map((sample) => sample.nearestThreatDistance)
       .whereType<double>()
@@ -728,15 +879,17 @@ BehaviorTraitSummary _riskTrait(_RecordedTrace trace) {
       'highBoundaryRiskShare': _ratio(highBoundarySamples, samples.length),
       'nearbyThreatSamples': threatSamples,
       'nearbyThreatShare': _ratio(threatSamples, samples.length),
-      'minimumThreatDistance': nearestDistances.isEmpty
-          ? null
-          : nearestDistances.reduce((a, b) => a < b ? a : b),
+      'minimumThreatDistance':
+          nearestDistances.isEmpty
+              ? null
+              : nearestDistances.reduce((a, b) => a < b ? a : b),
       'playerCollisionEvents': playerCollisions,
       'playerDefeatEvents': playerDefeats,
     },
-    inferredInterpretation: samples.isEmpty
-        ? 'No complete risk samples were recorded.'
-        : highBoundarySamples * 4 >= samples.length
+    inferredInterpretation:
+        samples.isEmpty
+            ? 'No complete risk samples were recorded.'
+            : highBoundarySamples * 4 >= samples.length
             ? 'A substantial share of recorded samples was in the boundary '
                 'warning band.'
             : 'Recorded boundary and nearby-threat exposure are descriptive; '
@@ -765,22 +918,21 @@ BehaviorTraitSummary _threatResponseTrait(
     outcomes[episode.outcome] = (outcomes[episode.outcome] ?? 0) + 1;
   }
   final coverage = _ratio(completed, episodes.length);
-  final measuredResponseCount = episodes
-      .where((episode) =>
-          episode.endTick != null &&
-          episode.responseAction != 'baseline unavailable')
-      .length;
+  final measuredResponseCount =
+      episodes
+          .where(
+            (episode) =>
+                episode.endTick != null &&
+                episode.responseAction != 'baseline unavailable',
+          )
+          .length;
   return BehaviorTraitSummary(
     id: 'threatResponse',
     label: 'Threat response',
     sampleCount: measuredResponseCount,
     opportunityCount: episodes.length,
     coverage: coverage,
-    confidence: _confidence(
-      measuredResponseCount,
-      coverage,
-      minimumSamples: 1,
-    ),
+    confidence: _confidence(measuredResponseCount, coverage, minimumSamples: 1),
     observedEvidence: <String, Object?>{
       'pressureEpisodeCount': episodes.length,
       'completedEpisodeCount': completed,
@@ -789,9 +941,10 @@ BehaviorTraitSummary _threatResponseTrait(
       'responseActions': actions,
       'outcomes': outcomes,
     },
-    inferredInterpretation: episodes.isEmpty
-        ? 'No pressure episode was observed; response rate is not estimated.'
-        : measuredResponseCount == 0
+    inferredInterpretation:
+        episodes.isEmpty
+            ? 'No pressure episode was observed; response rate is not estimated.'
+            : measuredResponseCount == 0
             ? 'Pressure was recorded, but there is not enough completed input '
                 'coverage to measure a response.'
             : 'Mean measured response latency was '
@@ -829,14 +982,9 @@ BehaviorTraitSummary _botCounterStrategyTrait(_RecordedTrace trace) {
       }
     }
   }
-  final sampleCount = maneuverTransitions.values.fold<int>(
-        0,
-        (sum, count) => sum + count,
-      ) +
-      roleTransitions.values.fold<int>(
-        0,
-        (sum, count) => sum + count,
-      ) +
+  final sampleCount =
+      maneuverTransitions.values.fold<int>(0, (sum, count) => sum + count) +
+      roleTransitions.values.fold<int>(0, (sum, count) => sum + count) +
       actorSamples;
   final opportunityCount = trace.observations.length;
   final coverage = _ratio(actorSamples, opportunityCount);
@@ -855,10 +1003,11 @@ BehaviorTraitSummary _botCounterStrategyTrait(_RecordedTrace trace) {
       'maneuverTransitions': maneuverTransitions,
       'roleTransitions': roleTransitions,
     },
-    inferredInterpretation: topManeuver == null
-        ? 'No bot maneuver was captured in the available samples.'
-        : 'The most frequently observed bot maneuver was $topManeuver. '
-            'This describes bot behavior, not its effectiveness.',
+    inferredInterpretation:
+        topManeuver == null
+            ? 'No bot maneuver was captured in the available samples.'
+            : 'The most frequently observed bot maneuver was $topManeuver. '
+                'This describes bot behavior, not its effectiveness.',
   );
 }
 
@@ -941,11 +1090,14 @@ List<PressureEpisodeSummary> _buildPressureEpisodes(
   return List<PressureEpisodeSummary>.unmodifiable(
     completed.map((draft) {
       final endTick = draft.endTick;
-      final onsetObservation =
-          _observationAtOrAfter(trace.observations, draft.onsetTick);
-      final endObservation = endTick == null
-          ? null
-          : _observationAtOrBefore(trace.observations, endTick);
+      final onsetObservation = _observationAtOrAfter(
+        trace.observations,
+        draft.onsetTick,
+      );
+      final endObservation =
+          endTick == null
+              ? null
+              : _observationAtOrBefore(trace.observations, endTick);
       final baseline = _controlAtOrBefore(trace.controls, draft.onsetTick);
       final response = _measureResponse(
         trace.controls,
@@ -953,7 +1105,8 @@ List<PressureEpisodeSummary> _buildPressureEpisodes(
         endTick,
         baseline,
       );
-      final maneuver = onsetObservation?.actors[draft.actorId]?.maneuver ??
+      final maneuver =
+          onsetObservation?.actors[draft.actorId]?.maneuver ??
           _lastManeuver(trace.events, draft.actorId, draft.onsetTick);
       final onsetLength = onsetObservation?.length;
       final endLength = endObservation?.length;
@@ -978,9 +1131,10 @@ List<PressureEpisodeSummary> _buildPressureEpisodes(
         ),
         playerLengthAtOnset: onsetLength,
         playerLengthAtEnd: endLength,
-        playerLengthChange: onsetLength == null || endLength == null
-            ? null
-            : endLength - onsetLength,
+        playerLengthChange:
+            onsetLength == null || endLength == null
+                ? null
+                : endLength - onsetLength,
       );
     }),
   );
@@ -1040,9 +1194,10 @@ _PressureDraft? _removeOpenPressure(
     final steerChanged = _steeringChanged(baseline, sample);
     final sprintChanged = sample.sprintRequested != baseline.sprintRequested;
     if (steerChanged || sprintChanged) {
-      final action = steerChanged && sprintChanged
-          ? 'steering and sprint change'
-          : steerChanged
+      final action =
+          steerChanged && sprintChanged
+              ? 'steering and sprint change'
+              : steerChanged
               ? 'steering change'
               : 'sprint change';
       return (action: action, latencyTicks: sample.tick - onsetTick);
@@ -1051,7 +1206,7 @@ _PressureDraft? _removeOpenPressure(
   return (
     action:
         endTick == null ? 'response not yet observed' : 'no change observed',
-    latencyTicks: null
+    latencyTicks: null,
   );
 }
 
@@ -1066,16 +1221,14 @@ bool _steeringChanged(_ControlSample before, _ControlSample after) {
     return (before.steeringX - after.steeringX).abs() > 0.2 ||
         (before.steeringY - after.steeringY).abs() > 0.2;
   }
-  final dot = (before.steeringX * after.steeringX +
+  final dot =
+      (before.steeringX * after.steeringX +
           before.steeringY * after.steeringY) /
       (beforeMagnitude * afterMagnitude);
   return math.acos(dot.clamp(-1.0, 1.0)) >= 0.35;
 }
 
-_ControlSample? _controlAtOrBefore(
-  List<_ControlSample> samples,
-  int tick,
-) {
+_ControlSample? _controlAtOrBefore(List<_ControlSample> samples, int tick) {
   _ControlSample? match;
   for (final sample in samples) {
     if (sample.tick > tick) break;
@@ -1140,7 +1293,8 @@ List<double> _turnAngles(List<_ObservationSample> observations) {
             current.headingY! * current.headingY!,
       );
       if (leftMagnitude > 0 && rightMagnitude > 0) {
-        final dot = (previous.headingX! * current.headingX! +
+        final dot =
+            (previous.headingX! * current.headingX! +
                 previous.headingY! * current.headingY!) /
             (leftMagnitude * rightMagnitude);
         result.add(math.acos(dot.clamp(-1.0, 1.0)));
@@ -1176,12 +1330,29 @@ FeatureConfidence _confidence(
 
 String? _topKey(Map<String, int> counts) {
   if (counts.isEmpty) return null;
-  final entries = counts.entries.toList()
-    ..sort((a, b) {
-      final byCount = b.value.compareTo(a.value);
-      return byCount != 0 ? byCount : a.key.compareTo(b.key);
-    });
+  final entries =
+      counts.entries.toList()..sort((a, b) {
+        final byCount = b.value.compareTo(a.value);
+        return byCount != 0 ? byCount : a.key.compareTo(b.key);
+      });
   return entries.first.key;
+}
+
+String _requiredString(Map<String, Object?> object, String key) {
+  final value = object[key];
+  if (value is! String || value.isEmpty) {
+    throw FormatException('Expected string field: $key');
+  }
+  return value;
+}
+
+int _requiredInt(Map<String, Object?> object, String key) {
+  final value = object[key];
+  if (value is int) return value;
+  if (value is num && value.isFinite && value == value.roundToDouble()) {
+    return value.toInt();
+  }
+  throw FormatException('Expected integer field: $key');
 }
 
 Map<String, Object?> _object(Object? value, String label) {
@@ -1212,7 +1383,13 @@ int _integer(Map<String, Object?> map, String key) {
   return value;
 }
 
-int? _optionalInt(Object? value) => value is int ? value : null;
+int? _optionalInt(Object? value) {
+  if (value is int) return value;
+  if (value is num && value.isFinite && value == value.roundToDouble()) {
+    return value.toInt();
+  }
+  return null;
+}
 
 double? _optionalNumber(Object? value) {
   if (value is! num || !value.isFinite) return null;

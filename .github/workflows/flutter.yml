@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Prepare CI logs
         run: mkdir -p ci-logs
@@ -64,12 +66,33 @@ jobs:
           set -o pipefail
           dart run build_runner build --delete-conflicting-outputs 2>&1 | tee ci-logs/drift-codegen.log
 
+      - name: Generate Web workers
+        id: web_workers
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          dart pub global activate isolate_manager_generator 0.4.2 2>&1 | tee ci-logs/web-worker-generator-install.log
+          dart pub global run isolate_manager_generator:isolate_manager_generator --single 2>&1 | tee ci-logs/web-workers.log
+
       - name: Check formatting
         id: format
         continue-on-error: true
         run: |
-          set -o pipefail
-          dart format --output=none --set-exit-if-changed lib test integration_test test_driver 2>&1 | tee ci-logs/format.log
+          set -euo pipefail
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=ACMR "$base_sha...$head_sha" -- '*.dart')
+          if ((${#dart_files[@]} > 0)); then
+            format_status=0
+            dart format --output=none --set-exit-if-changed "${dart_files[@]}" 2>&1 | tee ci-logs/format.log || format_status=$?
+            if ((format_status != 0)); then
+              dart format --output=write "${dart_files[@]}"
+              git diff -- "${dart_files[@]}" | tee ci-logs/format-diff.patch
+              exit "$format_status"
+            fi
+          else
+            echo "No changed Dart files." | tee ci-logs/format.log
+          fi
 
       - name: Analyze
         id: analyze
@@ -134,6 +157,7 @@ jobs:
             echo "web_platform=${{ steps.web_platform.outcome }}"
             echo "drift_web_assets=${{ steps.drift_web_assets.outcome }}"
             echo "drift_codegen=${{ steps.drift_codegen.outcome }}"
+            echo "web_workers=${{ steps.web_workers.outcome }}"
             echo "format=${{ steps.format.outcome }}"
             echo "analyze=${{ steps.analyze.outcome }}"
             echo "test=${{ steps.test.outcome }}"
@@ -146,6 +170,7 @@ jobs:
           test "${{ steps.web_platform.outcome }}" = success
           test "${{ steps.drift_web_assets.outcome }}" = success
           test "${{ steps.drift_codegen.outcome }}" = success
+          test "${{ steps.web_workers.outcome }}" = success
           test "${{ steps.format.outcome }}" = success
           test "${{ steps.analyze.outcome }}" = success
           test "${{ steps.test.outcome }}" = success

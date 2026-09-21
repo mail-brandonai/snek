@@ -1,12 +1,12 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
-import '../domain/recording_contract.dart'
-    show currentTrainingRecordSchemaVersion;
+import 'package:isolate_manager/isolate_manager.dart';
+
 import '../domain/soul_feature_extractor.dart';
 import '../domain/training_application.dart';
 import '../domain/training_models.dart';
 import '../domain/training_repositories.dart';
+import 'run_review_worker.dart';
 
 class RunReviewItem {
   const RunReviewItem({
@@ -42,91 +42,44 @@ class RunReviewItem {
     return value is String && value.trim().isNotEmpty ? value : 'Unknown Snek';
   }
 
-  factory RunReviewItem.fromChunks(
+  factory RunReviewItem.fromWorkerResult(
     TrainingRun run,
-    List<Uint8List> payloads,
+    Map<String, Object?> result,
   ) {
-    var controlCount = 0;
-    var observationCount = 0;
-    var eventCount = 0;
-    int? firstTick;
-    int? lastTick;
-    Map<String, Object?>? outcomeMetadata;
-    String? outcome;
-
-    for (var sequence = 0; sequence < payloads.length; sequence++) {
-      final decoded = jsonDecode(utf8.decode(payloads[sequence]));
-      if (decoded is! Map) throw StateError('Run chunk is not an object');
-      final chunk = Map<String, Object?>.from(decoded);
-      if (chunk['format'] != 'snek-run-chunk' ||
-          chunk['schemaVersion'] != currentTrainingRecordSchemaVersion ||
-          chunk['runId'] != run.id ||
-          chunk['sequence'] != sequence) {
-        throw StateError('Run chunk metadata is invalid');
-      }
-      final chunkFirst = chunk['firstTick'];
-      final chunkLast = chunk['lastTick'];
-      if (chunkFirst is! int ||
-          chunkLast is! int ||
-          chunkFirst < 0 ||
-          chunkLast < chunkFirst ||
-          (lastTick != null && chunkFirst <= lastTick)) {
-        throw StateError('Run chunk tick range is invalid');
-      }
-      firstTick ??= chunkFirst;
-      lastTick = chunkLast;
-
-      controlCount += _arrayLength(chunk, 'controls');
-      observationCount += _arrayLength(chunk, 'observations');
-      final events = _array(chunk, 'events');
-      eventCount += events.length;
-      for (final value in events) {
-        if (value is! Map) throw StateError('Run event is not an object');
-        final event = Map<String, Object?>.from(value);
-        if (event['kind'] != 'runEnded') continue;
-        final metadata = event['metadata'];
-        if (metadata is Map) {
-          outcomeMetadata = Map<String, Object?>.from(metadata);
-        }
-        final detail = event['detail'];
-        outcome = detail is String ? detail : null;
-      }
-    }
-
-    final featureAnalysis = const SoulFeatureExtractor().extract(
-      runId: run.id,
-      recordSchemaVersion: run.schemaVersion,
-      tickRateHz: run.tickRateHz,
-      chunkPayloads: payloads,
-    );
-
     return RunReviewItem(
       run: run,
-      featureAnalysis: featureAnalysis,
-      controlSampleCount: controlCount,
-      observationSampleCount: observationCount,
-      eventCount: eventCount,
-      score: _integer(outcomeMetadata?['score']),
-      length: _integer(outcomeMetadata?['length']),
-      survivalSeconds: _decimal(outcomeMetadata?['survivalSeconds']),
-      rank: _integer(outcomeMetadata?['rank']),
-      outcome: outcome,
-      firstTick: firstTick,
-      lastTick: lastTick,
+      featureAnalysis: SoulFeatureExtractionResult.fromJson(
+        result['featureAnalysis'],
+      ),
+      controlSampleCount: _integer(result['controlSampleCount']) ?? 0,
+      observationSampleCount: _integer(result['observationSampleCount']) ?? 0,
+      eventCount: _integer(result['eventCount']) ?? 0,
+      score: _integer(result['score']),
+      length: _integer(result['length']),
+      survivalSeconds: _decimal(result['survivalSeconds']),
+      rank: _integer(result['rank']),
+      outcome: _string(result['outcome']),
+      firstTick: _integer(result['firstTick']),
+      lastTick: _integer(result['lastTick']),
     );
   }
 }
+
+typedef RunReviewAnalysisRunner =
+    Future<Map<String, Object?>> Function(Map<String, Object?> input);
 
 class RunReviewService {
   const RunReviewService({
     required this.runs,
     required this.chunks,
     required this.lifecycle,
+    this.analysisRunner = _analyzeRunReviewInBackground,
   });
 
   final RunRepository runs;
   final RunChunkRepository chunks;
   final RunLifecycleService lifecycle;
+  final RunReviewAnalysisRunner analysisRunner;
 
   Future<List<TrainingRun>> listRuns() async {
     final all = await runs.listRuns();
@@ -148,7 +101,13 @@ class RunReviewService {
       throw StateError('Run is not available for review');
     }
     final payloads = await chunks.chunkPayloadsFor(runId);
-    return RunReviewItem.fromChunks(run, payloads);
+    final result = await analysisRunner(<String, Object?>{
+      'runId': run.id,
+      'recordSchemaVersion': run.schemaVersion,
+      'tickRateHz': run.tickRateHz,
+      'chunkPayloads': payloads,
+    });
+    return RunReviewItem.fromWorkerResult(run, result);
   }
 
   Future<void> keepRun(String runId) async {
@@ -172,15 +131,39 @@ class RunReviewService {
   }
 }
 
-int _arrayLength(Map<String, Object?> object, String key) =>
-    _array(object, key).length;
-
-List<Object?> _array(Map<String, Object?> object, String key) {
-  final value = object[key];
-  if (value is! List) throw StateError('Run chunk $key is not an array');
-  return value;
+int? _integer(Object? value) {
+  if (value is int) return value;
+  if (value is num && value.isFinite && value == value.roundToDouble()) {
+    return value.toInt();
+  }
+  return null;
 }
 
-int? _integer(Object? value) => value is int ? value : null;
-
 double? _decimal(Object? value) => value is num ? value.toDouble() : null;
+String? _string(Object? value) => value is String ? value : null;
+
+Future<Map<String, Object?>> _analyzeRunReviewInBackground(
+  Map<String, Object?> input,
+) async {
+  final rawPayloads = input['chunkPayloads'];
+  if (rawPayloads is! List<Uint8List>) {
+    throw StateError('Run chunk payloads are unavailable for analysis');
+  }
+  final worker =
+      IsolateManager<Map<String, Object?>, Map<String, Object?>>.create(
+        analyzeRunReviewChunks,
+        workerName: 'analyzeRunReviewChunks',
+        debugName: 'run-review-analysis',
+      );
+  try {
+    await worker.start();
+    return await worker.compute(
+      input,
+      transferables: rawPayloads
+          .map((payload) => payload.buffer)
+          .toList(growable: false),
+    );
+  } finally {
+    await worker.stop();
+  }
+}

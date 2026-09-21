@@ -5,54 +5,82 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slither/training/domain/soul_feature_extractor.dart';
 
 void main() {
-  test('resource collection evidence distinguishes forage from dropped mass',
-      () {
-    final observations = List<Map<String, Object?>>.generate(
-      8,
-      (index) => _observation(index + 1),
+  test('predecoded chunks preserve feature extraction results', () {
+    final payload = _chunk(
+      controls: <Map<String, Object?>>[_control(1)],
+      observations: <Map<String, Object?>>[_observation(1)],
     );
-    final forageEvents = List<Map<String, Object?>>.generate(
-      6,
-      (index) => _event(
-        'foodCollected',
-        index + 1,
-        targetId: index < 5 ? 'natural' : 'sprintDrop',
-      ),
+    final decodedChunk = jsonDecode(utf8.decode(payload));
+    const extractor = SoulFeatureExtractor();
+    final fromBytes = extractor.extract(
+      runId: 'run-1',
+      recordSchemaVersion: 1,
+      tickRateHz: 60,
+      chunkPayloads: <Uint8List>[payload],
     );
-    final massEvents = List<Map<String, Object?>>.generate(
-      6,
-      (index) => _event(
-        'foodCollected',
-        index + 1,
-        targetId: index < 5 ? 'defeatDrop' : 'natural',
-      ),
+    final fromDecoded = extractor.extractDecoded(
+      runId: 'run-1',
+      recordSchemaVersion: 1,
+      tickRateHz: 60,
+      decodedChunks: <Object?>[decodedChunk],
     );
 
-    final forage = _trait(
-      _extract(observations: observations, events: forageEvents),
-      'resourcePriority',
-    );
-    final massSeeking = _trait(
-      _extract(observations: observations, events: massEvents),
-      'resourcePriority',
-    );
-
-    final forageCounts = forage.observedEvidence['pickupsByKind'] as Map;
-    final massCounts = massSeeking.observedEvidence['pickupsByKind'] as Map;
-    expect(forageCounts['natural'], 5);
-    expect(massCounts['defeatDrop'], 5);
-    expect(forage.inferredInterpretation, contains('Natural-food pickups'));
+    expect(fromDecoded.signature?.toJson(), fromBytes.signature?.toJson());
     expect(
-      massSeeking.inferredInterpretation,
-      contains('Dropped-mass pickups'),
-    );
-    expect(forage.confidence, FeatureConfidence.low);
-    expect(massSeeking.confidence, FeatureConfidence.low);
-    expect(
-      () => forageCounts['natural'] = 0,
-      throwsUnsupportedError,
+      SoulFeatureExtractionResult.fromJson(
+        fromDecoded.toJson(),
+      ).signature?.toJson(),
+      fromBytes.signature?.toJson(),
     );
   });
+
+  test(
+    'resource collection evidence distinguishes forage from dropped mass',
+    () {
+      final observations = List<Map<String, Object?>>.generate(
+        8,
+        (index) => _observation(index + 1),
+      );
+      final forageEvents = List<Map<String, Object?>>.generate(
+        6,
+        (index) => _event(
+          'foodCollected',
+          index + 1,
+          targetId: index < 5 ? 'natural' : 'sprintDrop',
+        ),
+      );
+      final massEvents = List<Map<String, Object?>>.generate(
+        6,
+        (index) => _event(
+          'foodCollected',
+          index + 1,
+          targetId: index < 5 ? 'defeatDrop' : 'natural',
+        ),
+      );
+
+      final forage = _trait(
+        _extract(observations: observations, events: forageEvents),
+        'resourcePriority',
+      );
+      final massSeeking = _trait(
+        _extract(observations: observations, events: massEvents),
+        'resourcePriority',
+      );
+
+      final forageCounts = forage.observedEvidence['pickupsByKind'] as Map;
+      final massCounts = massSeeking.observedEvidence['pickupsByKind'] as Map;
+      expect(forageCounts['natural'], 5);
+      expect(massCounts['defeatDrop'], 5);
+      expect(forage.inferredInterpretation, contains('Natural-food pickups'));
+      expect(
+        massSeeking.inferredInterpretation,
+        contains('Dropped-mass pickups'),
+      );
+      expect(forage.confidence, FeatureConfidence.low);
+      expect(massSeeking.confidence, FeatureConfidence.low);
+      expect(() => forageCounts['natural'] = 0, throwsUnsupportedError);
+    },
+  );
 
   test('sprint-heavy samples include lean size and turning evidence', () {
     final controls = List<Map<String, Object?>>.generate(
@@ -70,10 +98,7 @@ void main() {
         headingY: index.isEven ? 0 : 1,
       ),
     );
-    final signature = _extract(
-      controls: controls,
-      observations: observations,
-    );
+    final signature = _extract(controls: controls, observations: observations);
 
     final sprint = _trait(signature, 'sprintBehavior');
     final sizeAgility = _trait(signature, 'sizeAgility');
@@ -119,17 +144,10 @@ void main() {
           length: 11,
         ),
       );
-      events.add(_event(
-        'botPressureStarted',
-        onset,
-        targetId: botId,
-        value: 0.4,
-      ));
-      events.add(_event(
-        'collision',
-        onset + 2,
-        targetId: botId,
-      ));
+      events.add(
+        _event('botPressureStarted', onset, targetId: botId, value: 0.4),
+      );
+      events.add(_event('collision', onset + 2, targetId: botId));
       events.add(_event('botPressureEnded', onset + 4, targetId: botId));
     }
 
@@ -156,36 +174,34 @@ void main() {
       expect(episode.playerCollisionCount, 1);
       expect(episode.playerLengthChange, 1);
     }
-    expect(
-      jsonEncode(signature.toJson()),
-      jsonEncode(repeated.toJson()),
-    );
+    expect(jsonEncode(signature.toJson()), jsonEncode(repeated.toJson()));
   });
 
   test(
-      'no pressure and an abandoned run produce insufficient response evidence',
-      () {
-    final signature = _extract(
-      observations: List<Map<String, Object?>>.generate(
-        8,
-        (index) => _observation(index),
-      ),
-      events: <Map<String, Object?>>[
-        _event('abandoned', 10, detail: 'userExit'),
-      ],
-    );
-    final response = _trait(signature, 'threatResponse');
-    final risk = _trait(signature, 'riskPosture');
+    'no pressure and an abandoned run produce insufficient response evidence',
+    () {
+      final signature = _extract(
+        observations: List<Map<String, Object?>>.generate(
+          8,
+          (index) => _observation(index),
+        ),
+        events: <Map<String, Object?>>[
+          _event('abandoned', 10, detail: 'userExit'),
+        ],
+      );
+      final response = _trait(signature, 'threatResponse');
+      final risk = _trait(signature, 'riskPosture');
 
-    expect(signature.pressureEpisodes, isEmpty);
-    expect(response.confidence, FeatureConfidence.insufficient);
-    expect(
-      response.inferredInterpretation,
-      contains('No pressure episode was observed'),
-    );
-    expect(risk.observedEvidence['playerDefeatEvents'], 0);
-    expect(signature.eventCount, 1);
-  });
+      expect(signature.pressureEpisodes, isEmpty);
+      expect(response.confidence, FeatureConfidence.insufficient);
+      expect(
+        response.inferredInterpretation,
+        contains('No pressure episode was observed'),
+      );
+      expect(risk.observedEvidence['playerDefeatEvents'], 0);
+      expect(signature.eventCount, 1);
+    },
+  );
 
   test('unsupported schemas are returned as typed compatibility results', () {
     const extractor = SoulFeatureExtractor();
@@ -199,19 +215,11 @@ void main() {
       runId: 'run-1',
       recordSchemaVersion: 1,
       tickRateHz: 60,
-      chunkPayloads: <Uint8List>[
-        _chunk(schemaVersion: 99),
-      ],
+      chunkPayloads: <Uint8List>[_chunk(schemaVersion: 99)],
     );
 
-    expect(
-      unsupportedRecord.status,
-      SoulFeatureStatus.unsupportedRecordSchema,
-    );
-    expect(
-      unsupportedChunk.status,
-      SoulFeatureStatus.unsupportedRecordSchema,
-    );
+    expect(unsupportedRecord.status, SoulFeatureStatus.unsupportedRecordSchema);
+    expect(unsupportedChunk.status, SoulFeatureStatus.unsupportedRecordSchema);
     expect(unsupportedRecord.message, contains('99'));
   });
 }
@@ -248,35 +256,33 @@ Uint8List _chunk({
   List<Map<String, Object?>> observations = const <Map<String, Object?>>[],
   List<Map<String, Object?>> events = const <Map<String, Object?>>[],
   int lastTick = 100,
-}) =>
-    Uint8List.fromList(
-      utf8.encode(
-        jsonEncode(<String, Object?>{
-          'format': 'snek-run-chunk',
-          'schemaVersion': schemaVersion,
-          'runId': 'run-1',
-          'sequence': 0,
-          'firstTick': 0,
-          'lastTick': lastTick,
-          'controls': controls,
-          'observations': observations,
-          'events': events,
-        }),
-      ),
-    );
+}) => Uint8List.fromList(
+  utf8.encode(
+    jsonEncode(<String, Object?>{
+      'format': 'snek-run-chunk',
+      'schemaVersion': schemaVersion,
+      'runId': 'run-1',
+      'sequence': 0,
+      'firstTick': 0,
+      'lastTick': lastTick,
+      'controls': controls,
+      'observations': observations,
+      'events': events,
+    }),
+  ),
+);
 
 Map<String, Object?> _control(
   int tick, {
   double steeringX = 1,
   double steeringY = 0,
   bool sprintRequested = false,
-}) =>
-    <String, Object?>{
-      'tick': tick,
-      'steeringX': steeringX,
-      'steeringY': steeringY,
-      'sprintRequested': sprintRequested,
-    };
+}) => <String, Object?>{
+  'tick': tick,
+  'steeringX': steeringX,
+  'steeringY': steeringY,
+  'sprintRequested': sprintRequested,
+};
 
 Map<String, Object?> _observation(
   int tick, {
@@ -292,32 +298,32 @@ Map<String, Object?> _observation(
   double headingY = 0,
   String? actorId,
   String? maneuver,
-}) =>
-    <String, Object?>{
-      'tick': tick,
-      'playerPositionX': positionX,
-      'playerPositionY': positionY,
-      'playerHeadingX': headingX,
-      'playerHeadingY': headingY,
-      'playerLength': length,
-      'playerSprinting': sprinting,
-      'nearestThreatDistance': nearbyThreats == 0 ? null : 12.0,
-      'nearbyThreatCount': nearbyThreats,
-      'nearbyNaturalFoodCount': naturalFood,
-      'nearbyDroppedMassCount': droppedMass,
-      'boundaryRisk': boundaryRisk,
-      'actors': actorId == null
+}) => <String, Object?>{
+  'tick': tick,
+  'playerPositionX': positionX,
+  'playerPositionY': positionY,
+  'playerHeadingX': headingX,
+  'playerHeadingY': headingY,
+  'playerLength': length,
+  'playerSprinting': sprinting,
+  'nearestThreatDistance': nearbyThreats == 0 ? null : 12.0,
+  'nearbyThreatCount': nearbyThreats,
+  'nearbyNaturalFoodCount': naturalFood,
+  'nearbyDroppedMassCount': droppedMass,
+  'boundaryRisk': boundaryRisk,
+  'actors':
+      actorId == null
           ? <Object?>[]
           : <Object?>[
-              <String, Object?>{
-                'actorId': actorId,
-                'role': 'bot',
-                'intent': 'pressurePlayer',
-                'maneuver': maneuver,
-                'maneuverPhase': 'commit',
-              },
-            ],
-    };
+            <String, Object?>{
+              'actorId': actorId,
+              'role': 'bot',
+              'intent': 'pressurePlayer',
+              'maneuver': maneuver,
+              'maneuverPhase': 'commit',
+            },
+          ],
+};
 
 Map<String, Object?> _event(
   String kind,
@@ -326,12 +332,11 @@ Map<String, Object?> _event(
   String? targetId,
   double? value,
   String? detail,
-}) =>
-    <String, Object?>{
-      'tick': tick,
-      'kind': kind,
-      'actorId': actorId,
-      'targetId': targetId,
-      'value': value,
-      'detail': detail,
-    };
+}) => <String, Object?>{
+  'tick': tick,
+  'kind': kind,
+  'actorId': actorId,
+  'targetId': targetId,
+  'value': value,
+  'detail': detail,
+};
