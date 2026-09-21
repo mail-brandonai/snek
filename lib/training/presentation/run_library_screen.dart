@@ -461,7 +461,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
 
   Widget _behaviorSignature(SoulFeatureExtractionResult result) {
     final signature = result.signature;
-    final heading = const Text(
+    const heading = Text(
       'BEHAVIOR SIGNATURE',
       style: TextStyle(
         color: ArenaSkin.accent,
