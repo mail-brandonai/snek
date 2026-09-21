@@ -536,18 +536,20 @@ BehaviorTraitSummary _resourceTrait(_RecordedTrace trace) {
   String? interpretation;
   if (mixedExposureSamples >= 3 && naturalRate != null && massRate != null) {
     if ((naturalRate - massRate).abs() < 0.000001) {
-      interpretation = 'Natural-food and dropped-mass pickups occurred at similar '
-          'rates per observed exposure sample.';
+      interpretation = 'Natural-food and dropped-mass pickups occurred at '
+          'similar rates per observed exposure sample.';
     } else if (naturalRate > massRate) {
       interpretation = 'Natural-food pickups were more frequent per observed '
-          'exposure sample; nearby availability is only an approximation of choice.';
+          'exposure sample; nearby availability is only an '
+          'approximation of choice.';
     } else {
       interpretation = 'Dropped-mass pickups were more frequent per observed '
-          'exposure sample; nearby availability is only an approximation of choice.';
+          'exposure sample; nearby availability is only an '
+          'approximation of choice.';
     }
   } else {
-    interpretation = 'There are too few samples with both resource types nearby '
-        'to compare collection rates.';
+    interpretation = 'There are too few samples with both resource types '
+        'nearby to compare collection rates.';
   }
 
   return BehaviorTraitSummary(
