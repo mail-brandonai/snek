@@ -156,7 +156,7 @@ jobs:
             --package "system-images;android-35;google_apis;x86_64" \
             --device pixel_2
           emulator -avd snek-ci -no-window -no-audio -no-boot-anim \
-            -no-snapshot -gpu software \
+            -no-snapshot -gpu software -no-accel \
             > "$RUNNER_TEMP/snek-emulator.log" 2>&1 &
           adb start-server
           if ! timeout 180s adb wait-for-device; then
