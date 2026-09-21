@@ -34,7 +34,34 @@ class SoulFeatureExtractionResult {
   final SoulBehaviorSignature? signature;
   final String? message;
 
+  factory SoulFeatureExtractionResult.fromJson(Object? value) {
+    final object = _object(value, 'feature extraction result');
+    final rawStatus = object['status'];
+    if (rawStatus is! String) {
+      throw const FormatException('Feature result status is missing.');
+    }
+    final status = SoulFeatureStatus.values.firstWhere(
+      (candidate) => candidate.name == rawStatus,
+      orElse: () => throw FormatException('Unknown feature result status.'),
+    );
+    if (status == SoulFeatureStatus.ready) {
+      return SoulFeatureExtractionResult.ready(
+        SoulBehaviorSignature.fromJson(object['signature']),
+      );
+    }
+    return SoulFeatureExtractionResult._(
+      status: status,
+      message: _optionalString(object['message']),
+    );
+  }
+
   bool get isReady => status == SoulFeatureStatus.ready;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'status': status.name,
+        'signature': signature?.toJson(),
+        'message': message,
+      };
 }
 
 class BehaviorTraitSummary {
@@ -68,6 +95,32 @@ class BehaviorTraitSummary {
   /// A cautious, deterministic interpretation derived from recorded samples.
   /// The recorded facts remain available separately in [observedEvidence].
   final String? inferredInterpretation;
+
+  factory BehaviorTraitSummary.fromJson(Object? value) {
+    final object = _object(value, 'behavior trait');
+    final rawConfidence = object['confidence'];
+    if (rawConfidence is! String) {
+      throw const FormatException('Trait confidence is missing.');
+    }
+    final confidence = FeatureConfidence.values.firstWhere(
+      (candidate) => candidate.name == rawConfidence,
+      orElse: () => throw const FormatException('Unknown trait confidence.'),
+    );
+    final coverage = _optionalNumber(object['coverage']);
+    if (coverage == null) {
+      throw const FormatException('Trait coverage is missing.');
+    }
+    return BehaviorTraitSummary(
+      id: _requiredString(object, 'id'),
+      label: _requiredString(object, 'label'),
+      sampleCount: _requiredInt(object, 'sampleCount'),
+      opportunityCount: _requiredInt(object, 'opportunityCount'),
+      coverage: coverage,
+      confidence: confidence,
+      observedEvidence: _object(object['observedEvidence'], 'trait evidence'),
+      inferredInterpretation: _optionalString(object['inferredInterpretation']),
+    );
+  }
 
   Map<String, Object?> toJson() => <String, Object?>{
         'id': id,
@@ -141,6 +194,31 @@ class PressureEpisodeSummary {
   /// End minus onset length. This is descriptive and does not assign causality.
   final int? playerLengthChange;
 
+  factory PressureEpisodeSummary.fromJson(Object? value) {
+    final object = _object(value, 'pressure episode');
+    final sprintRequested = object['sprintRequestedDuringEpisode'];
+    if (sprintRequested is! bool) {
+      throw const FormatException('Pressure episode sprint state is missing.');
+    }
+    return PressureEpisodeSummary(
+      onsetTick: _requiredInt(object, 'onsetTick'),
+      durationSeconds: _optionalNumber(object['durationSeconds']),
+      endTick: _optionalInt(object['endTick']),
+      actorId: _requiredString(object, 'actorId'),
+      actorManeuver: _optionalString(object['actorManeuver']),
+      urgencyAtOnset: _optionalNumber(object['urgencyAtOnset']),
+      peakUrgency: _optionalNumber(object['peakUrgency']),
+      responseAction: _requiredString(object, 'responseAction'),
+      responseLatencyTicks: _optionalInt(object['responseLatencyTicks']),
+      outcome: _requiredString(object, 'outcome'),
+      playerCollisionCount: _requiredInt(object, 'playerCollisionCount'),
+      sprintRequestedDuringEpisode: sprintRequested,
+      playerLengthAtOnset: _optionalInt(object['playerLengthAtOnset']),
+      playerLengthAtEnd: _optionalInt(object['playerLengthAtEnd']),
+      playerLengthChange: _optionalInt(object['playerLengthChange']),
+    );
+  }
+
   Map<String, Object?> toJson() => <String, Object?>{
         'onsetTick': onsetTick,
         'durationSeconds': durationSeconds,
@@ -183,6 +261,24 @@ class SoulBehaviorSignature {
   final int observationSampleCount;
   final int eventCount;
 
+  factory SoulBehaviorSignature.fromJson(Object? value) {
+    final object = _object(value, 'behavior signature');
+    return SoulBehaviorSignature(
+      runId: _requiredString(object, 'runId'),
+      recordSchemaVersion: _requiredInt(object, 'recordSchemaVersion'),
+      featureVersion: _requiredString(object, 'featureVersion'),
+      traits: _array(object, 'traits')
+          .map(BehaviorTraitSummary.fromJson)
+          .toList(growable: false),
+      pressureEpisodes: _array(object, 'pressureEpisodes')
+          .map(PressureEpisodeSummary.fromJson)
+          .toList(growable: false),
+      controlSampleCount: _requiredInt(object, 'controlSampleCount'),
+      observationSampleCount: _requiredInt(object, 'observationSampleCount'),
+      eventCount: _requiredInt(object, 'eventCount'),
+    );
+  }
+
   Map<String, Object?> toJson() => <String, Object?>{
         'runId': runId,
         'recordSchemaVersion': recordSchemaVersion,
@@ -208,6 +304,34 @@ class SoulFeatureExtractor {
     required int recordSchemaVersion,
     required int tickRateHz,
     required List<Uint8List> chunkPayloads,
+  }) =>
+      _extract(
+        runId: runId,
+        recordSchemaVersion: recordSchemaVersion,
+        tickRateHz: tickRateHz,
+        decodeChunks: () => chunkPayloads
+            .map<Object?>((payload) => jsonDecode(utf8.decode(payload)))
+            .toList(growable: false),
+      );
+
+  SoulFeatureExtractionResult extractDecoded({
+    required String runId,
+    required int recordSchemaVersion,
+    required int tickRateHz,
+    required List<Object?> decodedChunks,
+  }) =>
+      _extract(
+        runId: runId,
+        recordSchemaVersion: recordSchemaVersion,
+        tickRateHz: tickRateHz,
+        decodeChunks: () => decodedChunks,
+      );
+
+  SoulFeatureExtractionResult _extract({
+    required String runId,
+    required int recordSchemaVersion,
+    required int tickRateHz,
+    required List<Object?> Function() decodeChunks,
   }) {
     if (recordSchemaVersion != currentTrainingRecordSchemaVersion) {
       return SoulFeatureExtractionResult.unsupportedSchema(
@@ -221,7 +345,7 @@ class SoulFeatureExtractor {
     }
 
     try {
-      final trace = _readTrace(runId, chunkPayloads);
+      final trace = _readTrace(runId, decodeChunks());
       final episodes = _buildPressureEpisodes(trace, tickRateHz);
       final traits = _buildTraits(trace, episodes);
       return SoulFeatureExtractionResult.ready(
@@ -345,7 +469,7 @@ class _UnsupportedSchema implements Exception {
   final int version;
 }
 
-_RecordedTrace _readTrace(String runId, List<Uint8List> payloads) {
+_RecordedTrace _readTrace(String runId, List<Object?> decodedChunks) {
   final controls = <_ControlSample>[];
   final observations = <_ObservationSample>[];
   final events = <_RunEvent>[];
@@ -353,8 +477,7 @@ _RecordedTrace _readTrace(String runId, List<Uint8List> payloads) {
   int? previousLastTick;
   var eventOrder = 0;
 
-  for (final payload in payloads) {
-    final decoded = jsonDecode(utf8.decode(payload));
+  for (final decoded in decodedChunks) {
     final chunk = _object(decoded, 'run chunk');
     final schemaVersion = chunk['schemaVersion'];
     if (schemaVersion is! int) {
@@ -1184,6 +1307,23 @@ String? _topKey(Map<String, int> counts) {
   return entries.first.key;
 }
 
+String _requiredString(Map<String, Object?> object, String key) {
+  final value = object[key];
+  if (value is! String || value.isEmpty) {
+    throw FormatException('Expected string field: $key');
+  }
+  return value;
+}
+
+int _requiredInt(Map<String, Object?> object, String key) {
+  final value = object[key];
+  if (value is int) return value;
+  if (value is num && value.isFinite && value == value.roundToDouble()) {
+    return value.toInt();
+  }
+  throw FormatException('Expected integer field: $key');
+}
+
 Map<String, Object?> _object(Object? value, String label) {
   final result = _optionalObject(value);
   if (result == null) throw FormatException('Expected $label object.');
@@ -1212,7 +1352,13 @@ int _integer(Map<String, Object?> map, String key) {
   return value;
 }
 
-int? _optionalInt(Object? value) => value is int ? value : null;
+int? _optionalInt(Object? value) {
+  if (value is int) return value;
+  if (value is num && value.isFinite && value == value.roundToDouble()) {
+    return value.toInt();
+  }
+  return null;
+}
 
 double? _optionalNumber(Object? value) {
   if (value is! num || !value.isFinite) return null;

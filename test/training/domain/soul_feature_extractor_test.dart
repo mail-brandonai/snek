@@ -5,6 +5,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slither/training/domain/soul_feature_extractor.dart';
 
 void main() {
+  test('predecoded chunks preserve feature extraction results', () {
+    final payload = _chunk(
+      controls: <Map<String, Object?>>[_control(1)],
+      observations: <Map<String, Object?>>[_observation(1)],
+    );
+    final decodedChunk = jsonDecode(utf8.decode(payload));
+    const extractor = SoulFeatureExtractor();
+    final fromBytes = extractor.extract(
+      runId: 'run-1',
+      recordSchemaVersion: 1,
+      tickRateHz: 60,
+      chunkPayloads: <Uint8List>[payload],
+    );
+    final fromDecoded = extractor.extractDecoded(
+      runId: 'run-1',
+      recordSchemaVersion: 1,
+      tickRateHz: 60,
+      decodedChunks: <Object?>[decodedChunk],
+    );
+
+    expect(fromDecoded.signature?.toJson(), fromBytes.signature?.toJson());
+    expect(
+      SoulFeatureExtractionResult.fromJson(fromDecoded.toJson())
+          .signature
+          ?.toJson(),
+      fromBytes.signature?.toJson(),
+    );
+  });
+
   test('resource collection evidence distinguishes forage from dropped mass',
       () {
     final observations = List<Map<String, Object?>>.generate(

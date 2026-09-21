@@ -29,12 +29,13 @@ GitHub Actions runs formatting, static analysis, the Flutter unit suite, and a r
 
 ## Local setup
 
-Install the stable Flutter SDK, then run:
+Install Flutter with Dart 3.9 or later, then run:
 
 ```sh
 flutter create --platforms=web,android .
 flutter pub get
 bash tool/prepare_drift_web_assets.sh
+dart run isolate_manager:generate --single
 flutter test
 flutter run -d chrome
 flutter build web --release

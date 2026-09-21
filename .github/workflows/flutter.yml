@@ -64,6 +64,13 @@ jobs:
           set -o pipefail
           dart run build_runner build --delete-conflicting-outputs 2>&1 | tee ci-logs/drift-codegen.log
 
+      - name: Generate Web workers
+        id: web_workers
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          dart run isolate_manager:generate --single 2>&1 | tee ci-logs/web-workers.log
+
       - name: Check formatting
         id: format
         continue-on-error: true
@@ -134,6 +141,7 @@ jobs:
             echo "web_platform=${{ steps.web_platform.outcome }}"
             echo "drift_web_assets=${{ steps.drift_web_assets.outcome }}"
             echo "drift_codegen=${{ steps.drift_codegen.outcome }}"
+            echo "web_workers=${{ steps.web_workers.outcome }}"
             echo "format=${{ steps.format.outcome }}"
             echo "analyze=${{ steps.analyze.outcome }}"
             echo "test=${{ steps.test.outcome }}"
@@ -146,6 +154,7 @@ jobs:
           test "${{ steps.web_platform.outcome }}" = success
           test "${{ steps.drift_web_assets.outcome }}" = success
           test "${{ steps.drift_codegen.outcome }}" = success
+          test "${{ steps.web_workers.outcome }}" = success
           test "${{ steps.format.outcome }}" = success
           test "${{ steps.analyze.outcome }}" = success
           test "${{ steps.test.outcome }}" = success
