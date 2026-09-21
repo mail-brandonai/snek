@@ -86,6 +86,7 @@ class BehaviorTraitSummary {
 class PressureEpisodeSummary {
   const PressureEpisodeSummary({
     required this.onsetTick,
+    required this.durationSeconds,
     required this.actorId,
     required this.urgencyAtOnset,
     required this.peakUrgency,
@@ -102,6 +103,7 @@ class PressureEpisodeSummary {
   });
 
   final int onsetTick;
+  final double? durationSeconds;
   final int? endTick;
   final String actorId;
   final String? actorManeuver;
@@ -120,6 +122,7 @@ class PressureEpisodeSummary {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'onsetTick': onsetTick,
+        'durationSeconds': durationSeconds,
         'endTick': endTick,
         'actorId': actorId,
         'actorManeuver': actorManeuver,
@@ -926,6 +929,8 @@ List<PressureEpisodeSummary> _buildPressureEpisodes(
       final endLength = endObservation?.length;
       return PressureEpisodeSummary(
         onsetTick: draft.onsetTick,
+        durationSeconds:
+            endTick == null ? null : (endTick - draft.onsetTick) / tickRateHz,
         endTick: endTick,
         actorId: draft.actorId,
         actorManeuver: maneuver,
@@ -1117,7 +1122,7 @@ double? _mean(List<double> values) {
 
 double _ratio(int numerator, int denominator) {
   if (denominator <= 0) return 0;
-  return (numerator / denominator).clamp(0.0, 1.0);
+  return (numerator / denominator).clamp(0.0, 1.0).toDouble();
 }
 
 FeatureConfidence _confidence(
