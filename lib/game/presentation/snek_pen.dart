@@ -24,10 +24,12 @@ class SnekLandingScreen extends StatelessWidget {
     super.key,
     required this.selectedSnek,
     required this.onOpenPen,
+    required this.onOpenRuns,
   });
 
   final SnekProfile selectedSnek;
   final VoidCallback onOpenPen;
+  final VoidCallback onOpenRuns;
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +108,16 @@ class SnekLandingScreen extends StatelessWidget {
                         icon: const Icon(Icons.pets_outlined),
                         label: const Text('OPEN THE SNEK PEN'),
                         style: _primaryButtonStyle,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: onOpenRuns,
+                        icon: const Icon(Icons.history),
+                        label: const Text('RUN LIBRARY'),
+                        style: _secondaryButtonStyle,
                       ),
                     ),
                     const SizedBox(height: 11),

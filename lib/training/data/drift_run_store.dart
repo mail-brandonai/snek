@@ -181,7 +181,16 @@ class DriftRunStore implements RunChunkRepository {
           ..where((chunk) => chunk.runId.equals(runId))
           ..orderBy([(chunk) => OrderingTerm.asc(chunk.sequence)]))
         .get();
-    return rows.map((row) => row.payload).toList(growable: false);
+    for (var index = 0; index < rows.length; index++) {
+      final row = rows[index];
+      if (row.sequence != index ||
+          row.checksum != sha256.convert(row.payload).toString()) {
+        throw StateError('Run chunk integrity check failed');
+      }
+    }
+    return rows
+        .map((row) => Uint8List.fromList(row.payload))
+        .toList(growable: false);
   }
 
   Future<void> deleteRun(String runId) async {
