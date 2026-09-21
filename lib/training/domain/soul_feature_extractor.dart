@@ -45,7 +45,8 @@ class SoulFeatureExtractionResult {
       orElse: () => throw FormatException('Unknown feature result status.'),
     );
     if (status == SoulFeatureStatus.ready) {
-      return const SoulFeatureExtractionResult.ready(
+      // ignore: prefer_const_constructors
+      return SoulFeatureExtractionResult.ready(
         SoulBehaviorSignature.fromJson(object['signature']),
       );
     }

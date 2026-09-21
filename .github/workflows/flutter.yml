@@ -83,7 +83,13 @@ jobs:
           head_sha="${{ github.event.pull_request.head.sha }}"
           mapfile -t dart_files < <(git diff --name-only --diff-filter=ACMR "$base_sha...$head_sha" -- '*.dart')
           if ((${#dart_files[@]} > 0)); then
-            dart format --output=none --set-exit-if-changed "${dart_files[@]}" 2>&1 | tee ci-logs/format.log
+            format_status=0
+            dart format --output=none --set-exit-if-changed "${dart_files[@]}" 2>&1 | tee ci-logs/format.log || format_status=$?
+            if ((format_status != 0)); then
+              dart format --output=write "${dart_files[@]}"
+              git diff -- "${dart_files[@]}" | tee ci-logs/format-diff.patch
+              exit "$format_status"
+            fi
           else
             echo "No changed Dart files." | tee ci-logs/format.log
           fi
