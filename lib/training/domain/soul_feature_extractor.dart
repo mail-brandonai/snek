@@ -606,9 +606,9 @@ BehaviorTraitSummary _sizeAndAgilityTrait(_RecordedTrace trace) {
     },
     inferredInterpretation: averageTurn == null
         ? 'Insufficient heading samples to describe turning behavior.'
-        : 'Average sampled heading change was ' +
-            (averageTurn * 180 / math.pi).toStringAsFixed(1) +
-            ' degrees per observation interval.',
+        : 'Average sampled heading change was '
+            '${(averageTurn * 180 / math.pi).toStringAsFixed(1)} '
+            'degrees per observation interval.',
   );
 }
 
@@ -648,9 +648,9 @@ BehaviorTraitSummary _movementTrait(_RecordedTrace trace) {
     },
     inferredInterpretation: efficiency == null
         ? 'Insufficient position samples to describe path shape.'
-        : 'Recorded path efficiency was ' +
-            (efficiency * 100).toStringAsFixed(1) +
-            '% (straight-line distance divided by sampled path distance).',
+        : 'Recorded path efficiency was '
+            '${(efficiency * 100).toStringAsFixed(1)}% '
+            '(straight-line distance divided by sampled path distance).',
   );
 }
 
@@ -693,11 +693,10 @@ BehaviorTraitSummary _sprintTrait(_RecordedTrace trace) {
     },
     inferredInterpretation: controlCount == 0 && sprintingSamples.isEmpty
         ? 'No sprint samples were recorded.'
-        : 'Sprint was requested in ' +
-            (requestShare * 100).toStringAsFixed(1) +
-            '% of control samples and active in ' +
-            (activeShare * 100).toStringAsFixed(1) +
-            '% of observations with sprint state.',
+        : 'Sprint was requested in '
+            '${(requestShare * 100).toStringAsFixed(1)}% of control samples and '
+            'active in ${(activeShare * 100).toStringAsFixed(1)}% of observations '
+            'with sprint state.',
   );
 }
 
@@ -801,9 +800,9 @@ BehaviorTraitSummary _threatResponseTrait(
         : measuredResponseCount == 0
             ? 'Pressure was recorded, but there is not enough completed input '
                 'coverage to measure a response.'
-            : 'Mean measured response latency was ' +
-                meanLatency!.toStringAsFixed(1) +
-                ' simulation ticks after pressure onset.',
+            : 'Mean measured response latency was '
+                '${meanLatency!.toStringAsFixed(1)} simulation ticks after '
+                'pressure onset.',
   );
 }
 
@@ -866,9 +865,8 @@ BehaviorTraitSummary _botCounterStrategyTrait(_RecordedTrace trace) {
     },
     inferredInterpretation: topManeuver == null
         ? 'No bot maneuver was captured in the available samples.'
-        : 'The most frequently observed bot maneuver was ' +
-            topManeuver +
-            '. This describes bot behavior, not its effectiveness.',
+        : 'The most frequently observed bot maneuver was $topManeuver. '
+            'This describes bot behavior, not its effectiveness.',
   );
 }
 
@@ -885,7 +883,7 @@ List<PressureEpisodeSummary> _buildPressureEpisodes(
     if (tick == null) continue;
 
     if (event.kind == 'botPressureStarted') {
-      final key = event.targetId ?? 'unidentified-' + unidentified.toString();
+      final key = event.targetId ?? 'unidentified-$unidentified';
       if (event.targetId == null) unidentified++;
       final previous = open.remove(key);
       if (previous != null) {
@@ -1198,7 +1196,7 @@ String? _topKey(Map<String, int> counts) {
 
 Map<String, Object?> _object(Object? value, String label) {
   final result = _optionalObject(value);
-  if (result == null) throw FormatException('Expected ' + label + ' object.');
+  if (result == null) throw FormatException('Expected $label object.');
   return result;
 }
 
@@ -1214,13 +1212,13 @@ Map<String, Object?>? _optionalObject(Object? value) {
 
 List<Object?> _array(Map<String, Object?> map, String key) {
   final value = map[key];
-  if (value is! List) throw FormatException('Expected ' + key + ' array.');
+  if (value is! List) throw FormatException('Expected $key array.');
   return value;
 }
 
 int _integer(Map<String, Object?> map, String key) {
   final value = map[key];
-  if (value is! int) throw FormatException('Expected integer field: ' + key);
+  if (value is! int) throw FormatException('Expected integer field: $key');
   return value;
 }
 
