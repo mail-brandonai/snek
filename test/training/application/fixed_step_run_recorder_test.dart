@@ -9,7 +9,8 @@ import 'package:slither/training/domain/training_models.dart';
 import 'package:slither/training/domain/training_repositories.dart';
 
 void main() {
-  test('finalization flushes a checksummed chunk before closing the run', () async {
+  test('finalization flushes a checksummed chunk before closing the run',
+      () async {
     final runs = _RunRepository();
     final chunks = _RunChunkRepository();
     final recorder = FixedStepRunRecorder(

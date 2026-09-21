@@ -440,14 +440,13 @@ class SlitherGame extends FlameGame {
           (actor) => <String, Object?>{
             'actorId': actor.id,
             'role': actor.kind.name,
-            'controller':
-                actor.kind == SnakeKind.player ? 'human' : 'builtin',
+            'controller': actor.kind == SnakeKind.player ? 'human' : 'builtin',
             'profileId': actor.kind == SnakeKind.player ? snek.id : null,
           },
         )
         .toList(growable: false);
     final run = TrainingRun(
-      id: 'run-' + DateTime.now().microsecondsSinceEpoch.toString(),
+      id: 'run-${DateTime.now().microsecondsSinceEpoch}',
       mode: 'manual',
       seed: simulation.seed,
       tickRateHz:
@@ -548,15 +547,14 @@ class SlitherGame extends FlameGame {
       recorder
           .finalize(finalizedAtMs: DateTime.now().millisecondsSinceEpoch)
           .then<void>((_) {
-            if (identical(_recorder, recorder)) {
-              _recorder = null;
-              _recorderFinalizing = false;
-            }
-          })
-          .catchError((Object error) {
-            debugPrint('Could not finalize the run recorder: $error');
-            _recorderFinalizing = false;
-          }),
+        if (identical(_recorder, recorder)) {
+          _recorder = null;
+          _recorderFinalizing = false;
+        }
+      }).catchError((Object error) {
+        debugPrint('Could not finalize the run recorder: $error');
+        _recorderFinalizing = false;
+      }),
     );
   }
 

@@ -4,7 +4,8 @@ import 'package:slither/game/domain/simulation_capture.dart';
 import 'package:slither/game/domain/vec2.dart';
 
 void main() {
-  test('capture records processed fixed steps without changing game outcomes', () {
+  test('capture records processed fixed steps without changing game outcomes',
+      () {
     const config = SimulationConfig(
       botCount: 0,
       maxBotCount: 0,

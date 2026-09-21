@@ -1497,7 +1497,7 @@ class GameSimulation {
       final maneuver = _botManeuvers[actor.id];
       final maneuverState = maneuver == null
           ? 'none'
-          : maneuver.kind.name + ':' + maneuver.phase.name;
+          : '${maneuver.kind.name}:${maneuver.phase.name}';
       final previousManeuver = _capturedBotManeuvers[actor.id];
       if (previousManeuver != null && previousManeuver != maneuverState) {
         _emitCaptureEvent(
@@ -1516,7 +1516,8 @@ class GameSimulation {
     final actorSnapshots = <SimulationActorSnapshot>[];
     for (final actor in snakes) {
       if (!actor.alive) continue;
-      final maneuver = actor.kind == SnakeKind.bot ? _botManeuvers[actor.id] : null;
+      final maneuver =
+          actor.kind == SnakeKind.bot ? _botManeuvers[actor.id] : null;
       actorSnapshots.add(
         SimulationActorSnapshot(
           actorId: actor.id,

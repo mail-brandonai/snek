@@ -81,12 +81,6 @@ jobs:
           set -o pipefail
           dart format --output=none --set-exit-if-changed lib test integration_test test_driver 2>&1 | tee ci-logs/format.log
 
-      - name: Temporary formatter diff
-        if: always()
-        run: |
-          dart format lib/game/domain/simulation.dart lib/main.dart lib/training/application/fixed_step_run_recorder.dart lib/training/domain/training_models.dart test/training/application/fixed_step_run_recorder_test.dart test/training/application/simulation_capture_test.dart
-          git diff -- lib/game/domain/simulation.dart lib/main.dart lib/training/application/fixed_step_run_recorder.dart lib/training/domain/training_models.dart test/training/application/fixed_step_run_recorder_test.dart test/training/application/simulation_capture_test.dart | tee ci-logs/formatter-diff.log
-
       - name: Analyze
         id: analyze
         continue-on-error: true

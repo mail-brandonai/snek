@@ -131,7 +131,13 @@ class SnekPenSnapshot {
   }
 }
 
-enum TrainingRunStatus { recording, pendingReview, retained, discarded, incomplete }
+enum TrainingRunStatus {
+  recording,
+  pendingReview,
+  retained,
+  discarded,
+  incomplete
+}
 
 class TrainingRun {
   TrainingRun({
