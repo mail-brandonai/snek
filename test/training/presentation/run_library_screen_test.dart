@@ -51,6 +51,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('RUN DEBRIEF'), findsOneWidget);
+    expect(find.text('BEHAVIOR SIGNATURE'), findsOneWidget);
+    expect(find.text('OBSERVED EVIDENCE'), findsNWidgets(7));
+    expect(
+      find.textContaining('No pressure episodes were recorded'),
+      findsOneWidget,
+    );
     expect(find.text('Body collision'), findsOneWidget);
     expect(find.text('42'), findsOneWidget);
     expect(find.text('00:19'), findsOneWidget);
