@@ -20,13 +20,11 @@ class SoulFeatureExtractionResult {
   const SoulFeatureExtractionResult.ready(SoulBehaviorSignature signature)
       : this._(status: SoulFeatureStatus.ready, signature: signature);
 
-  const SoulFeatureExtractionResult.unsupportedSchema(int version)
+  SoulFeatureExtractionResult.unsupportedSchema(int version)
       : this._(
           status: SoulFeatureStatus.unsupportedRecordSchema,
-          message: 'Run record schema version ' +
-              version.toString() +
-              ' is not supported by ' +
-              currentSoulFeatureVersion,
+          message: 'Run record schema version $version is not supported by '
+              '$currentSoulFeatureVersion',
         );
 
   const SoulFeatureExtractionResult.invalidTrace(String message)
@@ -528,25 +526,28 @@ BehaviorTraitSummary _resourceTrait(_RecordedTrace trace) {
   final pickupCount = pickups.values.fold<int>(0, (sum, count) => sum + count);
   final totalSamples = trace.observations.length;
   final coverage = _ratio(validExposureSamples.length, totalSamples);
-  final naturalRate =
-      naturalExposureSamples == 0 ? null : pickups['natural']! / naturalExposureSamples;
+  final naturalRate = naturalExposureSamples == 0
+      ? null
+      : pickups['natural']! / naturalExposureSamples;
   final massPickups = pickups['sprintDrop']! + pickups['defeatDrop']!;
-  final massRate = massExposureSamples == 0 ? null : massPickups / massExposureSamples;
+  final massRate = massExposureSamples == 0
+      ? null
+      : massPickups / massExposureSamples;
   String? interpretation;
   if (mixedExposureSamples >= 3 && naturalRate != null && massRate != null) {
     if ((naturalRate - massRate).abs() < 0.000001) {
-      interpretation =
-          'Natural-food and dropped-mass pickups occurred at similar rates per observed exposure sample.';
+      interpretation = 'Natural-food and dropped-mass pickups occurred at similar '
+          'rates per observed exposure sample.';
     } else if (naturalRate > massRate) {
-      interpretation =
-          'Natural-food pickups were more frequent per observed exposure sample; nearby availability is only an approximation of choice.';
+      interpretation = 'Natural-food pickups were more frequent per observed '
+          'exposure sample; nearby availability is only an approximation of choice.';
     } else {
-      interpretation =
-          'Dropped-mass pickups were more frequent per observed exposure sample; nearby availability is only an approximation of choice.';
+      interpretation = 'Dropped-mass pickups were more frequent per observed '
+          'exposure sample; nearby availability is only an approximation of choice.';
     }
   } else {
-    interpretation =
-        'There are too few samples with both resource types nearby to compare collection rates.';
+    interpretation = 'There are too few samples with both resource types nearby '
+        'to compare collection rates.';
   }
 
   return BehaviorTraitSummary(
@@ -575,7 +576,8 @@ BehaviorTraitSummary _sizeAndAgilityTrait(_RecordedTrace trace) {
       .where((length) => length > 0)
       .toList(growable: false);
   final turns = _turnAngles(trace.observations);
-  final averageLength = _mean(lengths.map((value) => value.toDouble()).toList());
+  final averageLength =
+      _mean(lengths.map((value) => value.toDouble()).toList());
   final averageTurn = _mean(turns);
   final count = lengths.length < turns.length ? lengths.length : turns.length;
   final coverage = _ratio(count, trace.observations.length);
@@ -588,9 +590,13 @@ BehaviorTraitSummary _sizeAndAgilityTrait(_RecordedTrace trace) {
     confidence: _confidence(count, coverage, minimumSamples: 3),
     observedEvidence: <String, Object?>{
       'lengthSampleCount': lengths.length,
-      'minimumObservedLength': lengths.isEmpty ? null : lengths.reduce((a, b) => a < b ? a : b),
+      'minimumObservedLength': lengths.isEmpty
+          ? null
+          : lengths.reduce((a, b) => a < b ? a : b),
       'meanObservedLength': averageLength,
-      'maximumObservedLength': lengths.isEmpty ? null : lengths.reduce((a, b) => a > b ? a : b),
+      'maximumObservedLength': lengths.isEmpty
+          ? null
+          : lengths.reduce((a, b) => a > b ? a : b),
       'turnSampleCount': turns.length,
       'meanTurnRadiansPerObservation': averageTurn,
       'meanTurnDegreesPerObservation':
@@ -628,7 +634,9 @@ BehaviorTraitSummary _movementTrait(_RecordedTrace trace) {
     id: 'movementShape',
     label: 'Movement shape',
     sampleCount: sampleCount,
-    opportunityCount: trace.observations.length > 1 ? trace.observations.length - 1 : 0,
+    opportunityCount: trace.observations.length > 1
+        ? trace.observations.length - 1
+        : 0,
     coverage: coverage,
     confidence: _confidence(sampleCount, coverage, minimumSamples: 3),
     observedEvidence: <String, Object?>{
@@ -657,7 +665,8 @@ BehaviorTraitSummary _sprintTrait(_RecordedTrace trace) {
   }
   final sprintingSamples =
       trace.observations.where((sample) => sample.sprinting != null).toList();
-  final activeCount = sprintingSamples.where((sample) => sample.sprinting!).length;
+  final activeCount =
+      sprintingSamples.where((sample) => sample.sprinting!).length;
   final sampleCount = controlCount + sprintingSamples.length;
   final opportunityCount =
       trace.controls.length + trace.observations.length;
@@ -733,8 +742,10 @@ BehaviorTraitSummary _riskTrait(_RecordedTrace trace) {
     inferredInterpretation: samples.isEmpty
         ? 'No complete risk samples were recorded.'
         : highBoundarySamples * 4 >= samples.length
-            ? 'A substantial share of recorded samples was in the boundary warning band.'
-            : 'Recorded boundary and nearby-threat exposure are descriptive; they do not establish why the player chose an action.',
+            ? 'A substantial share of recorded samples was in the boundary '
+                'warning band.'
+            : 'Recorded boundary and nearby-threat exposure are descriptive; '
+                'they do not establish why the player chose an action.',
   );
 }
 
@@ -786,7 +797,8 @@ BehaviorTraitSummary _threatResponseTrait(
     inferredInterpretation: episodes.isEmpty
         ? 'No pressure episode was observed; response rate is not estimated.'
         : measuredResponseCount == 0
-            ? 'Pressure was recorded, but there is not enough completed input coverage to measure a response.'
+            ? 'Pressure was recorded, but there is not enough completed input '
+                'coverage to measure a response.'
             : 'Mean measured response latency was ' +
                 meanLatency!.toStringAsFixed(1) +
                 ' simulation ticks after pressure onset.',
@@ -804,7 +816,8 @@ BehaviorTraitSummary _botCounterStrategyTrait(_RecordedTrace trace) {
       maneuverTransitions[maneuver] =
           (maneuverTransitions[maneuver] ?? 0) + 1;
     } else if (event.kind == 'botRoleChanged' && event.detail != null) {
-      roleTransitions[event.detail!] = (roleTransitions[event.detail!] ?? 0) + 1;
+      roleTransitions[event.detail!] =
+          (roleTransitions[event.detail!] ?? 0) + 1;
     }
   }
   var actorSamples = 0;
@@ -974,7 +987,9 @@ List<PressureEpisodeSummary> _buildPressureEpisodes(
         playerLengthAtOnset: onsetLength,
         playerLengthAtEnd: endLength,
         playerLengthChange:
-            onsetLength == null || endLength == null ? null : endLength - onsetLength,
+            onsetLength == null || endLength == null
+                ? null
+                : endLength - onsetLength,
       );
     }),
   );
@@ -1027,7 +1042,8 @@ _PressureDraft? _removeOpenPressure(
     return (action: 'baseline unavailable', latencyTicks: null);
   }
   for (final sample in controls) {
-    if (sample.tick <= onsetTick || (endTick != null && sample.tick > endTick)) {
+    if (sample.tick <= onsetTick ||
+        (endTick != null && sample.tick > endTick)) {
       continue;
     }
     final steerChanged = _steeringChanged(baseline, sample);
@@ -1043,16 +1059,19 @@ _PressureDraft? _removeOpenPressure(
     }
   }
   return (
-    action: endTick == null ? 'response not yet observed' : 'no change observed',
+    action:
+        endTick == null ? 'response not yet observed' : 'no change observed',
     latencyTicks: null
   );
 }
 
 bool _steeringChanged(_ControlSample before, _ControlSample after) {
-  final beforeMagnitude =
-      math.sqrt(before.steeringX * before.steeringX + before.steeringY * before.steeringY);
-  final afterMagnitude =
-      math.sqrt(after.steeringX * after.steeringX + after.steeringY * after.steeringY);
+  final beforeMagnitude = math.sqrt(
+    before.steeringX * before.steeringX + before.steeringY * before.steeringY,
+  );
+  final afterMagnitude = math.sqrt(
+    after.steeringX * after.steeringX + after.steeringY * after.steeringY,
+  );
   if (beforeMagnitude < 0.0001 || afterMagnitude < 0.0001) {
     return (before.steeringX - after.steeringX).abs() > 0.2 ||
         (before.steeringY - after.steeringY).abs() > 0.2;
@@ -1105,7 +1124,9 @@ String? _lastManeuver(
   String? result;
   for (final event in events) {
     if (event.tick == null || event.tick! > atOrBeforeTick) continue;
-    if (event.kind != 'botManeuverChanged' || event.actorId != actorId) continue;
+    if (event.kind != 'botManeuverChanged' || event.actorId != actorId) {
+      continue;
+    }
     final detail = event.detail;
     if (detail != null) result = detail.split(':').first;
   }
