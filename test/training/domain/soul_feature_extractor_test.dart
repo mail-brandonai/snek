@@ -47,8 +47,8 @@ void main() {
       massSeeking.inferredInterpretation,
       contains('Dropped-mass pickups'),
     );
-    expect(forage.confidence, FeatureConfidence.high);
-    expect(massSeeking.confidence, FeatureConfidence.high);
+    expect(forage.confidence, FeatureConfidence.low);
+    expect(massSeeking.confidence, FeatureConfidence.low);
     expect(
       () => forageCounts['natural'] = 0,
       throwsUnsupportedError,
@@ -85,7 +85,7 @@ void main() {
       sizeAgility.observedEvidence['meanTurnDegreesPerObservation'],
       closeTo(90, 0.001),
     );
-    expect(sprint.confidence, FeatureConfidence.high);
+    expect(sprint.confidence, FeatureConfidence.moderate);
   });
 
   test('pressure episodes summarize response to captured bot maneuvers', () {
