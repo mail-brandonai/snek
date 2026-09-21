@@ -65,9 +65,8 @@ class RunReviewItem {
   }
 }
 
-typedef RunReviewAnalysisRunner = Future<Map<String, Object?>> Function(
-  Map<String, Object?> input,
-);
+typedef RunReviewAnalysisRunner =
+    Future<Map<String, Object?>> Function(Map<String, Object?> input);
 
 class RunReviewService {
   const RunReviewService({
@@ -152,10 +151,10 @@ Future<Map<String, Object?>> _analyzeRunReviewInBackground(
   }
   final worker =
       IsolateManager<Map<String, Object?>, Map<String, Object?>>.create(
-    analyzeRunReviewChunks,
-    workerName: 'analyzeRunReviewChunks',
-    debugName: 'run-review-analysis',
-  );
+        analyzeRunReviewChunks,
+        workerName: 'analyzeRunReviewChunks',
+        debugName: 'run-review-analysis',
+      );
   try {
     await worker.start();
     return await worker.compute(

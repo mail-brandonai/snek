@@ -38,48 +38,48 @@ void main() {
     await database.close();
   });
 
-  testWidgets('debrief shows run results and Keep persists without Soul edits',
-      (tester) async {
-    await _createPendingRun(lifecycle, chunks, 'run-1');
-    await tester.pumpWidget(
-      MaterialApp(
-        home: RunLibraryScreen(
-          service: review,
-          initialRunId: 'run-1',
-          onBack: () {},
+  testWidgets(
+    'debrief shows run results and Keep persists without Soul edits',
+    (tester) async {
+      await _createPendingRun(lifecycle, chunks, 'run-1');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RunLibraryScreen(
+            service: review,
+            initialRunId: 'run-1',
+            onBack: () {},
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('RUN DEBRIEF'), findsOneWidget);
-    expect(find.text('BEHAVIOR SIGNATURE'), findsOneWidget);
-    expect(find.text('OBSERVED EVIDENCE'), findsNWidgets(7));
-    expect(
-      find.textContaining('No pressure episodes were recorded'),
-      findsOneWidget,
-    );
-    expect(find.text('Body collision'), findsOneWidget);
-    expect(find.text('42'), findsOneWidget);
-    expect(find.text('00:19'), findsOneWidget);
-    expect(find.text('Player controls'), findsOneWidget);
-    expect(find.text('2'), findsOneWidget);
-    expect(find.text('KEEP RUN'), findsOneWidget);
+      expect(find.text('RUN DEBRIEF'), findsOneWidget);
+      expect(find.text('BEHAVIOR SIGNATURE'), findsOneWidget);
+      expect(find.text('OBSERVED EVIDENCE'), findsNWidgets(7));
+      expect(
+        find.textContaining('No pressure episodes were recorded'),
+        findsOneWidget,
+      );
+      expect(find.text('Body collision'), findsOneWidget);
+      expect(find.text('42'), findsOneWidget);
+      expect(find.text('00:19'), findsOneWidget);
+      expect(find.text('Player controls'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+      expect(find.text('KEEP RUN'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('KEEP RUN'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('KEEP RUN'));
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('KEEP RUN'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('KEEP RUN'));
+      await tester.pumpAndSettle();
 
-    expect(
-      (await runs.getRun('run-1'))?.status,
-      TrainingRunStatus.retained,
-    );
-    expect(await runs.listRevisions('soul-1'), isEmpty);
-  });
+      expect((await runs.getRun('run-1'))?.status, TrainingRunStatus.retained);
+      expect(await runs.listRevisions('soul-1'), isEmpty);
+    },
+  );
 
-  testWidgets('Discard confirms then deletes the run and all chunks',
-      (tester) async {
+  testWidgets('Discard confirms then deletes the run and all chunks', (
+    tester,
+  ) async {
     await _createPendingRun(lifecycle, chunks, 'run-2');
     await tester.pumpWidget(
       MaterialApp(
@@ -106,8 +106,9 @@ void main() {
     expect(find.text('No pending runs.'), findsOneWidget);
   });
 
-  testWidgets('Soul entry points do not create or refine implicitly',
-      (tester) async {
+  testWidgets('Soul entry points do not create or refine implicitly', (
+    tester,
+  ) async {
     await _createPendingRun(lifecycle, chunks, 'run-soul-stub');
     await tester.pumpWidget(
       MaterialApp(
@@ -147,10 +148,7 @@ void main() {
   testWidgets('incomplete runs are marked and cannot be kept', (tester) async {
     final run = _run('run-3');
     await lifecycle.start(run);
-    await lifecycle.markIncomplete(
-      runId: run.id,
-      finalizedAtMs: 200,
-    );
+    await lifecycle.markIncomplete(runId: run.id, finalizedAtMs: 200);
     await tester.pumpWidget(
       MaterialApp(
         home: RunLibraryScreen(
@@ -171,8 +169,9 @@ void main() {
     expect(find.text('DISCARD RUN'), findsOneWidget);
   });
 
-  testWidgets('referenced runs cannot be discarded from the library',
-      (tester) async {
+  testWidgets('referenced runs cannot be discarded from the library', (
+    tester,
+  ) async {
     await _createPendingRun(lifecycle, chunks, 'run-4');
     await runs.saveSoulRevision(
       soul: Soul(id: 'soul-1', name: 'Learner', createdAtMs: 100),
@@ -209,7 +208,9 @@ void main() {
       findsOneWidget,
     );
     expect(
-        (await runs.getRun('run-4'))?.status, TrainingRunStatus.pendingReview);
+      (await runs.getRun('run-4'))?.status,
+      TrainingRunStatus.pendingReview,
+    );
     expect(await chunks.chunkCountFor('run-4'), 1);
   });
 }
@@ -268,14 +269,14 @@ Future<void> _createPendingRun(
 }
 
 TrainingRun _run(String id) => TrainingRun(
-      id: id,
-      mode: 'manual',
-      seed: 7,
-      tickRateHz: 60,
-      createdAtMs: 100,
-      status: TrainingRunStatus.recording,
-      config: const <String, Object?>{
-        'playerName': 'Test Snek',
-        'playerProfileId': 'starter-snek',
-      },
-    );
+  id: id,
+  mode: 'manual',
+  seed: 7,
+  tickRateHz: 60,
+  createdAtMs: 100,
+  status: TrainingRunStatus.recording,
+  config: const <String, Object?>{
+    'playerName': 'Test Snek',
+    'playerProfileId': 'starter-snek',
+  },
+);
