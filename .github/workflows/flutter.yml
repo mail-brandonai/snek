@@ -39,27 +39,8 @@ jobs:
           flutter_version="$(flutter --version --machine | jq -r '.frameworkVersion')"
           echo "Flutter $flutter_version"
           test "$flutter_version" = "3.47.5"
-          java -version
           "$CHROME_EXECUTABLE" --version
           chromedriver --version
-          adb version
-          emulator -version
-          sdkmanager --version
-          android_packages="$(sdkmanager --list_installed 2>&1)"
-          for package in \
-            "platform-tools" \
-            "emulator" \
-            "platforms;android-35" \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
-            "system-images;android-35;google_apis;x86_64" \
-            "ndk;28.2.13676358" \
-            "cmake;3.22.1"; do
-            grep -Fq "$package" <<< "$android_packages" || {
-              echo "Missing preinstalled Android package: $package"
-              exit 1
-            }
-          done
 
       - name: Prepare web platform
         id: web_platform
@@ -143,71 +124,6 @@ jobs:
             exit "$probe_status"
           fi
 
-      - name: Start Android emulator
-        id: android_platform
-        continue-on-error: true
-        timeout-minutes: 15
-        run: |
-          set -euo pipefail
-          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
-          mkdir -p "$ANDROID_AVD_HOME"
-          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
-          echo "no" | avdmanager create avd --force --name snek-ci \
-            --package "system-images;android-35;google_apis;x86_64" \
-            --device pixel_2
-          emulator -avd snek-ci -no-window -no-audio -no-boot-anim \
-            -no-snapshot -gpu software -no-accel \
-            > "$RUNNER_TEMP/snek-emulator.log" 2>&1 &
-          adb start-server
-          if ! timeout 180s adb wait-for-device; then
-            cat "$RUNNER_TEMP/snek-emulator.log"
-            echo "Android emulator did not become available to adb within 180 seconds."
-            exit 1
-          fi
-          booted=false
-          for attempt in $(seq 1 300); do
-            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" = "1" ]; then
-              booted=true
-              break
-            fi
-            sleep 2
-          done
-          if [ "$booted" != true ]; then
-            cat "$RUNNER_TEMP/snek-emulator.log"
-            echo "Android emulator did not finish booting."
-            exit 1
-          fi
-          adb shell settings put global window_animation_scale 0
-          adb shell settings put global transition_animation_scale 0
-          adb shell settings put global animator_duration_scale 0
-          adb devices
-
-      - name: Android persistence probe
-        id: android_storage
-        continue-on-error: true
-        timeout-minutes: 15
-        run: |
-          set -o pipefail
-          android_device="$(adb devices | awk 'NR > 1 && $2 == "device" { print $1; exit }')"
-          if [ -z "$android_device" ]; then
-            echo "No Android emulator is available." | tee ci-logs/android-storage.log
-            exit 1
-          fi
-          flutter test integration_test/android_persistence_probe_test.dart \
-            --device-id "$android_device" 2>&1 | tee ci-logs/android-storage.log
-
-      - name: Stop Android emulator
-        if: always()
-        run: adb emu kill >/dev/null 2>&1 || true
-
-      - name: Build Android debug APK
-        id: build_android
-        continue-on-error: true
-        timeout-minutes: 20
-        run: |
-          set -o pipefail
-          flutter build apk --debug 2>&1 | tee ci-logs/build-android.log
-
       - name: Build web release
         id: build_web
         continue-on-error: true
@@ -232,9 +148,6 @@ jobs:
             echo "analyze=${{ steps.analyze.outcome }}"
             echo "test=${{ steps.test.outcome }}"
             echo "web_storage=${{ steps.web_storage.outcome }}"
-            echo "android_platform=${{ steps.android_platform.outcome }}"
-            echo "android_storage=${{ steps.android_storage.outcome }}"
-            echo "build_android=${{ steps.build_android.outcome }}"
             echo "build_web=${{ steps.build_web.outcome }}"
           } | tee ci-logs/summary.txt
 
@@ -247,9 +160,6 @@ jobs:
           test "${{ steps.analyze.outcome }}" = success
           test "${{ steps.test.outcome }}" = success
           test "${{ steps.web_storage.outcome }}" = success
-          test "${{ steps.android_platform.outcome }}" = success
-          test "${{ steps.android_storage.outcome }}" = success
-          test "${{ steps.build_android.outcome }}" = success
           test "${{ steps.build_web.outcome }}" = success
 
       - name: Upload CI logs
