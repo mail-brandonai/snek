@@ -16,6 +16,7 @@ import 'game/presentation/snek_pen.dart';
 import 'training/application/fixed_step_run_recorder.dart';
 import 'training/data/training_services.dart';
 import 'training/domain/training_models.dart';
+import 'training/presentation/run_library_screen.dart';
 
 const _snakeColours = ArenaSkin.snakeColours;
 
@@ -30,7 +31,7 @@ class SlitherApp extends StatefulWidget {
   State<SlitherApp> createState() => _SlitherAppState();
 }
 
-enum _AppScreen { landing, pen, create, playing }
+enum _AppScreen { landing, pen, create, playing, runs }
 
 class _SlitherAppState extends State<SlitherApp> {
   late final SlitherGame game;
@@ -39,6 +40,7 @@ class _SlitherAppState extends State<SlitherApp> {
   bool _penLoaded = false;
   bool _penLoading = false;
   _AppScreen _screen = _AppScreen.landing;
+  String? _runToReview;
   List<SnekProfile> _sneks = <SnekProfile>[SnekProfile.starter];
   String _selectedSnekId = SnekProfile.starter.id;
 
@@ -50,7 +52,7 @@ class _SlitherAppState extends State<SlitherApp> {
   @override
   void initState() {
     super.initState();
-    game = SlitherGame();
+    game = SlitherGame(onRunFinalized: _openCompletedRun);
     _focusNode = FocusNode();
   }
 
@@ -129,14 +131,35 @@ class _SlitherAppState extends State<SlitherApp> {
     _focusNode.requestFocus();
   }
 
+  void _openRunLibrary() {
+    setState(() {
+      _runToReview = null;
+      _screen = _AppScreen.runs;
+    });
+  }
+
+  void _openCompletedRun(String runId) {
+    if (!mounted) return;
+    setState(() {
+      _runToReview = runId;
+      _screen = _AppScreen.runs;
+    });
+  }
+
   void _returnHome() {
     game.leaveGame();
-    setState(() => _screen = _AppScreen.landing);
+    setState(() {
+      _runToReview = null;
+      _screen = _AppScreen.landing;
+    });
   }
 
   void _returnToPen() {
     game.leaveGame();
-    setState(() => _screen = _AppScreen.pen);
+    setState(() {
+      _runToReview = null;
+      _screen = _AppScreen.pen;
+    });
   }
 
   @override
@@ -218,6 +241,7 @@ class _SlitherAppState extends State<SlitherApp> {
                   child: SnekLandingScreen(
                     selectedSnek: _selectedSnek,
                     onOpenPen: _openPen,
+                    onOpenRuns: _openRunLibrary,
                   ),
                 ),
               if (_screen == _AppScreen.pen)
@@ -238,6 +262,14 @@ class _SlitherAppState extends State<SlitherApp> {
                     initialColorIndex: _selectedSnek.colorIndex,
                     onBack: () => setState(() => _screen = _AppScreen.pen),
                     onSave: _saveNewSnek,
+                  ),
+                ),
+              if (_screen == _AppScreen.runs)
+                Positioned.fill(
+                  child: RunLibraryScreen(
+                    key: ValueKey<String>(_runToReview ?? 'all-runs'),
+                    initialRunId: _runToReview,
+                    onBack: _returnHome,
                   ),
                 ),
             ],
@@ -329,6 +361,7 @@ class GameHud {
 class SlitherGame extends FlameGame {
   SlitherGame({
     SimulationConfig config = const SimulationConfig(),
+    this.onRunFinalized,
   })  : simulation = GameSimulation(config: config),
         hud = ValueNotifier(
           const GameHud(
@@ -353,6 +386,7 @@ class SlitherGame extends FlameGame {
           ),
         );
 
+  final ValueChanged<String>? onRunFinalized;
   final GameSimulation simulation;
   final ValueNotifier<GameHud> hud;
   final ui.Paint _gridPaint = ui.Paint()
@@ -547,10 +581,12 @@ class SlitherGame extends FlameGame {
       recorder
           .finalize(finalizedAtMs: DateTime.now().millisecondsSinceEpoch)
           .then<void>((_) {
-        if (identical(_recorder, recorder)) {
-          _recorder = null;
-          _recorderFinalizing = false;
-        }
+        if (!identical(_recorder, recorder)) return;
+        _recorder = null;
+        _recorderFinalizing = false;
+        _isActive = false;
+        _publishHud();
+        onRunFinalized?.call(recorder.runId);
       }).catchError((Object error) {
         debugPrint('Could not finalize the run recorder: $error');
         _recorderFinalizing = false;

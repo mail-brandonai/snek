@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../application/fixed_step_run_recorder.dart';
+import '../application/run_review.dart';
 import '../domain/training_application.dart';
 import '../domain/training_models.dart';
 import 'drift_run_store.dart';
@@ -67,5 +68,14 @@ class TrainingServices {
     );
     await recorder.begin(run);
     return recorder;
+  }
+
+  static Future<RunReviewService> runReviewService() async {
+    final services = await _instance;
+    return RunReviewService(
+      runs: services.repositories,
+      chunks: services.runChunks,
+      lifecycle: services.runLifecycle,
+    );
   }
 }
