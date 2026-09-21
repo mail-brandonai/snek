@@ -49,7 +49,7 @@ class BehaviorTraitSummary {
     required this.confidence,
     required Map<String, Object?> observedEvidence,
     this.inferredInterpretation,
-  }) : observedEvidence = Map<String, Object?>.unmodifiable(observedEvidence) {
+  }) : observedEvidence = _freezeEvidence(observedEvidence) {
     if (sampleCount < 0 ||
         opportunityCount < 0 ||
         !coverage.isFinite ||
@@ -81,6 +81,29 @@ class BehaviorTraitSummary {
         'observedEvidence': observedEvidence,
         'inferredInterpretation': inferredInterpretation,
       };
+}
+
+Map<String, Object?> _freezeEvidence(Map<String, Object?> evidence) =>
+    Map<String, Object?>.unmodifiable(
+      evidence.map(
+        (key, value) => MapEntry<String, Object?>(key, _freezeJsonValue(value)),
+      ),
+    );
+
+Object? _freezeJsonValue(Object? value) {
+  if (value is Map) {
+    return Map<String, Object?>.unmodifiable(
+      <String, Object?>{
+        for (final entry in value.entries)
+          if (entry.key is String)
+            entry.key as String: _freezeJsonValue(entry.value),
+      },
+    );
+  }
+  if (value is List) {
+    return List<Object?>.unmodifiable(value.map(_freezeJsonValue));
+  }
+  return value;
 }
 
 class PressureEpisodeSummary {
