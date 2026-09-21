@@ -34,8 +34,10 @@ Install the stable Flutter SDK, then run:
 ```sh
 flutter create --platforms=web,android .
 flutter pub get
+bash tool/prepare_drift_web_assets.sh
 flutter test
 flutter run -d chrome
+flutter build web --release
 ```
 
 The `flutter create` command only adds platform scaffolding to an otherwise platform-neutral source checkout; it does not replace the game code.
