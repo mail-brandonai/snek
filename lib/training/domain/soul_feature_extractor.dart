@@ -595,7 +595,9 @@ BehaviorTraitSummary _movementTrait(_RecordedTrace trace) {
   if (positions.length >= 2 && pathLength > 0) {
     final dx = positions.last.positionX! - positions.first.positionX!;
     final dy = positions.last.positionY! - positions.first.positionY!;
-    efficiency = (math.sqrt(dx * dx + dy * dy) / pathLength).clamp(0.0, 1.0);
+    efficiency = (math.sqrt(dx * dx + dy * dy) / pathLength)
+        .clamp(0.0, 1.0)
+        .toDouble();
   }
   final sampleCount = positions.length > 1 ? positions.length - 1 : 0;
   final coverage = _ratio(positions.length, trace.observations.length);
