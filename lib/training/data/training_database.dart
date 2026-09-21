@@ -15,6 +15,16 @@ class RunHeaders extends Table {
 
   IntColumn get finalizedAtMs => integer().nullable()();
 
+  TextColumn get mode => text().withDefault(const Constant('unknown'))();
+
+  IntColumn get seed => integer().withDefault(const Constant(0))();
+
+  IntColumn get tickRateHz => integer().withDefault(const Constant(1))();
+
+  IntColumn get schemaVersion => integer().withDefault(const Constant(1))();
+
+  TextColumn get configJson => text().withDefault(const Constant('{}'))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -40,7 +50,21 @@ class RunChunks extends Table {
   Set<Column> get primaryKey => {runId, sequence};
 }
 
-@DriftDatabase(tables: [RunHeaders, RunChunks])
+class TrainingRecords extends Table {
+  @override
+  String get tableName => 'training_records';
+
+  TextColumn get kind => text()();
+
+  TextColumn get id => text()();
+
+  TextColumn get payload => text()();
+
+  @override
+  Set<Column> get primaryKey => {kind, id};
+}
+
+@DriftDatabase(tables: [RunHeaders, RunChunks, TrainingRecords])
 class TrainingDatabase extends _$TrainingDatabase {
   TrainingDatabase(super.e);
 
@@ -57,5 +81,20 @@ class TrainingDatabase extends _$TrainingDatabase {
   }
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(runHeaders, runHeaders.mode);
+            await m.addColumn(runHeaders, runHeaders.seed);
+            await m.addColumn(runHeaders, runHeaders.tickRateHz);
+            await m.addColumn(runHeaders, runHeaders.schemaVersion);
+            await m.addColumn(runHeaders, runHeaders.configJson);
+            await m.createTable(trainingRecords);
+          }
+        },
+      );
 }
