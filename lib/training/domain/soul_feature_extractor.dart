@@ -43,7 +43,7 @@ class SoulFeatureExtractionResult {
     }
     final status = SoulFeatureStatus.values.firstWhere(
       (candidate) => candidate.name == rawStatus,
-      orElse: () => throw FormatException('Unknown feature result status.'),
+      orElse: () => throw const FormatException('Unknown feature result status.'),
     );
     if (status == SoulFeatureStatus.ready) {
       return SoulFeatureExtractionResult.ready(
