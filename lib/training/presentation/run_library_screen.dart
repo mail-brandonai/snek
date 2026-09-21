@@ -30,43 +30,60 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   late final Future<RunReviewService> _service;
   List<TrainingRun> _runs = const <TrainingRun>[];
   String? _selectedRunId;
+  TrainingRun? _selectedRun;
   RunReviewItem? _selectedItem;
   _RunFilter _filter = _RunFilter.pending;
   bool _loading = true;
+  bool _analysisLoading = false;
   bool _busy = false;
+  int _loadGeneration = 0;
   String? _error;
 
   @override
   void initState() {
     super.initState();
     _selectedRunId = widget.initialRunId;
-    _service = widget.service == null
-        ? TrainingServices.runReviewService()
-        : Future<RunReviewService>.value(widget.service!);
+    _service =
+        widget.service == null
+            ? TrainingServices.runReviewService()
+            : Future<RunReviewService>.value(widget.service!);
     _refresh();
   }
 
   Future<void> _refresh() async {
+    final generation = ++_loadGeneration;
     setState(() {
       _loading = true;
+      _analysisLoading = false;
       _error = null;
     });
     try {
       final service = await _service;
       final runs = await service.listRuns();
       final selectedId = _selectedRunId;
-      final detail =
-          selectedId == null ? null : await service.loadRun(selectedId);
-      if (!mounted) return;
+      final selectedRun =
+          selectedId == null ? null : await service.loadRunHeader(selectedId);
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _runs = runs;
-        _selectedItem = detail;
+        _selectedRun = selectedRun;
+        _selectedItem = null;
         _loading = false;
+        _analysisLoading = selectedRun != null;
+      });
+      if (selectedRun == null) return;
+
+      final detail = await service.analyzeRun(selectedRun);
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _selectedItem = detail;
+        _analysisLoading = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _loading = false;
+        _analysisLoading = false;
         _error = _errorMessage(error);
       });
     }
@@ -75,8 +92,10 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   Future<void> _openRun(String runId) async {
     setState(() {
       _selectedRunId = runId;
+      _selectedRun = null;
       _selectedItem = null;
       _loading = true;
+      _analysisLoading = false;
       _error = null;
     });
     await _refresh();
@@ -84,9 +103,12 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
 
   void _back() {
     if (_selectedRunId != null) {
+      _loadGeneration++;
       setState(() {
         _selectedRunId = null;
+        _selectedRun = null;
         _selectedItem = null;
+        _analysisLoading = false;
         _error = null;
       });
       return;
@@ -114,23 +136,24 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
     if (item == null || _busy) return;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Discard this run?'),
-        content: const Text(
-          'This permanently deletes the run and its recorded chunks. '
-          'A run referenced by a Soul cannot be discarded.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('CANCEL'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Discard this run?'),
+            content: const Text(
+              'This permanently deletes the run and its recorded chunks. '
+              'A run referenced by a Soul cannot be discarded.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('CANCEL'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('DISCARD RUN'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('DISCARD RUN'),
-          ),
-        ],
-      ),
     );
     if (confirmed != true || !mounted) return;
 
@@ -151,23 +174,25 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   }
 
   Future<void> _showSoulActionStub(bool refine) async {
-    final message = refine
-        ? 'Choose a target Soul before refining. Soul selection and training '
-            'are scheduled for later sprints; no data was changed.'
-        : 'Soul creation and training are scheduled for Sprint 5. '
-            'This run remains unchanged.';
+    final message =
+        refine
+            ? 'Choose a target Soul before refining. Soul selection and training '
+                'are scheduled for later sprints; no data was changed.'
+            : 'Soul creation and training are scheduled for Sprint 5. '
+                'This run remains unchanged.';
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(refine ? 'REFINE SOUL' : 'CREATE SOUL'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CLOSE'),
+      builder:
+          (context) => AlertDialog(
+            title: Text(refine ? 'REFINE SOUL' : 'CREATE SOUL'),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('CLOSE'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -178,7 +203,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  List<TrainingRun> get _visibleRuns => _runs.where((run) {
+  List<TrainingRun> get _visibleRuns => _runs
+      .where((run) {
         switch (_filter) {
           case _RunFilter.pending:
             return run.status == TrainingRunStatus.pendingReview;
@@ -187,7 +213,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
           case _RunFilter.incomplete:
             return run.status == TrainingRunStatus.incomplete;
         }
-      }).toList(growable: false);
+      })
+      .toList(growable: false);
 
   int _count(TrainingRunStatus status) =>
       _runs.where((run) => run.status == status).length;
@@ -202,13 +229,14 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
           children: [
             _header(isDetail),
             Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
+              child:
+                  _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _error != null
                       ? _messagePanel(_error!)
                       : isDetail
-                          ? _detail()
-                          : _library(),
+                      ? _detail()
+                      : _library(),
             ),
           ],
         ),
@@ -217,33 +245,33 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   }
 
   Widget _header(bool isDetail) => Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 18, 12),
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: _back,
-              tooltip: isDetail ? 'Back to Run Library' : 'Back',
-              icon: const Icon(Icons.arrow_back),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                isDetail ? 'RUN DEBRIEF' : 'RUN LIBRARY',
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.6,
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: _loading || _busy ? null : _refresh,
-              tooltip: 'Refresh runs',
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
+    padding: const EdgeInsets.fromLTRB(12, 8, 18, 12),
+    child: Row(
+      children: [
+        IconButton(
+          onPressed: _back,
+          tooltip: isDetail ? 'Back to Run Library' : 'Back',
+          icon: const Icon(Icons.arrow_back),
         ),
-      );
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            isDetail ? 'RUN DEBRIEF' : 'RUN LIBRARY',
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.6,
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: _loading || _analysisLoading || _busy ? null : _refresh,
+          tooltip: 'Refresh runs',
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
+    ),
+  );
 
   Widget _library() {
     final visible = _visibleRuns;
@@ -255,71 +283,157 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
             spacing: 8,
             children: [
               ChoiceChip(
-                label:
-                    Text('PENDING ${_count(TrainingRunStatus.pendingReview)}'),
+                label: Text(
+                  'PENDING ${_count(TrainingRunStatus.pendingReview)}',
+                ),
                 selected: _filter == _RunFilter.pending,
                 onSelected: (_) => setState(() => _filter = _RunFilter.pending),
               ),
               ChoiceChip(
                 label: Text('KEPT ${_count(TrainingRunStatus.retained)}'),
                 selected: _filter == _RunFilter.retained,
-                onSelected: (_) =>
-                    setState(() => _filter = _RunFilter.retained),
+                onSelected:
+                    (_) => setState(() => _filter = _RunFilter.retained),
               ),
               ChoiceChip(
-                label:
-                    Text('INCOMPLETE ${_count(TrainingRunStatus.incomplete)}'),
+                label: Text(
+                  'INCOMPLETE ${_count(TrainingRunStatus.incomplete)}',
+                ),
                 selected: _filter == _RunFilter.incomplete,
-                onSelected: (_) =>
-                    setState(() => _filter = _RunFilter.incomplete),
+                onSelected:
+                    (_) => setState(() => _filter = _RunFilter.incomplete),
               ),
             ],
           ),
         ),
         const SizedBox(height: 12),
         Expanded(
-          child: visible.isEmpty
-              ? _messagePanel(
-                  switch (_filter) {
+          child:
+              visible.isEmpty
+                  ? _messagePanel(switch (_filter) {
                     _RunFilter.pending => 'No pending runs.',
                     _RunFilter.retained => 'No kept runs.',
                     _RunFilter.incomplete => 'No incomplete runs.',
-                  },
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-                  itemCount: visible.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final run = visible[index];
-                    final playerName = run.config['playerName'];
-                    final title =
-                        playerName is String ? playerName : 'Unknown Snek';
-                    return Card(
-                      color: const Color(0xff101d2a),
-                      child: ListTile(
-                        title: Text(title),
-                        subtitle: Text(
-                          '${run.mode.toUpperCase()}  ·  Seed ${run.seed}  ·  '
-                          '${_formatDate(run.createdAtMs)}',
+                  })
+                  : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                    itemCount: visible.length,
+                    separatorBuilder:
+                        (context, index) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final run = visible[index];
+                      final playerName = run.config['playerName'];
+                      final title =
+                          playerName is String ? playerName : 'Unknown Snek';
+                      return Card(
+                        color: const Color(0xff101d2a),
+                        child: ListTile(
+                          title: Text(title),
+                          subtitle: Text(
+                            '${run.mode.toUpperCase()}  ·  Seed ${run.seed}  ·  '
+                            '${_formatDate(run.createdAtMs)}',
+                          ),
+                          trailing: _statusBadge(run.status),
+                          onTap: () => _openRun(run.id),
                         ),
-                        trailing: _statusBadge(run.status),
-                        onTap: () => _openRun(run.id),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
         ),
       ],
     );
   }
 
+  Widget _analysisLoadingDetail(TrainingRun run) {
+    final configuredName = run.config['playerName'];
+    final playerName =
+        configuredName is String && configuredName.trim().isNotEmpty
+            ? configuredName
+            : 'Unknown Snek';
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: Card(
+            color: const Color(0xff101d2a),
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          playerName,
+                          style: const TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      _statusBadge(run.status),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '${run.mode.toUpperCase()} run  ·  '
+                    '${_formatDate(run.createdAtMs)}',
+                    style: const TextStyle(color: ArenaSkin.textMuted),
+                  ),
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _metric('Score', '—'),
+                      _metric('Length', '—'),
+                      _metric('Survival', '—'),
+                      _metric('Rank', '—'),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  _detailLine('Seed', run.seed.toString()),
+                  _detailLine('Run ID', run.id),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'BEHAVIOR SIGNATURE',
+                    style: TextStyle(
+                      color: ArenaSkin.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Row(
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(child: Text('Analyzing recorded behavior')),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _detail() {
     final item = _selectedItem;
-    if (item == null) {
+    final run = item?.run ?? _selectedRun;
+    if (run == null) {
       return _messagePanel('Run not found or no longer available.');
     }
+    if (item == null) return _analysisLoadingDetail(run);
     final incomplete = item.run.status == TrainingRunStatus.incomplete;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 24),
@@ -361,7 +475,9 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                       _metric('Score', item.score?.toString() ?? '—'),
                       _metric('Length', item.length?.toString() ?? '—'),
                       _metric(
-                          'Survival', _formatDuration(item.survivalSeconds)),
+                        'Survival',
+                        _formatDuration(item.survivalSeconds),
+                      ),
                       _metric('Rank', item.rank?.toString() ?? '—'),
                     ],
                   ),
@@ -381,7 +497,9 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                   ),
                   const SizedBox(height: 8),
                   _detailLine(
-                      'Player controls', item.controlSampleCount.toString()),
+                    'Player controls',
+                    item.controlSampleCount.toString(),
+                  ),
                   _detailLine(
                     'Actor observations',
                     item.observationSampleCount.toString(),
@@ -612,54 +730,53 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   }
 
   Widget _metric(String label, String value) => DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0x332f4b64),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(color: ArenaSkin.textMuted)),
-              const SizedBox(height: 3),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+    decoration: BoxDecoration(
+      color: const Color(0x332f4b64),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: ArenaSkin.textMuted)),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 
   Widget _detailLine(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 150,
-              child: Text(label,
-                  style: const TextStyle(color: ArenaSkin.textMuted)),
-            ),
-            Expanded(child: SelectableText(value)),
-          ],
-        ),
-      );
-
-  Widget _messagePanel(String message) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 150,
           child: Text(
-            message,
-            textAlign: TextAlign.center,
+            label,
             style: const TextStyle(color: ArenaSkin.textMuted),
           ),
         ),
-      );
+        Expanded(child: SelectableText(value)),
+      ],
+    ),
+  );
+
+  Widget _messagePanel(String message) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: ArenaSkin.textMuted),
+      ),
+    ),
+  );
 
   Widget _statusBadge(TrainingRunStatus status) {
     final label = switch (status) {
@@ -669,9 +786,10 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
       TrainingRunStatus.recording => 'RECORDING',
       TrainingRunStatus.discarded => 'DISCARDED',
     };
-    final color = status == TrainingRunStatus.incomplete
-        ? ArenaSkin.danger
-        : ArenaSkin.accent;
+    final color =
+        status == TrainingRunStatus.incomplete
+            ? ArenaSkin.danger
+            : ArenaSkin.accent;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
@@ -713,18 +831,18 @@ String _pressureEpisodeOutcome(PressureEpisodeSummary episode) =>
     ' · sprint requested: ${episode.sprintRequestedDuringEpisode}';
 
 String _confidenceLabel(FeatureConfidence confidence) => switch (confidence) {
-      FeatureConfidence.insufficient => 'INSUFFICIENT EVIDENCE',
-      FeatureConfidence.low => 'LOW CONFIDENCE',
-      FeatureConfidence.moderate => 'MODERATE CONFIDENCE',
-      FeatureConfidence.high => 'HIGH CONFIDENCE',
-    };
+  FeatureConfidence.insufficient => 'INSUFFICIENT EVIDENCE',
+  FeatureConfidence.low => 'LOW CONFIDENCE',
+  FeatureConfidence.moderate => 'MODERATE CONFIDENCE',
+  FeatureConfidence.high => 'HIGH CONFIDENCE',
+};
 
 String _outcomeLabel(String? outcome) => switch (outcome) {
-      'bodyCollision' => 'Body collision',
-      'boundary' => 'Arena boundary',
-      null || '' => 'Outcome unavailable',
-      _ => outcome,
-    };
+  'bodyCollision' => 'Body collision',
+  'boundary' => 'Arena boundary',
+  null || '' => 'Outcome unavailable',
+  _ => outcome,
+};
 
 String _formatDate(int milliseconds) {
   final value = DateTime.fromMillisecondsSinceEpoch(milliseconds).toLocal();
