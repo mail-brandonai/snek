@@ -22,6 +22,11 @@ abstract interface class RunChunkRepository {
     required int finalizedAtMs,
   });
 
+  Future<void> markIncomplete({
+    required String runId,
+    required int finalizedAtMs,
+  });
+
   Future<int> chunkCountFor(String runId);
   Future<List<Uint8List>> chunkPayloadsFor(String runId);
 }
