@@ -45,9 +45,9 @@ class _SlitherAppState extends State<SlitherApp> {
   String _selectedSnekId = SnekProfile.starter.id;
 
   SnekProfile get _selectedSnek => _sneks.firstWhere(
-        (snek) => snek.id == _selectedSnekId,
-        orElse: () => _sneks.first,
-      );
+    (snek) => snek.id == _selectedSnekId,
+    orElse: () => _sneks.first,
+  );
 
   @override
   void initState() {
@@ -76,14 +76,14 @@ class _SlitherAppState extends State<SlitherApp> {
       }
       if (!mounted) return;
       setState(() {
-        _sneks = snapshot.sneks.isEmpty
-            ? <SnekProfile>[SnekProfile.starter]
-            : snapshot.sneks;
-        _selectedSnekId = _sneks.any(
-          (snek) => snek.id == snapshot.selectedSnekId,
-        )
-            ? snapshot.selectedSnekId
-            : _sneks.first.id;
+        _sneks =
+            snapshot.sneks.isEmpty
+                ? <SnekProfile>[SnekProfile.starter]
+                : snapshot.sneks;
+        _selectedSnekId =
+            _sneks.any((snek) => snek.id == snapshot.selectedSnekId)
+                ? snapshot.selectedSnekId
+                : _sneks.first.id;
         _penLoaded = true;
         _penLoading = false;
         _screen = _AppScreen.pen;
@@ -115,10 +115,7 @@ class _SlitherAppState extends State<SlitherApp> {
   Future<void> _persistPen() async {
     try {
       await TrainingServices.savePen(
-        SnekPenSnapshot(
-          sneks: _sneks,
-          selectedSnekId: _selectedSnekId,
-        ),
+        SnekPenSnapshot(sneks: _sneks, selectedSnekId: _selectedSnekId),
       );
     } catch (error) {
       debugPrint('Could not save the Snek Pen: $error');
@@ -211,31 +208,34 @@ class _SlitherAppState extends State<SlitherApp> {
                 )
               else
                 const ColoredBox(color: ArenaSkin.background),
-              ValueListenableBuilder<GameHud>(
-                valueListenable: game.hud,
-                builder: (context, state, child) => Stack(
-                  children: [
-                    IgnorePointer(
-                      ignoring:
-                          _screen != _AppScreen.playing || !state.gameOver,
-                      child: _Hud(
-                        state: state,
-                        onRestart: game.restart,
-                        onChangeSnek: _returnToPen,
+              if (_screen == _AppScreen.playing)
+                ValueListenableBuilder<GameHud>(
+                  valueListenable: game.hud,
+                  builder:
+                      (context, state, child) => Stack(
+                        children: [
+                          IgnorePointer(
+                            ignoring:
+                                _screen != _AppScreen.playing ||
+                                !state.gameOver,
+                            child: _Hud(
+                              state: state,
+                              onRestart: game.restart,
+                              onChangeSnek: _returnToPen,
+                            ),
+                          ),
+                          if (_screen == _AppScreen.playing)
+                            Positioned(
+                              top: 62,
+                              left: 16,
+                              child: _TacticsHudToggle(
+                                enabled: state.advancedHudEnabled,
+                                onPressed: game.toggleAdvancedHud,
+                              ),
+                            ),
+                        ],
                       ),
-                    ),
-                    if (_screen == _AppScreen.playing)
-                      Positioned(
-                        top: 62,
-                        left: 16,
-                        child: _TacticsHudToggle(
-                          enabled: state.advancedHudEnabled,
-                          onPressed: game.toggleAdvancedHud,
-                        ),
-                      ),
-                  ],
                 ),
-              ),
               if (_screen == _AppScreen.landing)
                 Positioned.fill(
                   child: SnekLandingScreen(
@@ -362,46 +362,49 @@ class SlitherGame extends FlameGame {
   SlitherGame({
     SimulationConfig config = const SimulationConfig(),
     this.onRunFinalized,
-  })  : simulation = GameSimulation(config: config),
-        hud = ValueNotifier(
-          const GameHud(
-            score: 0,
-            playerName: 'Snek',
-            length: 0,
-            rank: 1,
-            survivalSeconds: 0,
-            sprinting: false,
-            gameOver: false,
-            gameOverReason: null,
-            finalStats: null,
-            leaderboard: <LeaderboardEntry>[],
-            minimap: <MinimapMarker>[],
-            minimapPings: <MinimapPing>[],
-            collisionAlertProgress: 0,
-            boundaryWarningProgress: 0,
-            minimapTelegraphEvents: <MinimapTelegraphEvent>[],
-            threats: <ThreatSignal>[],
-            tacticalDiagnostics: '',
-            advancedHudEnabled: false,
-          ),
-        );
+  }) : simulation = GameSimulation(config: config),
+       hud = ValueNotifier(
+         const GameHud(
+           score: 0,
+           playerName: 'Snek',
+           length: 0,
+           rank: 1,
+           survivalSeconds: 0,
+           sprinting: false,
+           gameOver: false,
+           gameOverReason: null,
+           finalStats: null,
+           leaderboard: <LeaderboardEntry>[],
+           minimap: <MinimapMarker>[],
+           minimapPings: <MinimapPing>[],
+           collisionAlertProgress: 0,
+           boundaryWarningProgress: 0,
+           minimapTelegraphEvents: <MinimapTelegraphEvent>[],
+           threats: <ThreatSignal>[],
+           tacticalDiagnostics: '',
+           advancedHudEnabled: false,
+         ),
+       );
 
   final ValueChanged<String>? onRunFinalized;
   final GameSimulation simulation;
   final ValueNotifier<GameHud> hud;
-  final ui.Paint _gridPaint = ui.Paint()
-    ..color = ArenaSkin.tileLine
-    ..style = ui.PaintingStyle.stroke
-    ..strokeWidth = 1.2;
+  final ui.Paint _gridPaint =
+      ui.Paint()
+        ..color = ArenaSkin.tileLine
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 1.2;
   final ui.Paint _gridFacePaint = ui.Paint()..color = ArenaSkin.tileFace;
-  final ui.Paint _gridLightEdgePaint = ui.Paint()
-    ..color = ArenaSkin.tileHighlight.withValues(alpha: 0.72)
-    ..style = ui.PaintingStyle.stroke
-    ..strokeWidth = 1.4;
-  final ui.Paint _gridShadeEdgePaint = ui.Paint()
-    ..color = ArenaSkin.tileShade.withValues(alpha: 0.92)
-    ..style = ui.PaintingStyle.stroke
-    ..strokeWidth = 1.8;
+  final ui.Paint _gridLightEdgePaint =
+      ui.Paint()
+        ..color = ArenaSkin.tileHighlight.withValues(alpha: 0.72)
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 1.4;
+  final ui.Paint _gridShadeEdgePaint =
+      ui.Paint()
+        ..color = ArenaSkin.tileShade.withValues(alpha: 0.92)
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 1.8;
   final ui.Paint _naturalPelletPaint = ArenaSkin.naturalPelletPaint;
   final List<ui.Paint> _droppedPelletPaints = ArenaSkin.droppedPelletPaints;
   final List<ui.Paint> _droppedGlowPaints = List<ui.Paint>.generate(
@@ -412,8 +415,8 @@ class SlitherGame extends FlameGame {
   final ui.Paint _effectPaint = ui.Paint();
   final ui.Paint _eyePaint = ui.Paint()..color = const Color(0xfff7fbff);
   final ui.Paint _pupilPaint = ui.Paint()..color = const Color(0xff07111d);
-  final ui.Paint _eyeGlintPaint = ui.Paint()
-    ..color = const Color(0xffffffff).withValues(alpha: 0.92);
+  final ui.Paint _eyeGlintPaint =
+      ui.Paint()..color = const Color(0xffffffff).withValues(alpha: 0.92);
   final ui.Path _visibleGridPath = ui.Path();
   final ui.Path _visibleGridFacePath = ui.Path();
   final ui.Path _visibleGridLightEdgePath = ui.Path();
@@ -533,9 +536,10 @@ class SlitherGame extends FlameGame {
     simulation.captureSink = null;
 
     final finalizedAtMs = DateTime.now().millisecondsSinceEpoch;
-    final completion = simulation.gameOver
-        ? recorder.finalize(finalizedAtMs: finalizedAtMs)
-        : recorder.abort(finalizedAtMs: finalizedAtMs);
+    final completion =
+        simulation.gameOver
+            ? recorder.finalize(finalizedAtMs: finalizedAtMs)
+            : recorder.abort(finalizedAtMs: finalizedAtMs);
     unawaited(
       completion.then<void>((_) {}).catchError((Object error) {
         debugPrint('Could not close the run recorder: $error');
@@ -581,16 +585,17 @@ class SlitherGame extends FlameGame {
       recorder
           .finalize(finalizedAtMs: DateTime.now().millisecondsSinceEpoch)
           .then<void>((_) {
-        if (!identical(_recorder, recorder)) return;
-        _recorder = null;
-        _recorderFinalizing = false;
-        _isActive = false;
-        _publishHud();
-        onRunFinalized?.call(recorder.runId);
-      }).catchError((Object error) {
-        debugPrint('Could not finalize the run recorder: $error');
-        _recorderFinalizing = false;
-      }),
+            if (!identical(_recorder, recorder)) return;
+            _recorder = null;
+            _recorderFinalizing = false;
+            _isActive = false;
+            _publishHud();
+            onRunFinalized?.call(recorder.runId);
+          })
+          .catchError((Object error) {
+            debugPrint('Could not finalize the run recorder: $error');
+            _recorderFinalizing = false;
+          }),
     );
   }
 
@@ -601,15 +606,18 @@ class SlitherGame extends FlameGame {
     if (size.x == 0 || size.y == 0) return;
 
     final interpolation = simulation.renderInterpolationAlpha;
-    _renderCameraX =
-        simulation.renderBodyX(simulation.player, 0, interpolation);
-    _renderCameraY =
-        simulation.renderBodyY(simulation.player, 0, interpolation);
-    canvas.save();
-    canvas.translate(
-      size.x / 2 - _renderCameraX,
-      size.y / 2 - _renderCameraY,
+    _renderCameraX = simulation.renderBodyX(
+      simulation.player,
+      0,
+      interpolation,
     );
+    _renderCameraY = simulation.renderBodyY(
+      simulation.player,
+      0,
+      interpolation,
+    );
+    canvas.save();
+    canvas.translate(size.x / 2 - _renderCameraX, size.y / 2 - _renderCameraY);
     _drawArena(canvas, _renderCameraX, _renderCameraY);
     _drawPellets(canvas, simulation.pellets, dropped: false);
     _drawPellets(canvas, simulation.droppedMass, dropped: true);
@@ -674,22 +682,26 @@ class SlitherGame extends FlameGame {
     final minimumY = cameraY - size.y / 2 - spacing;
     final maximumY = cameraY + size.y / 2 + spacing;
     final maximumGridIndex = (radius * 2 / spacing).floor();
-    final startColumn = ((minimumX + radius) / spacing)
-        .floor()
-        .clamp(0, maximumGridIndex)
-        .toInt();
-    final endColumn = ((maximumX + radius) / spacing)
-        .ceil()
-        .clamp(0, maximumGridIndex)
-        .toInt();
-    final startRow = ((minimumY + radius) / spacing)
-        .floor()
-        .clamp(0, maximumGridIndex)
-        .toInt();
-    final endRow = ((maximumY + radius) / spacing)
-        .ceil()
-        .clamp(0, maximumGridIndex)
-        .toInt();
+    final startColumn =
+        ((minimumX + radius) / spacing)
+            .floor()
+            .clamp(0, maximumGridIndex)
+            .toInt();
+    final endColumn =
+        ((maximumX + radius) / spacing)
+            .ceil()
+            .clamp(0, maximumGridIndex)
+            .toInt();
+    final startRow =
+        ((minimumY + radius) / spacing)
+            .floor()
+            .clamp(0, maximumGridIndex)
+            .toInt();
+    final endRow =
+        ((maximumY + radius) / spacing)
+            .ceil()
+            .clamp(0, maximumGridIndex)
+            .toInt();
     if (startColumn != _gridStartColumn ||
         endColumn != _gridEndColumn ||
         startRow != _gridStartRow ||
@@ -754,12 +766,10 @@ class SlitherGame extends FlameGame {
 
     final viewportRadius = math.sqrt(size.x * size.x + size.y * size.y) / 2;
     final cameraDistance = math.sqrt(cameraX * cameraX + cameraY * cameraY);
-    final warningRadius = math
-        .max(
-          0.0,
-          radius - simulation.config.arenaBoundaryWarningBuffer,
-        )
-        .toDouble();
+    final warningRadius =
+        math
+            .max(0.0, radius - simulation.config.arenaBoundaryWarningBuffer)
+            .toDouble();
     if ((cameraDistance - warningRadius).abs() <= viewportRadius + 24) {
       _effectPaint
         ..color = const Color(0xffff9f43).withValues(alpha: 0.08)
@@ -857,13 +867,16 @@ class SlitherGame extends FlameGame {
     final colourIndex = snake.colorIndex.abs() % _snakeColours.length;
     final colour = _snakeColours[colourIndex];
     if (snake.sprintAnticipating || snake.sprinting) {
-      final double pulse = (snake.sprinting
-              ? snake.sprintPulseRemaining /
-                  math.max(simulation.config.sprintPulseDuration, 0.0001)
-              : snake.sprintAnticipationRemaining /
-                  math.max(
-                      simulation.config.sprintAnticipationDuration, 0.0001))
-          .toDouble();
+      final double pulse =
+          (snake.sprinting
+                  ? snake.sprintPulseRemaining /
+                      math.max(simulation.config.sprintPulseDuration, 0.0001)
+                  : snake.sprintAnticipationRemaining /
+                      math.max(
+                        simulation.config.sprintAnticipationDuration,
+                        0.0001,
+                      ))
+              .toDouble();
       _effectPaint
         ..color = colour.withValues(
           alpha: (0.22 + pulse.clamp(0.0, 1.0) * 0.34).toDouble(),
@@ -881,9 +894,7 @@ class SlitherGame extends FlameGame {
     if (snake.kind == SnakeKind.player && snake.sprinting) {
       final pulse = (math.sin(simulation.elapsed * 10) + 1) / 2;
       _effectPaint
-        ..color = const Color(0xffffc766).withValues(
-          alpha: 0.12 + pulse * 0.1,
-        )
+        ..color = const Color(0xffffc766).withValues(alpha: 0.12 + pulse * 0.1)
         ..style = ui.PaintingStyle.fill;
       final auraStride = snake.body.length > 420 ? 2 : 1;
       for (final chunk in snake.bodyChunks) {
@@ -911,9 +922,7 @@ class SlitherGame extends FlameGame {
         }
       }
       _effectPaint
-        ..color = const Color(0xffffd166).withValues(
-          alpha: 0.45 + pulse * 0.25,
-        )
+        ..color = const Color(0xffffd166).withValues(alpha: 0.45 + pulse * 0.25)
         ..style = ui.PaintingStyle.stroke
         ..strokeWidth = 1.5 + pulse;
       if (_isVisibleAt(headX, headY, snake.radius + 20)) {
@@ -928,9 +937,11 @@ class SlitherGame extends FlameGame {
     // body[0] is the head position and is rendered separately below. Skipping
     // it here keeps the visible segment count equal to the HUD length instead
     // of making every snake appear one segment longer at spawn.
-    for (var chunkIndex = snake.bodyChunks.length - 1;
-        chunkIndex >= 0;
-        chunkIndex--) {
+    for (
+      var chunkIndex = snake.bodyChunks.length - 1;
+      chunkIndex >= 0;
+      chunkIndex--
+    ) {
       final chunk = snake.bodyChunks[chunkIndex];
       if (!chunk.intersects(
         minimumX: viewMinimumX - padding,
@@ -947,9 +958,10 @@ class SlitherGame extends FlameGame {
         final x = simulation.renderBodyX(snake, index, interpolation);
         final y = simulation.renderBodyY(snake, index, interpolation);
         if (!_isVisibleAt(x, y, padding)) continue;
-        final double taper = (1 - index / (snake.body.length * 1.5))
-            .clamp(minimumTaper, 1.0)
-            .toDouble();
+        final double taper =
+            (1 - index / (snake.body.length * 1.5))
+                .clamp(minimumTaper, 1.0)
+                .toDouble();
         _drawShadedCircle(
           canvas,
           Offset(x, y),
@@ -978,11 +990,7 @@ class SlitherGame extends FlameGame {
         1.9,
         _pupilPaint,
       );
-      canvas.drawCircle(
-        Offset(eyeX - 0.9, eyeY - 1.1),
-        0.8,
-        _eyeGlintPaint,
-      );
+      canvas.drawCircle(Offset(eyeX - 0.9, eyeY - 1.1), 0.8, _eyeGlintPaint);
     }
   }
 
@@ -1117,15 +1125,9 @@ class _StatsPanel extends StatelessWidget {
               accent: const Color(0xffc9d8ef),
             ),
             if (state.sprinting)
-              const _HudStatusBadge(
-                label: 'SPRINT',
-                accent: ArenaSkin.accent,
-              ),
+              const _HudStatusBadge(label: 'SPRINT', accent: ArenaSkin.accent),
             if (state.boundaryWarningProgress > 0.45)
-              const _HudStatusBadge(
-                label: 'EDGE',
-                accent: ArenaSkin.danger,
-              ),
+              const _HudStatusBadge(label: 'EDGE', accent: ArenaSkin.danger),
           ],
         ),
       ),
@@ -1163,9 +1165,7 @@ class _Hud extends StatelessWidget {
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(
-                painter: _BoundaryWarningPainter(
-                  state.boundaryWarningProgress,
-                ),
+                painter: _BoundaryWarningPainter(state.boundaryWarningProgress),
               ),
             ),
           ),
@@ -1211,16 +1211,8 @@ class _Hud extends StatelessWidget {
               diagnostics: state.tacticalDiagnostics,
             ),
           ),
-        const Positioned(
-          left: 16,
-          bottom: 16,
-          child: _ControlHint(),
-        ),
-        Positioned(
-          top: 16,
-          left: 16,
-          child: _StatsPanel(state: state),
-        ),
+        const Positioned(left: 16, bottom: 16, child: _ControlHint()),
+        Positioned(top: 16, left: 16, child: _StatsPanel(state: state)),
         if (state.gameOver)
           Center(
             child: DecoratedBox(
@@ -1292,10 +1284,7 @@ class _Hud extends StatelessWidget {
 }
 
 class _TacticsHudToggle extends StatelessWidget {
-  const _TacticsHudToggle({
-    required this.enabled,
-    required this.onPressed,
-  });
+  const _TacticsHudToggle({required this.enabled, required this.onPressed});
 
   final bool enabled;
   final VoidCallback onPressed;
@@ -1319,10 +1308,7 @@ class _TacticsHudToggle extends StatelessWidget {
         ),
         elevation: enabled ? 4 : 1,
       ),
-      icon: Icon(
-        enabled ? Icons.visibility : Icons.visibility_off,
-        size: 14,
-      ),
+      icon: Icon(enabled ? Icons.visibility : Icons.visibility_off, size: 14),
       label: Text(enabled ? 'TACTICS HUD ON' : 'TACTICS HUD OFF'),
     );
   }
@@ -1382,10 +1368,7 @@ class _LeaderboardPanel extends StatelessWidget {
 }
 
 class _LeaderboardRow extends StatelessWidget {
-  const _LeaderboardRow({
-    required this.entry,
-    required this.playerName,
-  });
+  const _LeaderboardRow({required this.entry, required this.playerName});
 
   final LeaderboardEntry entry;
   final String playerName;
@@ -1445,12 +1428,7 @@ class _Minimap extends StatelessWidget {
       width: dimension,
       height: dimension,
       child: CustomPaint(
-        painter: _MinimapPainter(
-          markers,
-          pings,
-          events,
-          showTacticalSignals,
-        ),
+        painter: _MinimapPainter(markers, pings, events, showTacticalSignals),
       ),
     );
   }
@@ -1543,10 +1521,11 @@ class _CollisionAlertPainter extends CustomPainter {
     final fade = (1 - progress).clamp(0.0, 1.0).toDouble();
     final shimmer = (math.sin(progress * math.pi * 5) + 1) / 2;
     final alpha = (0.07 + shimmer * 0.08) * fade;
-    final borderPaint = ui.Paint()
-      ..color = const Color(0xffffd166).withValues(alpha: alpha)
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 2.5;
+    final borderPaint =
+        ui.Paint()
+          ..color = const Color(0xffffd166).withValues(alpha: alpha)
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = 2.5;
     canvas.drawRRect(
       ui.RRect.fromRectAndRadius(
         ui.Rect.fromLTWH(5, 5, size.width - 10, size.height - 10),
@@ -1555,15 +1534,12 @@ class _CollisionAlertPainter extends CustomPainter {
       borderPaint,
     );
 
-    final sweepPaint = ui.Paint()
-      ..color = const Color(0xffffd166).withValues(alpha: alpha * 1.5)
-      ..strokeWidth = 3;
+    final sweepPaint =
+        ui.Paint()
+          ..color = const Color(0xffffd166).withValues(alpha: alpha * 1.5)
+          ..strokeWidth = 3;
     final sweepX = size.width * (0.15 + progress * 0.7);
-    canvas.drawLine(
-      Offset(sweepX - 42, 5),
-      Offset(sweepX + 42, 5),
-      sweepPaint,
-    );
+    canvas.drawLine(Offset(sweepX - 42, 5), Offset(sweepX + 42, 5), sweepPaint);
   }
 
   @override
@@ -1583,10 +1559,11 @@ class _BoundaryWarningPainter extends CustomPainter {
     final pulse = (math.sin(progress * math.pi * 8) + 1) / 2;
     final alpha =
         (0.02 + progress * 0.045 + pulse * 0.025).clamp(0.0, 0.13).toDouble();
-    final paint = ui.Paint()
-      ..color = const Color(0xffff4259).withValues(alpha: alpha)
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 10 + progress * 8;
+    final paint =
+        ui.Paint()
+          ..color = const Color(0xffff4259).withValues(alpha: alpha)
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = 10 + progress * 8;
     canvas.drawRect(
       ui.Rect.fromLTWH(5, 5, size.width - 10, size.height - 10),
       paint,
@@ -1616,24 +1593,27 @@ class _MinimapPainter extends CustomPainter {
   static ui.RRect? _panelRect;
   static ui.RRect? _panelBorderRect;
   static final ui.Paint _panelPaint = ui.Paint();
-  static final ui.Paint _panelBorderPaint = ui.Paint()
-    ..color = ArenaSkin.panelRim
-    ..style = ui.PaintingStyle.stroke
-    ..strokeWidth = 1;
+  static final ui.Paint _panelBorderPaint =
+      ui.Paint()
+        ..color = ArenaSkin.panelRim
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 1;
   static final ui.Paint _arenaFillPaint = ui.Paint();
-  static final ui.Paint _gridPaint = ui.Paint()
-    ..color = const Color(0x1e9fc0e0)
-    ..style = ui.PaintingStyle.stroke
-    ..strokeWidth = 0.7;
-  static final ui.Paint _arenaPaint = ui.Paint()
-    ..color = const Color(0xffff7180).withValues(alpha: 0.84)
-    ..style = ui.PaintingStyle.stroke
-    ..strokeWidth = 2;
-  static final ui.Paint _ringPaint = ui.Paint()
-    ..style = ui.PaintingStyle.stroke;
+  static final ui.Paint _gridPaint =
+      ui.Paint()
+        ..color = const Color(0x1e9fc0e0)
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 0.7;
+  static final ui.Paint _arenaPaint =
+      ui.Paint()
+        ..color = const Color(0xffff7180).withValues(alpha: 0.84)
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 2;
+  static final ui.Paint _ringPaint =
+      ui.Paint()..style = ui.PaintingStyle.stroke;
   static final ui.Paint _fillPaint = ui.Paint();
-  static final ui.Paint _markerShadowPaint = ui.Paint()
-    ..color = const Color(0x99000000);
+  static final ui.Paint _markerShadowPaint =
+      ui.Paint()..color = const Color(0x99000000);
 
   static void _prepareStaticBackground(ui.Size size) {
     if (_backgroundSize == size) return;
@@ -1672,12 +1652,7 @@ class _MinimapPainter extends CustomPainter {
   void paint(ui.Canvas canvas, ui.Size size) {
     _prepareStaticBackground(size);
     final panelRect = _panelRect!;
-    canvas.drawShadow(
-      _panelPath!,
-      const Color(0xc0000000),
-      7,
-      true,
-    );
+    canvas.drawShadow(_panelPath!, const Color(0xc0000000), 7, true);
     canvas.drawRRect(panelRect, _panelPaint);
     canvas.drawRRect(_panelBorderRect!, _panelBorderPaint);
 
@@ -1690,29 +1665,27 @@ class _MinimapPainter extends CustomPainter {
     canvas.drawCircle(arenaCentre, arenaRadius, _arenaPaint);
 
     for (final ping in pings) {
-      final position = Offset(
-        ping.x * size.width,
-        ping.y * size.height,
-      );
+      final position = Offset(ping.x * size.width, ping.y * size.height);
       final progress = ping.progress;
       _ringPaint
-        ..color = const Color(0xffffd166).withValues(
-          alpha: 0.9 * (1 - progress),
-        )
+        ..color = const Color(
+          0xffffd166,
+        ).withValues(alpha: 0.9 * (1 - progress))
         ..strokeWidth = 1.5;
       canvas.drawCircle(position, 5 + progress * 17, _ringPaint);
-      _fillPaint.color = const Color(0xffffd166).withValues(
-        alpha: 0.75 * (1 - progress),
-      );
+      _fillPaint.color = const Color(
+        0xffffd166,
+      ).withValues(alpha: 0.75 * (1 - progress));
       canvas.drawCircle(position, 2, _fillPaint);
     }
 
     if (showTacticalSignals) {
       for (final event in events) {
         final position = Offset(event.x * size.width, event.y * size.height);
-        final colour = event.kind == TelegraphEventKind.sprintStarted
-            ? const Color(0xffffa72f)
-            : const Color(0xff55d7ff);
+        final colour =
+            event.kind == TelegraphEventKind.sprintStarted
+                ? const Color(0xffffa72f)
+                : const Color(0xff55d7ff);
         _ringPaint
           ..color = colour.withValues(alpha: 0.55 * (1 - event.progress))
           ..strokeWidth = 1.2;
@@ -1721,10 +1694,7 @@ class _MinimapPainter extends CustomPainter {
     }
 
     for (final marker in markers) {
-      final position = Offset(
-        marker.x * size.width,
-        marker.y * size.height,
-      );
+      final position = Offset(marker.x * size.width, marker.y * size.height);
       final colour = _snakeColour(marker.colorIndex);
       canvas.drawCircle(
         position + const Offset(1, 1.5),
@@ -1737,17 +1707,11 @@ class _MinimapPainter extends CustomPainter {
       canvas.drawCircle(position, marker.isPlayer ? 5 : 3, _fillPaint);
       if (marker.isPlayer) {
         _fillPaint.color = const Color(0xfff7fbff);
-        canvas.drawCircle(
-          position - const Offset(1.4, 1.4),
-          1.25,
-          _fillPaint,
-        );
+        canvas.drawCircle(position - const Offset(1.4, 1.4), 1.25, _fillPaint);
       }
       if (marker.sprintAnticipating || marker.sprinting) {
         _ringPaint
-          ..color = colour.withValues(
-            alpha: marker.sprinting ? 0.8 : 0.45,
-          )
+          ..color = colour.withValues(alpha: marker.sprinting ? 0.8 : 0.45)
           ..strokeWidth = marker.sprinting ? 2 : 1;
         canvas.drawCircle(position, marker.isPlayer ? 10 : 7, _ringPaint);
       }
@@ -1759,9 +1723,9 @@ class _MinimapPainter extends CustomPainter {
       }
       if (showTacticalSignals && marker.threatUrgency > 0) {
         _ringPaint
-          ..color = const Color(0xffff5f56).withValues(
-            alpha: 0.35 + marker.threatUrgency * 0.55,
-          )
+          ..color = const Color(
+            0xffff5f56,
+          ).withValues(alpha: 0.35 + marker.threatUrgency * 0.55)
           ..strokeWidth = 1.5;
         canvas.drawCircle(
           position,
