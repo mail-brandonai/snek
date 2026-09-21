@@ -109,5 +109,59 @@ void main() {
     );
     expect(await repositories.getSoul('soul-1'), isNull);
     expect(await repositories.getRevision('revision-1'), isNull);
+
+    final missingSoulRevision = SoulRevision(
+      soulId: 'missing-soul',
+      revisionId: 'revision-without-soul',
+      trainerVersion: 'trainer-1',
+      featureVersion: 'features-1',
+      weights: const {'food': 1.0},
+      sourceRunIds: const ['missing-run'],
+    );
+    await expectLater(
+      repositories.saveRevision(missingSoulRevision),
+      throwsA(isA<StateError>()),
+    );
+
+    await repositories.savePen(SnekPenSnapshot.defaults);
+    final missingRevisionMatch = TrainingMatch(
+      id: 'match-without-revision',
+      mode: 'arena',
+      startedAtMs: 100,
+      participants: [
+        MatchParticipant(
+          actorId: 'player',
+          role: ActorRole.player,
+          controller: ControllerSource.soul,
+          snekProfileId: 'starter-snek',
+          soulRevisionIds: const ['missing-revision'],
+        ),
+      ],
+      outcome: const {},
+    );
+    await expectLater(
+      repositories.saveMatch(missingRevisionMatch),
+      throwsA(isA<StateError>()),
+    );
+
+    final missingProfileMatch = TrainingMatch(
+      id: 'match-without-profile',
+      mode: 'arena',
+      startedAtMs: 100,
+      participants: [
+        MatchParticipant(
+          actorId: 'player',
+          role: ActorRole.player,
+          controller: ControllerSource.human,
+          snekProfileId: 'missing-profile',
+          soulRevisionIds: const [],
+        ),
+      ],
+      outcome: const {},
+    );
+    await expectLater(
+      repositories.saveMatch(missingProfileMatch),
+      throwsA(isA<StateError>()),
+    );
   });
 }

@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slither/training/domain/controller_contract.dart';
+import 'package:slither/training/domain/recording_contract.dart'
+    show currentTrainingRecordSchemaVersion;
 import 'package:slither/training/domain/training_models.dart';
 
 void main() {
