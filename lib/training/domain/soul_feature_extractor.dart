@@ -551,7 +551,7 @@ BehaviorTraitSummary _sizeAndAgilityTrait(_RecordedTrace trace) {
   final turns = _turnAngles(trace.observations);
   final averageLength = _mean(lengths.map((value) => value.toDouble()).toList());
   final averageTurn = _mean(turns);
-  final count = math.min(lengths.length, turns.length);
+  final count = lengths.length < turns.length ? lengths.length : turns.length;
   final coverage = _ratio(count, trace.observations.length);
   return BehaviorTraitSummary(
     id: 'sizeAgility',
@@ -562,9 +562,9 @@ BehaviorTraitSummary _sizeAndAgilityTrait(_RecordedTrace trace) {
     confidence: _confidence(count, coverage, minimumSamples: 3),
     observedEvidence: <String, Object?>{
       'lengthSampleCount': lengths.length,
-      'minimumObservedLength': lengths.isEmpty ? null : lengths.reduce(math.min),
+      'minimumObservedLength': lengths.isEmpty ? null : lengths.reduce((a, b) => a < b ? a : b),
       'meanObservedLength': averageLength,
-      'maximumObservedLength': lengths.isEmpty ? null : lengths.reduce(math.max),
+      'maximumObservedLength': lengths.isEmpty ? null : lengths.reduce((a, b) => a > b ? a : b),
       'turnSampleCount': turns.length,
       'meanTurnRadiansPerObservation': averageTurn,
       'meanTurnDegreesPerObservation':
@@ -594,13 +594,13 @@ BehaviorTraitSummary _movementTrait(_RecordedTrace trace) {
     final dy = positions.last.positionY! - positions.first.positionY!;
     efficiency = (math.sqrt(dx * dx + dy * dy) / pathLength).clamp(0.0, 1.0);
   }
-  final sampleCount = math.max(0, positions.length - 1);
+  final sampleCount = positions.length > 1 ? positions.length - 1 : 0;
   final coverage = _ratio(positions.length, trace.observations.length);
   return BehaviorTraitSummary(
     id: 'movementShape',
     label: 'Movement shape',
     sampleCount: sampleCount,
-    opportunityCount: math.max(0, trace.observations.length - 1),
+    opportunityCount: trace.observations.length > 1 ? trace.observations.length - 1 : 0,
     coverage: coverage,
     confidence: _confidence(sampleCount, coverage, minimumSamples: 3),
     observedEvidence: <String, Object?>{
@@ -698,7 +698,7 @@ BehaviorTraitSummary _riskTrait(_RecordedTrace trace) {
       'nearbyThreatShare': _ratio(threatSamples, samples.length),
       'minimumThreatDistance': nearestDistances.isEmpty
           ? null
-          : nearestDistances.reduce(math.min),
+          : nearestDistances.reduce((a, b) => a < b ? a : b),
       'playerCollisionEvents': playerCollisions,
       'playerDefeatEvents': playerDefeats,
     },
