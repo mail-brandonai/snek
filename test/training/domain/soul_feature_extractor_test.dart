@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slither/training/domain/soul_feature_extractor.dart';
 
 void main() {
-  test('resource collection evidence distinguishes forage from dropped mass', () {
+  test(
+    'resource collection evidence distinguishes forage from dropped mass',
+    () {
     final observations = List<Map<String, Object?>>.generate(
       8,
       (index) => _observation(index + 1),
@@ -41,7 +43,10 @@ void main() {
     expect(forageCounts['natural'], 5);
     expect(massCounts['defeatDrop'], 5);
     expect(forage.inferredInterpretation, contains('Natural-food pickups'));
-    expect(massSeeking.inferredInterpretation, contains('Dropped-mass pickups'));
+    expect(
+      massSeeking.inferredInterpretation,
+      contains('Dropped-mass pickups'),
+    );
     expect(forage.confidence, FeatureConfidence.high);
     expect(massSeeking.confidence, FeatureConfidence.high);
     expect(
@@ -158,8 +163,9 @@ void main() {
     );
   });
 
-  test('no pressure and an abandoned run produce insufficient response evidence',
-      () {
+  test(
+    'no pressure and an abandoned run produce insufficient response evidence',
+    () {
     final signature = _extract(
       observations: List<Map<String, Object?>>.generate(
         8,
