@@ -43,9 +43,10 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   void initState() {
     super.initState();
     _selectedRunId = widget.initialRunId;
-    _service = widget.service == null
-        ? TrainingServices.runReviewService()
-        : Future<RunReviewService>.value(widget.service!);
+    _service =
+        widget.service == null
+            ? TrainingServices.runReviewService()
+            : Future<RunReviewService>.value(widget.service!);
     _refresh();
   }
 
@@ -60,9 +61,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
       final service = await _service;
       final runs = await service.listRuns();
       final selectedId = _selectedRunId;
-      final selectedRun = selectedId == null
-          ? null
-          : await service.loadRunHeader(selectedId);
+      final selectedRun =
+          selectedId == null ? null : await service.loadRunHeader(selectedId);
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _runs = runs;
@@ -136,23 +136,24 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
     if (item == null || _busy) return;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Discard this run?'),
-        content: const Text(
-          'This permanently deletes the run and its recorded chunks. '
-          'A run referenced by a Soul cannot be discarded.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('CANCEL'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Discard this run?'),
+            content: const Text(
+              'This permanently deletes the run and its recorded chunks. '
+              'A run referenced by a Soul cannot be discarded.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('CANCEL'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('DISCARD RUN'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('DISCARD RUN'),
-          ),
-        ],
-      ),
     );
     if (confirmed != true || !mounted) return;
 
@@ -173,23 +174,25 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   }
 
   Future<void> _showSoulActionStub(bool refine) async {
-    final message = refine
-        ? 'Choose a target Soul before refining. Soul selection and training '
-            'are scheduled for later sprints; no data was changed.'
-        : 'Soul creation and training are scheduled for Sprint 5. '
-            'This run remains unchanged.';
+    final message =
+        refine
+            ? 'Choose a target Soul before refining. Soul selection and training '
+                'are scheduled for later sprints; no data was changed.'
+            : 'Soul creation and training are scheduled for Sprint 5. '
+                'This run remains unchanged.';
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(refine ? 'REFINE SOUL' : 'CREATE SOUL'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CLOSE'),
+      builder:
+          (context) => AlertDialog(
+            title: Text(refine ? 'REFINE SOUL' : 'CREATE SOUL'),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('CLOSE'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -200,7 +203,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  List<TrainingRun> get _visibleRuns => _runs.where((run) {
+  List<TrainingRun> get _visibleRuns => _runs
+      .where((run) {
         switch (_filter) {
           case _RunFilter.pending:
             return run.status == TrainingRunStatus.pendingReview;
@@ -209,7 +213,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
           case _RunFilter.incomplete:
             return run.status == TrainingRunStatus.incomplete;
         }
-      }).toList(growable: false);
+      })
+      .toList(growable: false);
 
   int _count(TrainingRunStatus status) =>
       _runs.where((run) => run.status == status).length;
@@ -224,13 +229,14 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
           children: [
             _header(isDetail),
             Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
+              child:
+                  _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _error != null
                       ? _messagePanel(_error!)
                       : isDetail
-                          ? _detail()
-                          : _library(),
+                      ? _detail()
+                      : _library(),
             ),
           ],
         ),
@@ -239,33 +245,33 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   }
 
   Widget _header(bool isDetail) => Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 18, 12),
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: _back,
-              tooltip: isDetail ? 'Back to Run Library' : 'Back',
-              icon: const Icon(Icons.arrow_back),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                isDetail ? 'RUN DEBRIEF' : 'RUN LIBRARY',
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.6,
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: _loading || _analysisLoading || _busy ? null : _refresh,
-              tooltip: 'Refresh runs',
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
+    padding: const EdgeInsets.fromLTRB(12, 8, 18, 12),
+    child: Row(
+      children: [
+        IconButton(
+          onPressed: _back,
+          tooltip: isDetail ? 'Back to Run Library' : 'Back',
+          icon: const Icon(Icons.arrow_back),
         ),
-      );
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            isDetail ? 'RUN DEBRIEF' : 'RUN LIBRARY',
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.6,
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: _loading || _analysisLoading || _busy ? null : _refresh,
+          tooltip: 'Refresh runs',
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
+    ),
+  );
 
   Widget _library() {
     final visible = _visibleRuns;
@@ -277,61 +283,62 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
             spacing: 8,
             children: [
               ChoiceChip(
-                label:
-                    Text('PENDING ${_count(TrainingRunStatus.pendingReview)}'),
+                label: Text(
+                  'PENDING ${_count(TrainingRunStatus.pendingReview)}',
+                ),
                 selected: _filter == _RunFilter.pending,
                 onSelected: (_) => setState(() => _filter = _RunFilter.pending),
               ),
               ChoiceChip(
                 label: Text('KEPT ${_count(TrainingRunStatus.retained)}'),
                 selected: _filter == _RunFilter.retained,
-                onSelected: (_) =>
-                    setState(() => _filter = _RunFilter.retained),
+                onSelected:
+                    (_) => setState(() => _filter = _RunFilter.retained),
               ),
               ChoiceChip(
-                label:
-                    Text('INCOMPLETE ${_count(TrainingRunStatus.incomplete)}'),
+                label: Text(
+                  'INCOMPLETE ${_count(TrainingRunStatus.incomplete)}',
+                ),
                 selected: _filter == _RunFilter.incomplete,
-                onSelected: (_) =>
-                    setState(() => _filter = _RunFilter.incomplete),
+                onSelected:
+                    (_) => setState(() => _filter = _RunFilter.incomplete),
               ),
             ],
           ),
         ),
         const SizedBox(height: 12),
         Expanded(
-          child: visible.isEmpty
-              ? _messagePanel(
-                  switch (_filter) {
+          child:
+              visible.isEmpty
+                  ? _messagePanel(switch (_filter) {
                     _RunFilter.pending => 'No pending runs.',
                     _RunFilter.retained => 'No kept runs.',
                     _RunFilter.incomplete => 'No incomplete runs.',
-                  },
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-                  itemCount: visible.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final run = visible[index];
-                    final playerName = run.config['playerName'];
-                    final title =
-                        playerName is String ? playerName : 'Unknown Snek';
-                    return Card(
-                      color: const Color(0xff101d2a),
-                      child: ListTile(
-                        title: Text(title),
-                        subtitle: Text(
-                          '${run.mode.toUpperCase()}  ·  Seed ${run.seed}  ·  '
-                          '${_formatDate(run.createdAtMs)}',
+                  })
+                  : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                    itemCount: visible.length,
+                    separatorBuilder:
+                        (context, index) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final run = visible[index];
+                      final playerName = run.config['playerName'];
+                      final title =
+                          playerName is String ? playerName : 'Unknown Snek';
+                      return Card(
+                        color: const Color(0xff101d2a),
+                        child: ListTile(
+                          title: Text(title),
+                          subtitle: Text(
+                            '${run.mode.toUpperCase()}  ·  Seed ${run.seed}  ·  '
+                            '${_formatDate(run.createdAtMs)}',
+                          ),
+                          trailing: _statusBadge(run.status),
+                          onTap: () => _openRun(run.id),
                         ),
-                        trailing: _statusBadge(run.status),
-                        onTap: () => _openRun(run.id),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
         ),
       ],
     );
@@ -339,10 +346,10 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
 
   Widget _analysisLoadingDetail(TrainingRun run) {
     final configuredName = run.config['playerName'];
-    final playerName = configuredName is String &&
-            configuredName.trim().isNotEmpty
-        ? configuredName
-        : 'Unknown Snek';
+    final playerName =
+        configuredName is String && configuredName.trim().isNotEmpty
+            ? configuredName
+            : 'Unknown Snek';
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 24),
       child: Center(
@@ -371,9 +378,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    run.mode.toUpperCase() +
-                        ' run  ·  ' +
-                        _formatDate(run.createdAtMs),
+                    '${run.mode.toUpperCase()} run  ·  '
+                    '${_formatDate(run.createdAtMs)}',
                     style: const TextStyle(color: ArenaSkin.textMuted),
                   ),
                   const SizedBox(height: 20),
@@ -409,9 +415,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                       SizedBox(width: 10),
-                      Expanded(
-                        child: Text('Analyzing recorded behavior'),
-                      ),
+                      Expanded(child: Text('Analyzing recorded behavior')),
                     ],
                   ),
                 ],
@@ -471,7 +475,9 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                       _metric('Score', item.score?.toString() ?? '—'),
                       _metric('Length', item.length?.toString() ?? '—'),
                       _metric(
-                          'Survival', _formatDuration(item.survivalSeconds)),
+                        'Survival',
+                        _formatDuration(item.survivalSeconds),
+                      ),
                       _metric('Rank', item.rank?.toString() ?? '—'),
                     ],
                   ),
@@ -491,7 +497,9 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                   ),
                   const SizedBox(height: 8),
                   _detailLine(
-                      'Player controls', item.controlSampleCount.toString()),
+                    'Player controls',
+                    item.controlSampleCount.toString(),
+                  ),
                   _detailLine(
                     'Actor observations',
                     item.observationSampleCount.toString(),
@@ -722,54 +730,53 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   }
 
   Widget _metric(String label, String value) => DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0x332f4b64),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(color: ArenaSkin.textMuted)),
-              const SizedBox(height: 3),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+    decoration: BoxDecoration(
+      color: const Color(0x332f4b64),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: ArenaSkin.textMuted)),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 
   Widget _detailLine(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 150,
-              child: Text(label,
-                  style: const TextStyle(color: ArenaSkin.textMuted)),
-            ),
-            Expanded(child: SelectableText(value)),
-          ],
-        ),
-      );
-
-  Widget _messagePanel(String message) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 150,
           child: Text(
-            message,
-            textAlign: TextAlign.center,
+            label,
             style: const TextStyle(color: ArenaSkin.textMuted),
           ),
         ),
-      );
+        Expanded(child: SelectableText(value)),
+      ],
+    ),
+  );
+
+  Widget _messagePanel(String message) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: ArenaSkin.textMuted),
+      ),
+    ),
+  );
 
   Widget _statusBadge(TrainingRunStatus status) {
     final label = switch (status) {
@@ -779,9 +786,10 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
       TrainingRunStatus.recording => 'RECORDING',
       TrainingRunStatus.discarded => 'DISCARDED',
     };
-    final color = status == TrainingRunStatus.incomplete
-        ? ArenaSkin.danger
-        : ArenaSkin.accent;
+    final color =
+        status == TrainingRunStatus.incomplete
+            ? ArenaSkin.danger
+            : ArenaSkin.accent;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
@@ -823,18 +831,18 @@ String _pressureEpisodeOutcome(PressureEpisodeSummary episode) =>
     ' · sprint requested: ${episode.sprintRequestedDuringEpisode}';
 
 String _confidenceLabel(FeatureConfidence confidence) => switch (confidence) {
-      FeatureConfidence.insufficient => 'INSUFFICIENT EVIDENCE',
-      FeatureConfidence.low => 'LOW CONFIDENCE',
-      FeatureConfidence.moderate => 'MODERATE CONFIDENCE',
-      FeatureConfidence.high => 'HIGH CONFIDENCE',
-    };
+  FeatureConfidence.insufficient => 'INSUFFICIENT EVIDENCE',
+  FeatureConfidence.low => 'LOW CONFIDENCE',
+  FeatureConfidence.moderate => 'MODERATE CONFIDENCE',
+  FeatureConfidence.high => 'HIGH CONFIDENCE',
+};
 
 String _outcomeLabel(String? outcome) => switch (outcome) {
-      'bodyCollision' => 'Body collision',
-      'boundary' => 'Arena boundary',
-      null || '' => 'Outcome unavailable',
-      _ => outcome,
-    };
+  'bodyCollision' => 'Body collision',
+  'boundary' => 'Arena boundary',
+  null || '' => 'Outcome unavailable',
+  _ => outcome,
+};
 
 String _formatDate(int milliseconds) {
   final value = DateTime.fromMillisecondsSinceEpoch(milliseconds).toLocal();

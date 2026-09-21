@@ -39,9 +39,7 @@ void main() {
     await database.close();
   });
 
-  testWidgets('shows the debrief while analysis is pending', (
-    tester,
-  ) async {
+  testWidgets('shows the debrief while analysis is pending', (tester) async {
     await _createPendingRun(lifecycle, chunks, 'run-loading');
     final analysisCompleter = Completer<Map<String, Object?>>();
     Map<String, Object?>? analysisInput;
@@ -67,6 +65,7 @@ void main() {
     for (var attempt = 0; attempt < 20 && analysisInput == null; attempt++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
+    await tester.pump();
 
     expect(analysisInput, isNotNull);
     expect(find.text('RUN DEBRIEF'), findsOneWidget);
