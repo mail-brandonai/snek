@@ -64,6 +64,8 @@ void main() {
     expect(find.text('2'), findsOneWidget);
     expect(find.text('KEEP RUN'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('KEEP RUN'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('KEEP RUN'));
     await tester.pumpAndSettle();
 
