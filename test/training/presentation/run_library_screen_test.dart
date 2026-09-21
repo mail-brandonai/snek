@@ -48,7 +48,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpAndSettleAfterWorker(tester);
 
     expect(find.text('RUN DEBRIEF'), findsOneWidget);
     expect(find.text('BEHAVIOR SIGNATURE'), findsOneWidget);
@@ -67,7 +67,7 @@ void main() {
     await tester.ensureVisible(find.text('KEEP RUN'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('KEEP RUN'));
-    await tester.pumpAndSettle();
+    await _pumpAndSettleAfterWorker(tester);
 
     expect(
       (await runs.getRun('run-1'))?.status,
@@ -88,7 +88,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpAndSettleAfterWorker(tester);
 
     await tester.ensureVisible(find.text('DISCARD RUN').first);
     await tester.pumpAndSettle();
@@ -116,7 +116,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpAndSettleAfterWorker(tester);
 
     await tester.ensureVisible(find.text('CREATE SOUL'));
     await tester.pumpAndSettle();
@@ -158,7 +158,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpAndSettleAfterWorker(tester);
 
     expect(find.text('INCOMPLETE'), findsOneWidget);
     expect(
@@ -192,7 +192,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpAndSettleAfterWorker(tester);
 
     await tester.ensureVisible(find.text('DISCARD RUN').first);
     await tester.pumpAndSettle();
@@ -277,3 +277,10 @@ TrainingRun _run(String id) => TrainingRun(
         'playerProfileId': 'starter-snek',
       },
     );
+
+Future<void> _pumpAndSettleAfterWorker(WidgetTester tester) async {
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(seconds: 1)),
+  );
+  await tester.pumpAndSettle();
+}

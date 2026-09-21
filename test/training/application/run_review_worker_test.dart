@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:isolate_manager/isolate_manager.dart';
 import 'package:slither/training/application/run_review_worker.dart';
 import 'package:slither/training/domain/soul_feature_extractor.dart';
 
 void main() {
-  test('review worker extracts summary and features from decoded chunks', () {
+  test('review worker extracts summary and features in an isolate', () async {
     final payload = Uint8List.fromList(
       utf8.encode(
         jsonEncode(<String, Object?>{
@@ -58,12 +59,29 @@ void main() {
       ),
     );
 
-    final result = analyzeRunReviewChunks(<String, Object?>{
-      'runId': 'run-worker',
-      'recordSchemaVersion': 1,
-      'tickRateHz': 30,
-      'chunkPayloads': <Uint8List>[payload],
-    });
+    final payloads = <Uint8List>[payload];
+    final worker =
+        IsolateManager<Map<String, Object?>, Map<String, Object?>>.create(
+      analyzeRunReviewChunks,
+      workerName: 'analyzeRunReviewChunks',
+    );
+    late final Map<String, Object?> result;
+    try {
+      await worker.start();
+      result = await worker.compute(
+        <String, Object?>{
+          'runId': 'run-worker',
+          'recordSchemaVersion': 1,
+          'tickRateHz': 30,
+          'chunkPayloads': payloads,
+        },
+        transferables: payloads
+            .map((payload) => payload.buffer)
+            .toList(growable: false),
+      );
+    } finally {
+      await worker.stop();
+    }
 
     expect(result['controlSampleCount'], 1);
     expect(result['observationSampleCount'], 1);

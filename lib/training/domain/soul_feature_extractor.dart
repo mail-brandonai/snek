@@ -20,7 +20,7 @@ class SoulFeatureExtractionResult {
   const SoulFeatureExtractionResult.ready(SoulBehaviorSignature signature)
       : this._(status: SoulFeatureStatus.ready, signature: signature);
 
-  SoulFeatureExtractionResult.unsupportedSchema(int version)
+  const SoulFeatureExtractionResult.unsupportedSchema(int version)
       : this._(
           status: SoulFeatureStatus.unsupportedRecordSchema,
           message: 'Run record schema version $version is not supported by '
@@ -811,8 +811,10 @@ BehaviorTraitSummary _sprintTrait(_RecordedTrace trace) {
     inferredInterpretation: controlCount == 0 && sprintingSamples.isEmpty
         ? 'No sprint samples were recorded.'
         : 'Sprint was requested in '
-            '${(requestShare * 100).toStringAsFixed(1)}% of control samples and '
-            'active in ${(activeShare * 100).toStringAsFixed(1)}% of observations '
+            '${(requestShare * 100).toStringAsFixed(1)}% of control '
+            'samples and '
+            'active in ${(activeShare * 100).toStringAsFixed(1)}% of '
+            'observations '
             'with sprint state.',
   );
 }

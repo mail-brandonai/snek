@@ -76,8 +76,14 @@ jobs:
         id: format
         continue-on-error: true
         run: |
-          set -o pipefail
-          dart format --output=none --set-exit-if-changed lib test integration_test test_driver 2>&1 | tee ci-logs/format.log
+          set -euo pipefail
+          git fetch --no-tags origin main
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=ACMR origin/main...HEAD -- '*.dart')
+          if ((${#dart_files[@]} > 0)); then
+            dart format --output=none --set-exit-if-changed "${dart_files[@]}" 2>&1 | tee ci-logs/format.log
+          else
+            echo "No changed Dart files." | tee ci-logs/format.log
+          fi
 
       - name: Analyze
         id: analyze
