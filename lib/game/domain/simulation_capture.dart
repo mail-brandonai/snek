@@ -178,4 +178,3 @@ abstract interface class SimulationCaptureSink {
   void completeStep(int tick);
   void recordEvent(SimulationEventSnapshot event);
 }
-
