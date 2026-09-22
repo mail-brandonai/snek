@@ -79,7 +79,7 @@ void main() {
         config: const <String, Object?>{},
       ),
     )..add(
-        TrainingRun(
+      TrainingRun(
         id: 'run-2',
         mode: 'manual',
         seed: 2,
