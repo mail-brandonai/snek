@@ -4,6 +4,9 @@ import 'dart:typed_data';
 
 import 'package:isolate_manager/isolate_manager.dart';
 
+import '../../game/domain/simulation.dart';
+import '../../game/domain/simulation_capture.dart';
+import '../../game/domain/vec2.dart';
 import '../domain/recording_contract.dart'
     show currentTrainingRecordSchemaVersion;
 import '../domain/soul_feature_extractor.dart';
@@ -88,11 +91,17 @@ Map<String, Object?> analyzeRunReviewChunks(Map<String, Object?> input) {
     decodedChunks.add(chunk);
   }
 
+  final replay = _tryReplayTacticalAnalysis(input, decodedChunks);
+  final analysisChunks = replay == null
+      ? decodedChunks
+      : _mergeReplayData(decodedChunks, replay);
+  eventCount = _countEvents(analysisChunks);
+
   final featureAnalysis = const SoulFeatureExtractor().extractDecoded(
     runId: runId,
     recordSchemaVersion: recordSchemaVersion,
     tickRateHz: tickRateHz,
-    decodedChunks: decodedChunks,
+    decodedChunks: analysisChunks,
   );
   return <String, Object?>{
     'controlSampleCount': controlCount,
@@ -106,7 +115,158 @@ Map<String, Object?> analyzeRunReviewChunks(Map<String, Object?> input) {
     'firstTick': firstTick,
     'lastTick': lastTick,
     'featureAnalysis': featureAnalysis.toJson(),
+    'analysisSource': replay == null ? 'stored-events' : 'post-run-replay',
   };
+}
+
+const _tacticalEventKinds = <String>{
+  'botPressureStarted',
+  'botPressureEscalated',
+  'botPressureEnded',
+  'botRoleChanged',
+  'botManeuverChanged',
+};
+
+class _ReplayCaptureSink
+    implements SimulationCaptureSink, TacticalAnalysisCaptureSink {
+  final List<SimulationObservationSnapshot> observations =
+      <SimulationObservationSnapshot>[];
+  final List<SimulationEventSnapshot> tacticalEvents =
+      <SimulationEventSnapshot>[];
+
+  @override
+  bool get captureTacticalAnalysis => true;
+
+  @override
+  void recordControl(SimulationControlSample sample) {}
+
+  @override
+  void recordObservation(SimulationObservationSnapshot observation) {
+    observations.add(observation);
+  }
+
+  @override
+  void completeStep(int tick) {}
+
+  @override
+  void recordEvent(SimulationEventSnapshot event) {
+    if (_tacticalEventKinds.contains(event.kind.name)) {
+      tacticalEvents.add(event);
+    }
+  }
+}
+
+class _ReplayResult {
+  const _ReplayResult({required this.observations, required this.events});
+
+  final List<SimulationObservationSnapshot> observations;
+  final List<SimulationEventSnapshot> events;
+}
+
+_ReplayResult? _tryReplayTacticalAnalysis(
+  Map<String, Object?> input,
+  List<Object?> decodedChunks,
+) {
+  final seed = _optionalInt(input['seed']);
+  final runConfig = _optionalObject(input['runConfig']);
+  if (seed == null || runConfig == null) return null;
+
+  try {
+    final simulationConfig = SimulationConfig.fromJson(runConfig['simulation']);
+    final playerColorIndex = _optionalInt(runConfig['playerColorIndex']) ?? 0;
+    final controls = <SimulationControlSample>[];
+    for (final decoded in decodedChunks) {
+      final chunk = _object(decoded, 'run chunk');
+      for (final value in _array(chunk, 'controls')) {
+        final sample = _optionalObject(value);
+        if (sample == null) continue;
+        final tick = _optionalInt(sample['tick']);
+        final steeringX = _optionalNumber(sample['steeringX']);
+        final steeringY = _optionalNumber(sample['steeringY']);
+        final sprintRequested = sample['sprintRequested'];
+        if (tick == null ||
+            steeringX == null ||
+            steeringY == null ||
+            sprintRequested is! bool) {
+          continue;
+        }
+        controls.add(
+          SimulationControlSample(
+            tick: tick,
+            steeringX: steeringX,
+            steeringY: steeringY,
+            sprintRequested: sprintRequested,
+          ),
+        );
+      }
+    }
+    controls.sort((left, right) => left.tick.compareTo(right.tick));
+    final sink = _ReplayCaptureSink();
+    final simulation = GameSimulation(
+      config: simulationConfig,
+      seed: seed,
+      playerColorIndex: playerColorIndex,
+      captureSink: sink,
+    );
+    for (final control in controls) {
+      if (simulation.gameOver) break;
+      simulation.update(
+        simulation.config.simulationStep,
+        Vec2(control.steeringX, control.steeringY),
+        sprinting: control.sprintRequested,
+      );
+      if (simulation.simulationTick != control.tick) return null;
+    }
+    return _ReplayResult(
+      observations: List<SimulationObservationSnapshot>.unmodifiable(
+        sink.observations,
+      ),
+      events: List<SimulationEventSnapshot>.unmodifiable(sink.tacticalEvents),
+    );
+  } catch (_) {
+    // A legacy or non-deterministic recording must remain reviewable from its
+    // stored observations/events rather than failing the entire debrief.
+    return null;
+  }
+}
+
+List<Object?> _mergeReplayData(
+  List<Object?> decodedChunks,
+  _ReplayResult replay,
+) {
+  final result = <Object?>[];
+  for (final decoded in decodedChunks) {
+    final chunk = _object(decoded, 'run chunk');
+    final firstTick = _integer(chunk, 'firstTick');
+    final lastTick = _integer(chunk, 'lastTick');
+    final replacement = Map<String, Object?>.from(chunk);
+    replacement['observations'] = replay.observations
+        .where((sample) => sample.tick >= firstTick && sample.tick <= lastTick)
+        .map((sample) => sample.toJson())
+        .toList(growable: false);
+    final storedEvents = _array(chunk, 'events').where((value) {
+      final event = _optionalObject(value);
+      final kind = event?['kind'];
+      return kind is! String || !_tacticalEventKinds.contains(kind);
+    });
+    final replayEvents = replay.events
+        .where((event) => event.tick >= firstTick && event.tick <= lastTick)
+        .map((event) => event.toJson());
+    replacement['events'] = <Object?>[
+      ...storedEvents,
+      ...replayEvents,
+    ];
+    result.add(replacement);
+  }
+  return List<Object?>.unmodifiable(result);
+}
+
+int _countEvents(List<Object?> decodedChunks) {
+  var count = 0;
+  for (final decoded in decodedChunks) {
+    count += _array(_object(decoded, 'run chunk'), 'events').length;
+  }
+  return count;
 }
 
 List<Object?> _array(Map<String, Object?> object, String key) {
@@ -125,6 +285,29 @@ int _requiredInt(Map<String, Object?> object, String key) {
   final value = object[key];
   if (value is! int) throw FormatException('Expected integer field: $key');
   return value;
+}
+
+Map<String, Object?>? _optionalObject(Object? value) {
+  if (value is! Map) return null;
+  final result = <String, Object?>{};
+  for (final entry in value.entries) {
+    if (entry.key is! String) return null;
+    result[entry.key as String] = entry.value;
+  }
+  return result;
+}
+
+int? _optionalInt(Object? value) {
+  if (value is int) return value;
+  if (value is num && value.isFinite && value == value.roundToDouble()) {
+    return value.toInt();
+  }
+  return null;
+}
+
+double? _optionalNumber(Object? value) {
+  if (value is! num || !value.isFinite) return null;
+  return value.toDouble();
 }
 
 int? _integer(Object? value) => value is int ? value : null;
