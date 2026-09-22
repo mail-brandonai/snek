@@ -161,17 +161,16 @@ Future<Map<String, Object?>> _analyzeRunReviewInBackground(
   if (rawPayloads is! List<Uint8List>) {
     throw StateError('Run chunk payloads are unavailable for analysis');
   }
-  final worker =
-      IsolateManager<Map<String, Object?>, Map<String, Object?>>.createCustom(
-        analyzeRunReviewChunksWorker,
-        workerName: 'analyzeRunReviewChunksWorker',
-        debugName: 'run-review-analysis',
-      );
+  final worker = IsolateManager<dynamic, dynamic>.createCustom(
+    analyzeRunReviewChunksWorker,
+    workerName: 'analyzeRunReviewChunksWorker',
+    debugName: 'run-review-analysis',
+  );
   var started = false;
   try {
     await worker.start().timeout(_runReviewAnalysisTimeout);
     started = true;
-    return await worker
+    final result = await worker
         .compute(
           input,
           transferables: rawPayloads
@@ -179,7 +178,15 @@ Future<Map<String, Object?>> _analyzeRunReviewInBackground(
               .toList(growable: false),
         )
         .timeout(_runReviewAnalysisTimeout);
+    return _reviewOutput(result);
   } finally {
     if (started) await worker.stop();
   }
 }
+Map<String, Object?> _reviewOutput(dynamic result) {
+  if (result is! Map) {
+    throw const FormatException('Run review worker output is not a map.');
+  }
+  return Map<String, Object?>.from(result);
+}
+
