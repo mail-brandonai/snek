@@ -1042,6 +1042,7 @@ String _confidenceLabel(FeatureConfidence confidence) => switch (confidence) {
 String _outcomeLabel(String? outcome) => switch (outcome) {
   'bodyCollision' => 'Body collision',
   'boundary' => 'Arena boundary',
+  'timeLimit' => 'Time limit',
   null || '' => 'Outcome unavailable',
   _ => outcome,
 };
