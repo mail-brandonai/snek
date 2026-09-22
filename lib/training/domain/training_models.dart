@@ -21,6 +21,7 @@ class SnekProfile {
     required this.id,
     required this.name,
     required this.colorIndex,
+    this.soulId,
   });
 
   static const starter = SnekProfile(
@@ -32,29 +33,37 @@ class SnekProfile {
   final String id;
   final String name;
   final int colorIndex;
+  final String? soulId;
 
-  Map<String, Object> toJson() => <String, Object>{
-        'id': id,
-        'name': name,
-        'colorIndex': colorIndex,
-      };
+  SnekProfile withSoul(String? value) =>
+      SnekProfile(id: id, name: name, colorIndex: colorIndex, soulId: value);
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'name': name,
+    'colorIndex': colorIndex,
+    'soulId': soulId,
+  };
 
   factory SnekProfile.fromJson(Object? value) {
     final map = _object(value, 'profile');
     final id = map['id'];
     final name = map['name'];
     final colorIndex = map['colorIndex'];
+    final soulId = map['soulId'];
     if (id is! String ||
         id.trim().isEmpty ||
         name is! String ||
         colorIndex is! num ||
-        !colorIndex.isFinite) {
+        !colorIndex.isFinite ||
+        (soulId != null && (soulId is! String || soulId.trim().isEmpty))) {
       throw const FormatException('Invalid saved snek');
     }
     return SnekProfile(
       id: id,
       name: name.trim().isEmpty ? 'Snek' : name.trim(),
       colorIndex: colorIndex.toInt().clamp(0, 9).toInt(),
+      soulId: soulId as String?,
     );
   }
 }
@@ -90,9 +99,9 @@ class SnekPenSnapshot {
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'sneks': sneks.map((profile) => profile.toJson()).toList(),
-        'selectedSnekId': selectedSnekId,
-      };
+    'sneks': sneks.map((profile) => profile.toJson()).toList(),
+    'selectedSnekId': selectedSnekId,
+  };
 
   factory SnekPenSnapshot.fromJson(Object? value) {
     final map = _object(value, 'pen');
@@ -136,7 +145,7 @@ enum TrainingRunStatus {
   pendingReview,
   retained,
   discarded,
-  incomplete
+  incomplete,
 }
 
 class TrainingRun {
@@ -172,16 +181,16 @@ class TrainingRun {
   final Map<String, Object?> config;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'schemaVersion': schemaVersion,
-        'id': id,
-        'mode': mode,
-        'seed': seed,
-        'tickRateHz': tickRateHz,
-        'createdAtMs': createdAtMs,
-        'finalizedAtMs': finalizedAtMs,
-        'status': status.name,
-        'config': config,
-      };
+    'schemaVersion': schemaVersion,
+    'id': id,
+    'mode': mode,
+    'seed': seed,
+    'tickRateHz': tickRateHz,
+    'createdAtMs': createdAtMs,
+    'finalizedAtMs': finalizedAtMs,
+    'status': status.name,
+    'config': config,
+  };
 
   factory TrainingRun.fromJson(Object? value) {
     final map = _versionedObject(value);
@@ -219,11 +228,11 @@ class Soul {
   final int createdAtMs;
 
   Map<String, Object?> toJson() => {
-        'schemaVersion': schemaVersion,
-        'id': id,
-        'name': name,
-        'createdAtMs': createdAtMs,
-      };
+    'schemaVersion': schemaVersion,
+    'id': id,
+    'name': name,
+    'createdAtMs': createdAtMs,
+  };
 
   factory Soul.fromJson(Object? value) {
     final map = _versionedObject(value);
@@ -245,8 +254,8 @@ class SoulRevision {
     required List<String> sourceRunIds,
     this.parentRevisionId,
     this.schemaVersion = currentTrainingRecordSchemaVersion,
-  })  : weights = Map<String, double>.unmodifiable(weights),
-        sourceRunIds = List<String>.unmodifiable(sourceRunIds) {
+  }) : weights = Map<String, double>.unmodifiable(weights),
+       sourceRunIds = List<String>.unmodifiable(sourceRunIds) {
     _requireId(soulId, 'Soul ID');
     _requireId(revisionId, 'Revision ID');
     _requireId(trainerVersion, 'Trainer version');
@@ -269,9 +278,9 @@ class SoulRevision {
       );
     }
     final total = this.weights.values.fold<double>(
-          0,
-          (sum, value) => sum + value,
-        );
+      0,
+      (sum, value) => sum + value,
+    );
     if ((total - 1).abs() > 0.000001) {
       throw const TrainingValidationException('Soul weights must sum to 1');
     }
@@ -287,15 +296,15 @@ class SoulRevision {
   final List<String> sourceRunIds;
 
   Map<String, Object?> toJson() => {
-        'schemaVersion': schemaVersion,
-        'soulId': soulId,
-        'revisionId': revisionId,
-        'parentRevisionId': parentRevisionId,
-        'trainerVersion': trainerVersion,
-        'featureVersion': featureVersion,
-        'weights': weights,
-        'sourceRunIds': sourceRunIds,
-      };
+    'schemaVersion': schemaVersion,
+    'soulId': soulId,
+    'revisionId': revisionId,
+    'parentRevisionId': parentRevisionId,
+    'trainerVersion': trainerVersion,
+    'featureVersion': featureVersion,
+    'weights': weights,
+    'sourceRunIds': sourceRunIds,
+  };
 
   factory SoulRevision.fromJson(Object? value) {
     final map = _versionedObject(value);
@@ -349,12 +358,12 @@ class MatchParticipant {
   final List<String> soulRevisionIds;
 
   Map<String, Object?> toJson() => {
-        'actorId': actorId,
-        'role': role.name,
-        'controller': controller.name,
-        'snekProfileId': snekProfileId,
-        'soulRevisionIds': soulRevisionIds,
-      };
+    'actorId': actorId,
+    'role': role.name,
+    'controller': controller.name,
+    'snekProfileId': snekProfileId,
+    'soulRevisionIds': soulRevisionIds,
+  };
 
   factory MatchParticipant.fromJson(Object? value) {
     final map = _object(value, 'match participant');
@@ -365,8 +374,10 @@ class MatchParticipant {
     return MatchParticipant(
       actorId: _string(map, 'actorId'),
       role: _enumByName(ActorRole.values, _string(map, 'role')),
-      controller:
-          _enumByName(ControllerSource.values, _string(map, 'controller')),
+      controller: _enumByName(
+        ControllerSource.values,
+        _string(map, 'controller'),
+      ),
       snekProfileId: _nullableString(map, 'snekProfileId'),
       soulRevisionIds: raw.cast<String>(),
     );
@@ -381,8 +392,8 @@ class TrainingMatch {
     required List<MatchParticipant> participants,
     required Map<String, Object?> outcome,
     this.endedAtMs,
-  })  : participants = List<MatchParticipant>.unmodifiable(participants),
-        outcome = Map<String, Object?>.unmodifiable(outcome) {
+  }) : participants = List<MatchParticipant>.unmodifiable(participants),
+       outcome = Map<String, Object?>.unmodifiable(outcome) {
     _requireId(id, 'Match ID');
     _requireId(mode, 'Match mode');
     if (startedAtMs < 0 || (endedAtMs != null && endedAtMs! < startedAtMs)) {
@@ -406,14 +417,14 @@ class TrainingMatch {
   final Map<String, Object?> outcome;
 
   Map<String, Object?> toJson() => {
-        'schemaVersion': currentTrainingRecordSchemaVersion,
-        'id': id,
-        'mode': mode,
-        'startedAtMs': startedAtMs,
-        'endedAtMs': endedAtMs,
-        'participants': participants.map((item) => item.toJson()).toList(),
-        'outcome': outcome,
-      };
+    'schemaVersion': currentTrainingRecordSchemaVersion,
+    'id': id,
+    'mode': mode,
+    'startedAtMs': startedAtMs,
+    'endedAtMs': endedAtMs,
+    'participants': participants.map((item) => item.toJson()).toList(),
+    'outcome': outcome,
+  };
 
   factory TrainingMatch.fromJson(Object? value) {
     final map = _versionedObject(value);

@@ -161,6 +161,7 @@ class SnekPenScreen extends StatelessWidget {
     required this.onSelect,
     required this.onCreate,
     required this.onPlay,
+    required this.onOpenSoulStudio,
   });
 
   final List<SnekProfile> sneks;
@@ -169,6 +170,7 @@ class SnekPenScreen extends StatelessWidget {
   final ValueChanged<String> onSelect;
   final VoidCallback onCreate;
   final VoidCallback onPlay;
+  final VoidCallback onOpenSoulStudio;
 
   @override
   Widget build(BuildContext context) {
@@ -267,6 +269,12 @@ class SnekPenScreen extends StatelessWidget {
                         icon: const Icon(Icons.play_arrow_rounded),
                         label: Text('PLAY WITH ${selected.name.toUpperCase()}'),
                         style: _primaryButtonStyle,
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: onOpenSoulStudio,
+                        icon: const Icon(Icons.auto_awesome_outlined),
+                        label: const Text('SOUL STUDIO'),
+                        style: _secondaryButtonStyle,
                       ),
                     ],
                   ),
