@@ -9,7 +9,7 @@ import 'package:slither/training/presentation/soul_studio_screen.dart';
 
 void main() {
   test('Snek profile round-trips an optional Soul binding', () {
-    final profile = SnekProfile(
+    final profile = const SnekProfile(
       id: 'snek-1',
       name: 'Scout',
       colorIndex: 2,
@@ -27,30 +27,28 @@ void main() {
 
   testWidgets('binds a selected Soul to the selected Snek', (tester) async {
     final bound = <String, String?>{};
-    final souls = _FakeSouls()
-      ..souls['soul-1'] = Soul(
-        id: 'soul-1',
-        name: 'Resource Scout',
-        createdAtMs: 100,
-      )
-      ..revisions['revision-1'] = SoulRevision(
-        soulId: 'soul-1',
-        revisionId: 'revision-1',
-        trainerVersion: currentSoulTrainerVersion,
-        featureVersion: currentSoulFeatureVersion,
-        weights: const <String, double>{'resource': 1},
-        sourceRunIds: const <String>['run-1'],
-      );
+    final souls =
+        _FakeSouls()
+          ..souls['soul-1'] = Soul(
+            id: 'soul-1',
+            name: 'Resource Scout',
+            createdAtMs: 100,
+          )
+          ..revisions['revision-1'] = SoulRevision(
+            soulId: 'soul-1',
+            revisionId: 'revision-1',
+            trainerVersion: currentSoulTrainerVersion,
+            featureVersion: currentSoulFeatureVersion,
+            weights: const <String, double>{'resource': 1},
+            sourceRunIds: const <String>['run-1'],
+          );
 
     await tester.pumpWidget(
       MaterialApp(
         home: SoulStudioScreen(
           sneks: const <SnekProfile>[SnekProfile.starter],
           selectedSnekId: SnekProfile.starter.id,
-          training: SoulTrainingService(
-            runs: _FakeRuns(),
-            souls: souls,
-          ),
+          training: SoulTrainingService(runs: _FakeRuns(), souls: souls),
           onBack: () {},
           onBind: (snekId, soulId) async => bound[snekId] = soulId,
         ),
@@ -84,10 +82,7 @@ class _FakeRuns implements RunRepository {
       const <TrainingRun>[];
 
   @override
-  Future<void> setRunReviewStatus(
-    String id,
-    TrainingRunStatus status,
-  ) async {}
+  Future<void> setRunReviewStatus(String id, TrainingRunStatus status) async {}
 }
 
 class _FakeSouls implements SoulRepository {
