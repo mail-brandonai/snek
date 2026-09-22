@@ -200,7 +200,7 @@ _ReplayResult? _tryReplayTacticalAnalysis(
       }
     }
     controls.sort((left, right) => left.tick.compareTo(right.tick));
-  if (controls.isEmpty) return null;
+    if (controls.isEmpty) return null;
     final sink = _ReplayCaptureSink();
     final simulation = GameSimulation(
       config: simulationConfig,
