@@ -30,13 +30,18 @@ void main() {
     };
     final payload = Uint8List.fromList(utf8.encode(jsonEncode(chunk)));
 
+    final simulationConfig = SimulationConfig().toJson();
+    simulationConfig['botCount'] = 0;
+    simulationConfig['maxBotCount'] = 0;
+    simulationConfig['initialPellets'] = 0;
+
     final result = analyzeRunReviewChunks(<String, Object?>{
       'runId': runId,
       'recordSchemaVersion': 1,
       'tickRateHz': 60,
       'seed': 7,
       'runConfig': <String, Object?>{
-        'simulation': SimulationConfig().toJson(),
+        'simulation': simulationConfig,
         'playerColorIndex': 0,
       },
       'chunkPayloads': <Uint8List>[payload],
@@ -47,4 +52,3 @@ void main() {
     expect(result['observationSampleCount'], 1);
   });
 }
-
