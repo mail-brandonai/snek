@@ -21,6 +21,7 @@ class SnekProfile {
     required this.id,
     required this.name,
     required this.colorIndex,
+    this.soulId,
   });
 
   static const starter = SnekProfile(
@@ -32,11 +33,20 @@ class SnekProfile {
   final String id;
   final String name;
   final int colorIndex;
+  final String? soulId;
 
-  Map<String, Object> toJson() => <String, Object>{
+  SnekProfile withSoul(String? value) => SnekProfile(
+        id: id,
+        name: name,
+        colorIndex: colorIndex,
+        soulId: value,
+      );
+
+  Map<String, Object?> toJson() => <String, Object?>{
         'id': id,
         'name': name,
         'colorIndex': colorIndex,
+        'soulId': soulId,
       };
 
   factory SnekProfile.fromJson(Object? value) {
@@ -44,17 +54,21 @@ class SnekProfile {
     final id = map['id'];
     final name = map['name'];
     final colorIndex = map['colorIndex'];
+    final soulId = map['soulId'];
     if (id is! String ||
         id.trim().isEmpty ||
         name is! String ||
         colorIndex is! num ||
-        !colorIndex.isFinite) {
+        !colorIndex.isFinite ||
+        (soulId != null &&
+            (soulId is! String || soulId.trim().isEmpty))) {
       throw const FormatException('Invalid saved snek');
     }
     return SnekProfile(
       id: id,
       name: name.trim().isEmpty ? 'Snek' : name.trim(),
       colorIndex: colorIndex.toInt().clamp(0, 9).toInt(),
+      soulId: soulId as String?,
     );
   }
 }
