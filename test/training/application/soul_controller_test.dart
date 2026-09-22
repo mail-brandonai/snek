@@ -37,7 +37,7 @@ void main() {
 
       final command = controller.decide(
         _observation(
-          headingX: 1,
+          headingY: 1,
           pressured: true,
           nearestThreatDirectionX: 1,
         ),
