@@ -56,9 +56,8 @@ class _SoulStudioScreenState extends State<SoulStudioScreen> {
         return _SoulStudioItem(
           soul: soul,
           revisions: revisions,
-          latest: revisions.isEmpty
-              ? null
-              : SoulTrainer.latestRevision(revisions),
+          latest:
+              revisions.isEmpty ? null : SoulTrainer.latestRevision(revisions),
         );
       }),
     );
@@ -172,7 +171,7 @@ class _SoulStudioScreenState extends State<SoulStudioScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _selectedSnekId,
+                              initialValue: _selectedSnekId,
                               decoration: const InputDecoration(
                                 labelText: 'SNEK PROFILE',
                                 border: OutlineInputBorder(),
@@ -184,15 +183,16 @@ class _SoulStudioScreenState extends State<SoulStudioScreen> {
                                     child: Text(snek.name),
                                   ),
                               ],
-                              onChanged: _busy
-                                  ? null
-                                  : (value) {
-                                      if (value != null) {
-                                        setState(
-                                          () => _selectedSnekId = value,
-                                        );
-                                      }
-                                    },
+                              onChanged:
+                                  _busy
+                                      ? null
+                                      : (value) {
+                                        if (value != null) {
+                                          setState(
+                                            () => _selectedSnekId = value,
+                                          );
+                                        }
+                                      },
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -238,19 +238,20 @@ class _SoulStudioScreenState extends State<SoulStudioScreen> {
                         return ListView.separated(
                           padding: const EdgeInsets.only(bottom: 12),
                           itemCount: items.length,
-                          separatorBuilder: (_, index) =>
-                              const SizedBox(height: 12),
+                          separatorBuilder:
+                              (_, index) => const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final item = items[index];
                             return _SoulStudioCard(
                               item: item,
                               bound: selected.soulId == item.soul.id,
                               busy: _busy,
-                              onPressed: () => _setBinding(
-                                selected.soulId == item.soul.id
-                                    ? null
-                                    : item.soul.id,
-                              ),
+                              onPressed:
+                                  () => _setBinding(
+                                    selected.soulId == item.soul.id
+                                        ? null
+                                        : item.soul.id,
+                                  ),
                             );
                           },
                         );
@@ -338,10 +339,7 @@ class _SoulStudioCard extends StatelessWidget {
             Text(
               '${item.revisions.length} '
               '${item.revisions.length == 1 ? 'revision' : 'revisions'}',
-              style: const TextStyle(
-                color: ArenaSkin.textMuted,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: ArenaSkin.textMuted, fontSize: 12),
             ),
             if (latest != null) ...[
               const SizedBox(height: 10),
@@ -387,10 +385,7 @@ class _SoulStudioLoading extends StatelessWidget {
 }
 
 class _SoulStudioError extends StatelessWidget {
-  const _SoulStudioError({
-    required this.message,
-    required this.onRetry,
-  });
+  const _SoulStudioError({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -406,10 +401,7 @@ class _SoulStudioError extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: ArenaSkin.textMuted,
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: ArenaSkin.textMuted, fontSize: 11),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
