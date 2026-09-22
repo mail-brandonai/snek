@@ -196,25 +196,31 @@ class _SlitherAppState extends State<SlitherApp> {
                       'control it for this run.',
                     ),
                     const SizedBox(height: 8),
-                    RadioListTile<bool>(
-                      contentPadding: EdgeInsets.zero,
-                      value: false,
+                    RadioGroup<bool>(
                       groupValue: useSoulController,
                       onChanged: (value) => setDialogState(
                         () => useSoulController = value ?? false,
                       ),
-                      title: const Text('PLAY MANUALLY'),
-                      subtitle: const Text('Use pointer and keyboard controls'),
-                    ),
-                    RadioListTile<bool>(
-                      contentPadding: EdgeInsets.zero,
-                      value: true,
-                      groupValue: useSoulController,
-                      onChanged: (value) => setDialogState(
-                        () => useSoulController = value ?? true,
+                      child: const Column(
+                        children: [
+                          RadioListTile<bool>(
+                            contentPadding: EdgeInsets.zero,
+                            value: false,
+                            title: Text('PLAY MANUALLY'),
+                            subtitle: Text(
+                              'Use pointer and keyboard controls',
+                            ),
+                          ),
+                          RadioListTile<bool>(
+                            contentPadding: EdgeInsets.zero,
+                            value: true,
+                            title: Text('AUTO-PLAY WITH SOUL'),
+                            subtitle: Text(
+                              'Let the bound Soul control the Snek',
+                            ),
+                          ),
+                        ],
                       ),
-                      title: const Text('AUTO-PLAY WITH SOUL'),
-                      subtitle: const Text('Let the bound Soul control the Snek'),
                     ),
                     const Divider(),
                   ],
@@ -234,24 +240,26 @@ class _SlitherAppState extends State<SlitherApp> {
                     style: TextStyle(color: ArenaSkin.textMuted),
                   ),
                   const SizedBox(height: 4),
-                  for (final seconds in const <int>[30, 60, 120, 300])
-                    RadioListTile<int>(
-                      contentPadding: EdgeInsets.zero,
-                      value: seconds,
-                      groupValue: selectedDurationSeconds,
-                      onChanged: (value) => setDialogState(
-                        () => selectedDurationSeconds = value ?? 60,
-                      ),
-                      title: Text('${seconds}s'),
-                    ),
-                  RadioListTile<int>(
-                    contentPadding: EdgeInsets.zero,
-                    value: 0,
+                  RadioGroup<int>(
                     groupValue: selectedDurationSeconds,
                     onChanged: (value) => setDialogState(
-                      () => selectedDurationSeconds = value ?? 0,
+                      () => selectedDurationSeconds = value ?? 60,
                     ),
-                    title: const Text('NO LIMIT'),
+                    child: Column(
+                      children: [
+                        for (final seconds in const <int>[30, 60, 120, 300])
+                          RadioListTile<int>(
+                            contentPadding: EdgeInsets.zero,
+                            value: seconds,
+                            title: Text('${seconds}s'),
+                          ),
+                        const RadioListTile<int>(
+                          contentPadding: EdgeInsets.zero,
+                          value: 0,
+                          title: Text('NO LIMIT'),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
