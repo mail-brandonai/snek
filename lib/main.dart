@@ -103,10 +103,7 @@ class _SlitherAppState extends State<SlitherApp> {
   Future<void> _bindSoulToSnek(String snekId, String? soulId) async {
     setState(() {
       _sneks = _sneks
-          .map(
-            (snek) =>
-                snek.id == snekId ? snek.withSoul(soulId) : snek,
-          )
+          .map((snek) => snek.id == snekId ? snek.withSoul(soulId) : snek)
           .toList(growable: false);
     });
     await _persistPen();
