@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slither/game/domain/simulation_capture.dart';
 import 'package:slither/training/application/run_review.dart';
+import 'package:slither/training/application/soul_training.dart';
 import 'package:slither/training/application/run_review_worker.dart';
 import 'package:slither/training/data/drift_run_store.dart';
 import 'package:slither/training/data/drift_training_repositories.dart';
@@ -148,15 +149,46 @@ void main() {
     expect(find.text('No pending runs.'), findsOneWidget);
   });
 
-  testWidgets('Soul entry points do not create or refine implicitly', (
+  testWidgets('pending runs require explicit retention before Soul actions', (
     tester,
   ) async {
-    await _createPendingRun(lifecycle, chunks, 'run-soul-stub');
+    await _createPendingRun(lifecycle, chunks, 'run-soul-pending');
     await tester.pumpWidget(
       MaterialApp(
         home: RunLibraryScreen(
           service: review,
-          initialRunId: 'run-soul-stub',
+          initialRunId: 'run-soul-pending',
+          onBack: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('KEEP RUN'), findsOneWidget);
+    expect(find.text('CREATE SOUL'), findsNothing);
+    expect(find.text('REFINE SOUL'), findsNothing);
+    expect(
+      (await runs.getRun('run-soul-pending'))?.status,
+      TrainingRunStatus.pendingReview,
+    );
+    expect(await runs.listSouls(), isEmpty);
+  });
+
+  testWidgets('creates a Soul from an explicitly retained run', (tester) async {
+    await _createPendingRun(lifecycle, chunks, 'run-soul-create');
+    await review.keepRun('run-soul-create');
+    final soulTraining = SoulTrainingService(
+      runs: runs,
+      souls: runs,
+      nowMs: () => 500,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RunLibraryScreen(
+          service: review,
+          soulTraining: soulTraining,
+          initialRunId: 'run-soul-create',
           onBack: () {},
         ),
       ),
@@ -164,27 +196,65 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('CREATE SOUL'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('CREATE SOUL'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('scheduled for Sprint 5'), findsOneWidget);
-    await tester.tap(find.text('CLOSE'));
+    await tester.enterText(find.byType(TextField), 'Training Soul');
+    await tester.tap(find.text('CREATE SOUL').last);
+    await tester.pumpAndSettle();
+
+    final souls = await runs.listSouls();
+    expect(souls.single.name, 'Training Soul');
+    expect(
+      (await runs.listRevisions(souls.single.id)).single.sourceRunIds,
+      const <String>['run-soul-create'],
+    );
+  });
+
+  testWidgets('refines a selected Soul from another retained run', (tester) async {
+    await _createPendingRun(lifecycle, chunks, 'run-soul-base');
+    await _createPendingRun(lifecycle, chunks, 'run-soul-refine');
+    await review.keepRun('run-soul-base');
+    await review.keepRun('run-soul-refine');
+    await runs.saveSoulRevision(
+      soul: Soul(id: 'soul-1', name: 'Learner', createdAtMs: 400),
+      revision: SoulRevision(
+        soulId: 'soul-1',
+        revisionId: 'revision-1',
+        trainerVersion: currentSoulTrainerVersion,
+        featureVersion: currentSoulFeatureVersion,
+        weights: const {'resource': 1.0},
+        sourceRunIds: const ['run-soul-base'],
+      ),
+    );
+    final soulTraining = SoulTrainingService(
+      runs: runs,
+      souls: runs,
+      nowMs: () => 600,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RunLibraryScreen(
+          service: review,
+          soulTraining: soulTraining,
+          initialRunId: 'run-soul-refine',
+          onBack: () {},
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('REFINE SOUL'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('REFINE SOUL'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Choose a target Soul'), findsOneWidget);
-    await tester.tap(find.text('CLOSE'));
+    expect(find.text('Learner'), findsOneWidget);
+    await tester.tap(find.text('Learner'));
     await tester.pumpAndSettle();
 
-    expect(
-      (await runs.getRun('run-soul-stub'))?.status,
-      TrainingRunStatus.pendingReview,
-    );
-    expect(await runs.getSoul('soul-1'), isNull);
-    expect(await runs.listRevisions('soul-1'), isEmpty);
+    final revisions = await runs.listRevisions('soul-1');
+    expect(revisions, hasLength(2));
+    expect(revisions.last.parentRevisionId, 'revision-1');
+    expect(revisions.last.sourceRunIds, contains('run-soul-refine'));
   });
 
   testWidgets('incomplete runs are marked and cannot be kept', (tester) async {
