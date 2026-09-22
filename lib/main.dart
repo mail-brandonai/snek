@@ -679,9 +679,9 @@ class SlitherGame extends FlameGame {
             : null;
 
     final soulRevisionIds =
-        soulRevision == null
-            ? const <String>[]
-            : <String>[soulRevision.revisionId];
+        soulControlActive
+            ? <String>[soulRevision.revisionId]
+            : const <String>[];
     final createdAtMs = DateTime.now().millisecondsSinceEpoch;
     final participants = simulation.snakes
         .map(
