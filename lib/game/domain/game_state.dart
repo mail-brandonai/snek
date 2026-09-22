@@ -2,7 +2,7 @@ import 'vec2.dart';
 
 enum SnakeKind { player, bot }
 
-enum GameOverReason { boundary, bodyCollision }
+enum GameOverReason { boundary, bodyCollision, timeLimit }
 
 enum FoodPelletKind { natural, sprintDrop, defeatDrop }
 
