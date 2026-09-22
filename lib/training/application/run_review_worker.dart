@@ -12,10 +12,10 @@ import '../domain/soul_feature_extractor.dart';
 @isolateManagerCustomWorker
 void analyzeRunReviewChunksWorker(dynamic params) {
   unawaited(
-    IsolateManagerFunction.customFunction<Map<String, Object?>, Map<String, Object?>>(
-      params,
-      onEvent: (_, message) => analyzeRunReviewChunks(message),
-    ),
+    IsolateManagerFunction.customFunction<
+      Map<String, Object?>,
+      Map<String, Object?>
+    >(params, onEvent: (_, message) => analyzeRunReviewChunks(message)),
   );
 }
 
