@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../game/presentation/arena_skin.dart';
 import '../application/run_review.dart';
+import '../application/soul_training.dart';
 import '../data/training_review_services.dart';
 import '../domain/soul_feature_extractor.dart';
 import '../domain/training_models.dart';
@@ -14,20 +15,64 @@ class RunLibraryScreen extends StatefulWidget {
     required this.onBack,
     this.initialRunId,
     this.service,
+    this.soulTraining,
   });
 
   final VoidCallback onBack;
   final String? initialRunId;
   final RunReviewService? service;
+  final SoulTrainingService? soulTraining;
 
   @override
   State<RunLibraryScreen> createState() => _RunLibraryScreenState();
+}
+
+class _SoulNameDialog extends StatefulWidget {
+  const _SoulNameDialog();
+
+  @override
+  State<_SoulNameDialog> createState() => _SoulNameDialogState();
+}
+
+class _SoulNameDialogState extends State<_SoulNameDialog> {
+  late final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = _controller.text.trim();
+    if (value.isNotEmpty) Navigator.pop(context, value);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('CREATE SOUL'),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      textCapitalization: TextCapitalization.words,
+      decoration: const InputDecoration(labelText: 'Soul name'),
+      onSubmitted: (_) => _submit(),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('CANCEL'),
+      ),
+      FilledButton(onPressed: _submit, child: const Text('CREATE SOUL')),
+    ],
+  );
 }
 
 enum _RunFilter { pending, retained, incomplete }
 
 class _RunLibraryScreenState extends State<RunLibraryScreen> {
   late final Future<RunReviewService> _service;
+  Future<SoulTrainingService>? _soulTraining;
   List<TrainingRun> _runs = const <TrainingRun>[];
   String? _selectedRunId;
   TrainingRun? _selectedRun;
@@ -47,8 +92,15 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
         widget.service == null
             ? TrainingReviewServices.runReviewService()
             : Future<RunReviewService>.value(widget.service!);
+    _soulTraining =
+        widget.soulTraining == null
+            ? null
+            : Future<SoulTrainingService>.value(widget.soulTraining!);
     _refresh();
   }
+
+  Future<SoulTrainingService> get _soulTrainingService =>
+      _soulTraining ??= TrainingReviewServices.soulTrainingService();
 
   Future<void> _refresh() async {
     final generation = ++_loadGeneration;
@@ -173,27 +225,87 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
     }
   }
 
-  Future<void> _showSoulActionStub(bool refine) async {
-    final message =
-        refine
-            ? 'Choose a target Soul before refining. Soul selection and training '
-                'are scheduled for later sprints; no data was changed.'
-            : 'Soul creation and training are scheduled for Sprint 5. '
-                'This run remains unchanged.';
-    await showDialog<void>(
+  SoulBehaviorSignature? _trainingSignature() {
+    final item = _selectedItem;
+    final signature = item?.featureAnalysis.signature;
+    if (item == null || !item.featureAnalysis.isReady || signature == null) {
+      _showMessage('Behavior evidence is not ready for Soul training.');
+      return null;
+    }
+    return signature;
+  }
+
+  Future<void> _createSoul() async {
+    final item = _selectedItem;
+    if (item == null || _busy) return;
+    final signature = _trainingSignature();
+    if (signature == null) return;
+
+    final name = await showDialog<String>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(refine ? 'REFINE SOUL' : 'CREATE SOUL'),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('CLOSE'),
-              ),
-            ],
-          ),
+      builder: (context) => const _SoulNameDialog(),
     );
+    if (name == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final soul = await (await _soulTrainingService).createFromRun(
+        name: name,
+        signature: signature,
+      );
+      _showMessage('Soul "${soul.name}" created from this run.');
+    } catch (error) {
+      _showMessage(_errorMessage(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _refineSoul() async {
+    final item = _selectedItem;
+    if (item == null || _busy) return;
+    final signature = _trainingSignature();
+    if (signature == null) return;
+
+    setState(() => _busy = true);
+    try {
+      final souls = await (await _soulTrainingService).listSouls();
+      if (!mounted) return;
+      if (souls.isEmpty) {
+        _showMessage('Create a Soul before refining one.');
+        return;
+      }
+      setState(() => _busy = false);
+      final target = await showDialog<Soul>(
+        context: context,
+        builder:
+            (context) => SimpleDialog(
+              title: const Text('REFINE SOUL'),
+              children: [
+                for (final soul in souls)
+                  SimpleDialogOption(
+                    onPressed: () => Navigator.pop(context, soul),
+                    child: Text(soul.name),
+                  ),
+                SimpleDialogOption(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('CANCEL'),
+                ),
+              ],
+            ),
+      );
+      if (target == null || !mounted) return;
+      setState(() => _busy = true);
+      final revision = await (await _soulTrainingService).refineFromRun(
+        soul: target,
+        signature: signature,
+      );
+      _showMessage('Soul "${target.name}" refined to ${revision.revisionId}.');
+    } catch (error) {
+      _showMessage(_errorMessage(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   void _showMessage(String message) {
@@ -537,18 +649,18 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                             icon: const Icon(Icons.bookmark_add_outlined),
                             label: const Text('KEEP RUN'),
                           ),
-                        OutlinedButton.icon(
-                          onPressed:
-                              _busy ? null : () => _showSoulActionStub(false),
-                          icon: const Icon(Icons.auto_awesome_outlined),
-                          label: const Text('CREATE SOUL'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed:
-                              _busy ? null : () => _showSoulActionStub(true),
-                          icon: const Icon(Icons.tune),
-                          label: const Text('REFINE SOUL'),
-                        ),
+                        if (item.run.status == TrainingRunStatus.retained) ...[
+                          OutlinedButton.icon(
+                            onPressed: _busy ? null : _createSoul,
+                            icon: const Icon(Icons.auto_awesome_outlined),
+                            label: const Text('CREATE SOUL'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _busy ? null : _refineSoul,
+                            icon: const Icon(Icons.tune),
+                            label: const Text('REFINE SOUL'),
+                          ),
+                        ],
                       ],
                     ),
                   if (item.run.status == TrainingRunStatus.incomplete)
