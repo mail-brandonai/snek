@@ -20,11 +20,11 @@ class _SharedPreferencesLegacyPenStorage implements LegacyPenStorage {
 
 class TrainingServiceBundle {
   TrainingServiceBundle(this.database, this.repositories, this.runChunks)
-      : penMigration = SnekPenMigrationService(
-          repositories,
-          _SharedPreferencesLegacyPenStorage(),
-        ),
-        runLifecycle = RunLifecycleService(repositories, runChunks);
+    : penMigration = SnekPenMigrationService(
+        repositories,
+        _SharedPreferencesLegacyPenStorage(),
+      ),
+      runLifecycle = RunLifecycleService(repositories, runChunks);
 
   final TrainingDatabase database;
   final DriftTrainingRepositories repositories;
