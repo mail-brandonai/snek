@@ -102,7 +102,17 @@ void main() {
 
       expect(find.text('RUN DEBRIEF'), findsOneWidget);
       expect(find.text('BEHAVIOR SIGNATURE'), findsOneWidget);
-      expect(find.text('OBSERVED EVIDENCE'), findsNWidgets(7));
+      expect(find.text('OBSERVED EVIDENCE'), findsNothing);
+      expect(
+        find.textContaining('No pressure episodes were recorded'),
+        findsNothing,
+      );
+      await tester.tap(find.text('EXPAND ANALYSIS'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Resource collection pattern'));
+      await tester.tap(find.text('PRESSURE EPISODES'));
+      await tester.pumpAndSettle();
+      expect(find.text('OBSERVED EVIDENCE'), findsOneWidget);
       expect(
         find.textContaining('No pressure episodes were recorded'),
         findsOneWidget,
