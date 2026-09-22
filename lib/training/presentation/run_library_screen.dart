@@ -27,6 +27,50 @@ class RunLibraryScreen extends StatefulWidget {
   State<RunLibraryScreen> createState() => _RunLibraryScreenState();
 }
 
+class _SoulNameDialog extends StatefulWidget {
+  const _SoulNameDialog();
+
+  @override
+  State<_SoulNameDialog> createState() => _SoulNameDialogState();
+}
+
+class _SoulNameDialogState extends State<_SoulNameDialog> {
+  late final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = _controller.text.trim();
+    if (value.isNotEmpty) Navigator.pop(context, value);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('CREATE SOUL'),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      textCapitalization: TextCapitalization.words,
+      decoration: const InputDecoration(labelText: 'Soul name'),
+      onSubmitted: (_) => _submit(),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('CANCEL'),
+      ),
+      FilledButton(
+        onPressed: _submit,
+        child: const Text('CREATE SOUL'),
+      ),
+    ],
+  );
+}
+
 enum _RunFilter { pending, retained, incomplete }
 
 class _RunLibraryScreenState extends State<RunLibraryScreen> {
@@ -200,37 +244,10 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
     final signature = _trainingSignature();
     if (signature == null) return;
 
-    final controller = TextEditingController(text: item.playerName);
     final name = await showDialog<String>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('CREATE SOUL'),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Soul name'),
-              onSubmitted: (value) {
-                if (value.trim().isNotEmpty) Navigator.pop(context, value);
-              },
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('CANCEL'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  final value = controller.text.trim();
-                  if (value.isNotEmpty) Navigator.pop(context, value);
-                },
-                child: const Text('CREATE SOUL'),
-              ),
-            ],
-          ),
+      builder: (context) => const _SoulNameDialog(),
     );
-    controller.dispose();
     if (name == null || !mounted) return;
 
     setState(() => _busy = true);
