@@ -1412,6 +1412,33 @@ class GameSimulation {
     _enforceDroppedMassLimit();
   }
 
+  void endTraining() {
+    if (gameOver || !player.alive) return;
+    _emitCaptureEvent(
+      SimulationEventKind.runEnded,
+      actorId: player.id,
+      value: score.toDouble(),
+      detail: GameOverReason.timeLimit.name,
+      metadata: <String, Object?>{
+        'score': score,
+        'length': player.length,
+        'survivalSeconds': elapsed,
+        'simulationElapsedSeconds':
+            _currentSimulationTick * config.simulationStep,
+        'rank': _rankForLength(player.length),
+      },
+    );
+    player.alive = false;
+    finalStats = RunStats(
+      score: score,
+      length: player.length,
+      survivalSeconds: elapsed,
+      rank: _rankForLength(player.length),
+    );
+    gameOver = true;
+    gameOverReason = GameOverReason.timeLimit;
+  }
+
   void abandon() {
     _emitCaptureEvent(
       SimulationEventKind.abandoned,
