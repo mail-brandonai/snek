@@ -53,6 +53,7 @@ class _PlaySettings {
 class _SlitherAppState extends State<SlitherApp> {
   late final SlitherGame game;
   late final FocusNode _focusNode;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   bool _pointerButtonHeld = false;
   bool _penLoaded = false;
   bool _penLoading = false;
@@ -176,12 +177,15 @@ class _SlitherAppState extends State<SlitherApp> {
   }
 
   Future<_PlaySettings?> _choosePlaySettings(SnekProfile snek) {
+    final dialogContext = _navigatorKey.currentContext;
+    if (dialogContext == null) return Future<_PlaySettings?>.value();
+
     final isSoulBound = snek.soulId != null;
     var useSoulController = isSoulBound;
     var selectedDurationSeconds = 60;
 
     return showDialog<_PlaySettings>(
-      context: context,
+      context: dialogContext,
       builder:
           (context) => StatefulBuilder(
             builder: (context, setDialogState) {
@@ -339,6 +343,7 @@ class _SlitherAppState extends State<SlitherApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      navigatorKey: _navigatorKey,
       theme: ThemeData.dark(useMaterial3: true).copyWith(
         colorScheme: ColorScheme.fromSeed(
           seedColor: ArenaSkin.accent,
