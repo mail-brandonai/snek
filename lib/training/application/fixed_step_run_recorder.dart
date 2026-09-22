@@ -189,41 +189,46 @@ class FixedStepRunRecorder
 
     final sequence = _nextSequence++;
     _pendingChunkWrites++;
-    _writeTail = _writeTail.then<void>((_) async {
-      if (_writeError != null) return;
-      final payload = Uint8List.fromList(
-        utf8.encode(
-          jsonEncode(<String, Object?>{
-            'format': 'snek-run-chunk',
-            'schemaVersion': currentTrainingRecordSchemaVersion,
-            'runId': runId,
-            'sequence': sequence,
-            'firstTick': firstTick,
-            'lastTick': lastTick,
-            'controls': controls
-                .map((sample) => sample.toJson())
-                .toList(growable: false),
-            'observations': observations
-                .map((sample) => sample.toJson())
-                .toList(growable: false),
-            'events':
-                events.map((event) => event.toJson()).toList(growable: false),
-          }),
-        ),
-      );
-      await chunks.appendChunk(
-        runId: runId,
-        sequence: sequence,
-        firstTick: firstTick,
-        lastTick: lastTick,
-        payload: payload,
-      );
-    }).catchError((Object error) {
-      _writeError ??= error;
-      _captureIncomplete = true;
-      _accepting = false;
-    }).whenComplete(() {
-      _pendingChunkWrites--;
-    });
+    _writeTail = _writeTail
+        .then<void>((_) async {
+          if (_writeError != null) return;
+          final payload = Uint8List.fromList(
+            utf8.encode(
+              jsonEncode(<String, Object?>{
+                'format': 'snek-run-chunk',
+                'schemaVersion': currentTrainingRecordSchemaVersion,
+                'runId': runId,
+                'sequence': sequence,
+                'firstTick': firstTick,
+                'lastTick': lastTick,
+                'controls': controls
+                    .map((sample) => sample.toJson())
+                    .toList(growable: false),
+                'observations': observations
+                    .map((sample) => sample.toJson())
+                    .toList(growable: false),
+                'events': events
+                    .map((event) => event.toJson())
+                    .toList(growable: false),
+              }),
+            ),
+          );
+          await chunks.appendChunk(
+            runId: runId,
+            sequence: sequence,
+            firstTick: firstTick,
+            lastTick: lastTick,
+            payload: payload,
+          );
+        })
+        .catchError((Object error) {
+          _writeError ??= error;
+          _captureIncomplete = true;
+          _accepting = false;
+        })
+        .whenComplete(() {
+          _pendingChunkWrites--;
+        });
   }
 }
+
