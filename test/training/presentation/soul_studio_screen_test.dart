@@ -9,7 +9,7 @@ import 'package:slither/training/presentation/soul_studio_screen.dart';
 
 void main() {
   test('Snek profile round-trips an optional Soul binding', () {
-    final profile = const SnekProfile(
+    const profile = SnekProfile(
       id: 'snek-1',
       name: 'Scout',
       colorIndex: 2,
