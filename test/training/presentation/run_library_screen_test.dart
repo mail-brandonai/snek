@@ -80,6 +80,7 @@ void main() {
 
     expect(find.text('Analyzing recorded behavior'), findsNothing);
     expect(find.text('OBSERVED EVIDENCE'), findsNothing);
+    await tester.ensureVisible(find.text('EXPAND ANALYSIS'));
     await tester.tap(find.text('EXPAND ANALYSIS'));
     await tester.pumpAndSettle();
     expect(find.text('OBSERVED EVIDENCE'), findsNWidgets(7));
@@ -107,6 +108,7 @@ void main() {
         find.textContaining('No pressure episodes were recorded'),
         findsNothing,
       );
+      await tester.ensureVisible(find.text('EXPAND ANALYSIS'));
       await tester.tap(find.text('EXPAND ANALYSIS'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Resource collection pattern'));
