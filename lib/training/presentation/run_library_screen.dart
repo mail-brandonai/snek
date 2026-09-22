@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../game/presentation/arena_skin.dart';
 import '../application/run_review.dart';
-import '../data/training_services.dart';
+import '../data/training_review_services.dart';
 import '../domain/soul_feature_extractor.dart';
 import '../domain/training_models.dart';
 
@@ -45,7 +45,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
     _selectedRunId = widget.initialRunId;
     _service =
         widget.service == null
-            ? TrainingServices.runReviewService()
+            ? TrainingReviewServices.runReviewService()
             : Future<RunReviewService>.value(widget.service!);
     _refresh();
   }

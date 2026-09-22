@@ -16,7 +16,7 @@ import 'game/presentation/snek_pen.dart';
 import 'training/application/fixed_step_run_recorder.dart';
 import 'training/data/training_services.dart';
 import 'training/domain/training_models.dart';
-import 'training/presentation/run_library_screen.dart';
+import 'training/presentation/run_library_screen.dart' deferred as run_library;
 
 const _snakeColours = ArenaSkin.snakeColours;
 
@@ -129,18 +129,20 @@ class _SlitherAppState extends State<SlitherApp> {
   }
 
   void _openRunLibrary() {
-    setState(() {
-      _runToReview = null;
-      _screen = _AppScreen.runs;
-    });
+    unawaited(_loadRunLibrary());
   }
 
-  void _openCompletedRun(String runId) {
+  Future<void> _loadRunLibrary({String? runId}) async {
+    await run_library.loadLibrary();
     if (!mounted) return;
     setState(() {
       _runToReview = runId;
       _screen = _AppScreen.runs;
     });
+  }
+
+  void _openCompletedRun(String runId) {
+    unawaited(_loadRunLibrary(runId: runId));
   }
 
   void _returnHome() {
@@ -266,7 +268,7 @@ class _SlitherAppState extends State<SlitherApp> {
                 ),
               if (_screen == _AppScreen.runs)
                 Positioned.fill(
-                  child: RunLibraryScreen(
+                  child: run_library.RunLibraryScreen(
                     key: ValueKey<String>(_runToReview ?? 'all-runs'),
                     initialRunId: _runToReview,
                     onBack: _returnHome,

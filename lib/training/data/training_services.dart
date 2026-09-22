@@ -1,7 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../application/fixed_step_run_recorder.dart';
-import '../application/run_review.dart';
 import '../domain/training_application.dart';
 import '../domain/training_models.dart';
 import 'drift_run_store.dart';
@@ -19,13 +18,13 @@ class _SharedPreferencesLegacyPenStorage implements LegacyPenStorage {
   Future<void> removeV1() => _preferences.remove(_key);
 }
 
-class _TrainingServices {
-  _TrainingServices(this.database, this.repositories, this.runChunks)
-      : penMigration = SnekPenMigrationService(
-          repositories,
-          _SharedPreferencesLegacyPenStorage(),
-        ),
-        runLifecycle = RunLifecycleService(repositories, runChunks);
+class TrainingServiceBundle {
+  TrainingServiceBundle(this.database, this.repositories, this.runChunks)
+    : penMigration = SnekPenMigrationService(
+        repositories,
+        _SharedPreferencesLegacyPenStorage(),
+      ),
+      runLifecycle = RunLifecycleService(repositories, runChunks);
 
   final TrainingDatabase database;
   final DriftTrainingRepositories repositories;
@@ -37,12 +36,14 @@ class _TrainingServices {
 class TrainingServices {
   TrainingServices._();
 
-  static final Future<_TrainingServices> _instance = _open();
+  static final Future<TrainingServiceBundle> _instance = _open();
 
-  static Future<_TrainingServices> _open() async {
+  static Future<TrainingServiceBundle> open() => _instance;
+
+  static Future<TrainingServiceBundle> _open() async {
     final database = TrainingDatabase.persistent();
     await database.customSelect('SELECT 1').get();
-    final services = _TrainingServices(
+    final services = TrainingServiceBundle(
       database,
       DriftTrainingRepositories(database),
       DriftRunStore(database),
@@ -68,14 +69,5 @@ class TrainingServices {
     );
     await recorder.begin(run);
     return recorder;
-  }
-
-  static Future<RunReviewService> runReviewService() async {
-    final services = await _instance;
-    return RunReviewService(
-      runs: services.repositories,
-      chunks: services.runChunks,
-      lifecycle: services.runLifecycle,
-    );
   }
 }
