@@ -36,11 +36,7 @@ void main() {
       );
 
       final command = controller.decide(
-        _observation(
-          headingY: 1,
-          pressured: true,
-          nearestThreatDirectionX: 1,
-        ),
+        _observation(headingY: 1, pressured: true, nearestThreatDirectionX: 1),
       );
 
       expect(command.steeringX, lessThan(0));
@@ -57,11 +53,7 @@ void main() {
           _observation(nearbyPelletCount: 1, bodyLength: 12),
         );
         final pressuredCommand = controller.decide(
-          _observation(
-            nearbyPelletCount: 1,
-            bodyLength: 12,
-            pressured: true,
-          ),
+          _observation(nearbyPelletCount: 1, bodyLength: 12, pressured: true),
         );
 
         expect(command.sprinting, isTrue);
