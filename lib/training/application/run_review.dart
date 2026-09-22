@@ -152,6 +152,8 @@ int? _integer(Object? value) {
 double? _decimal(Object? value) => value is num ? value.toDouble() : null;
 String? _string(Object? value) => value is String ? value : null;
 
+const _runReviewAnalysisTimeout = Duration(seconds: 30);
+
 Future<Map<String, Object?>> _analyzeRunReviewInBackground(
   Map<String, Object?> input,
 ) async {
@@ -160,20 +162,24 @@ Future<Map<String, Object?>> _analyzeRunReviewInBackground(
     throw StateError('Run chunk payloads are unavailable for analysis');
   }
   final worker =
-      IsolateManager<Map<String, Object?>, Map<String, Object?>>.create(
-        analyzeRunReviewChunks,
-        workerName: 'analyzeRunReviewChunks',
+      IsolateManager<Map<String, Object?>, Map<String, Object?>>.createCustom(
+        analyzeRunReviewChunksWorker,
+        workerName: 'analyzeRunReviewChunksWorker',
         debugName: 'run-review-analysis',
       );
+  var started = false;
   try {
-    await worker.start();
-    return await worker.compute(
-      input,
-      transferables: rawPayloads
-          .map((payload) => payload.buffer)
-          .toList(growable: false),
-    );
+    await worker.start().timeout(_runReviewAnalysisTimeout);
+    started = true;
+    return await worker
+        .compute(
+          input,
+          transferables: rawPayloads
+              .map((payload) => payload.buffer)
+              .toList(growable: false),
+        )
+        .timeout(_runReviewAnalysisTimeout);
   } finally {
-    await worker.stop();
+    if (started) await worker.stop();
   }
 }

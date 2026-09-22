@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -8,7 +9,16 @@ import '../domain/recording_contract.dart'
 import '../domain/soul_feature_extractor.dart';
 
 @pragma('vm:entry-point')
-@isolateManagerWorker
+@isolateManagerCustomWorker
+void analyzeRunReviewChunksWorker(dynamic params) {
+  unawaited(
+    IsolateManagerFunction.customFunction<
+      Map<String, Object?>,
+      Map<String, Object?>
+    >(params, onEvent: (_, message) => analyzeRunReviewChunks(message)),
+  );
+}
+
 Map<String, Object?> analyzeRunReviewChunks(Map<String, Object?> input) {
   final runId = _requiredString(input, 'runId');
   final recordSchemaVersion = _requiredInt(input, 'recordSchemaVersion');
