@@ -102,7 +102,7 @@ class _SlitherAppState extends State<SlitherApp> {
   Future<SoulRevision?> _resolveSoulRevision(String soulId) async {
     try {
       final training = await TrainingReviewServices.soulTrainingService();
-      return training.resolveLatestRevision(soulId);
+      return await training.resolveLatestRevision(soulId);
     } catch (error) {
       debugPrint('Could not resolve the bound Soul: $error');
       return null;
