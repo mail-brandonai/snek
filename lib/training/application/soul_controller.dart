@@ -8,8 +8,7 @@ import '../domain/controller_contract.dart';
 /// the simulation, or decide anything for unbound actors. The Auto-mode gate
 /// will provide the observation stream and choose when to invoke it.
 class SoulController implements SnekController {
-  const SoulController({required Map<String, double> weights})
-    : weights = weights;
+  const SoulController({required this.weights});
 
   final Map<String, double> weights;
 
