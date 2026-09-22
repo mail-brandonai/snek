@@ -80,6 +80,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
   _RunFilter _filter = _RunFilter.pending;
   bool _loading = true;
   bool _analysisLoading = false;
+  bool _analysisExpanded = false;
   bool _busy = false;
   int _loadGeneration = 0;
   String? _error;
@@ -107,6 +108,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
     setState(() {
       _loading = true;
       _analysisLoading = false;
+      _analysisExpanded = false;
       _error = null;
     });
     try {
@@ -148,6 +150,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
       _selectedItem = null;
       _loading = true;
       _analysisLoading = false;
+      _analysisExpanded = false;
       _error = null;
     });
     await _refresh();
@@ -161,6 +164,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
         _selectedRun = null;
         _selectedItem = null;
         _analysisLoading = false;
+        _analysisExpanded = false;
         _error = null;
       });
       return;
@@ -547,139 +551,172 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
     }
     if (item == null) return _analysisLoadingDetail(run);
     final incomplete = item.run.status == TrainingRunStatus.incomplete;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
-          child: Card(
-            color: const Color(0xff101d2a),
-            child: Padding(
-              padding: const EdgeInsets.all(22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.playerName,
-                          style: const TextStyle(
-                            fontSize: 23,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      _statusBadge(item.run.status),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    '${item.run.mode.toUpperCase()} run  ·  '
-                    '${_formatDate(item.run.createdAtMs)}',
-                    style: const TextStyle(color: ArenaSkin.textMuted),
-                  ),
-                  const SizedBox(height: 20),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      _metric('Score', item.score?.toString() ?? '—'),
-                      _metric('Length', item.length?.toString() ?? '—'),
-                      _metric(
-                        'Survival',
-                        _formatDuration(item.survivalSeconds),
-                      ),
-                      _metric('Rank', item.rank?.toString() ?? '—'),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  _detailLine('Outcome', _outcomeLabel(item.outcome)),
-                  _detailLine('Seed', item.run.seed.toString()),
-                  _detailLine('Run ID', item.run.id),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'AVAILABLE SAMPLE COVERAGE',
-                    style: TextStyle(
-                      color: ArenaSkin.accent,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _detailLine(
-                    'Player controls',
-                    item.controlSampleCount.toString(),
-                  ),
-                  _detailLine(
-                    'Actor observations',
-                    item.observationSampleCount.toString(),
-                  ),
-                  _detailLine('Semantic events', item.eventCount.toString()),
-                  _behaviorSignature(item.featureAnalysis),
-                  if (incomplete) ...[
-                    const SizedBox(height: 16),
-                    const DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Color(0x332d87c8),
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Text(
-                          'This run was interrupted or its recording did not '
-                          'finish. It remains incomplete and cannot be used as '
-                          'complete training evidence.',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  if (item.run.status == TrainingRunStatus.pendingReview ||
-                      item.run.status == TrainingRunStatus.retained)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _detailActions(item, incomplete),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 24),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 680),
+                child: Card(
+                  color: const Color(0xff101d2a),
+                  child: Padding(
+                    padding: const EdgeInsets.all(22),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (item.run.status == TrainingRunStatus.pendingReview)
-                          FilledButton.icon(
-                            onPressed: _busy ? null : _keepRun,
-                            icon: const Icon(Icons.bookmark_add_outlined),
-                            label: const Text('KEEP RUN'),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.playerName,
+                                style: const TextStyle(
+                                  fontSize: 23,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            _statusBadge(item.run.status),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          '${item.run.mode.toUpperCase()} run  ·  '
+                          '${_formatDate(item.run.createdAtMs)}',
+                          style: const TextStyle(color: ArenaSkin.textMuted),
+                        ),
+                        const SizedBox(height: 20),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            _metric('Score', item.score?.toString() ?? '—'),
+                            _metric('Length', item.length?.toString() ?? '—'),
+                            _metric(
+                              'Survival',
+                              _formatDuration(item.survivalSeconds),
+                            ),
+                            _metric('Rank', item.rank?.toString() ?? '—'),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        _detailLine('Outcome', _outcomeLabel(item.outcome)),
+                        _detailLine('Seed', item.run.seed.toString()),
+                        _detailLine('Run ID', item.run.id),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'AVAILABLE SAMPLE COVERAGE',
+                          style: TextStyle(
+                            color: ArenaSkin.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1,
                           ),
-                        if (item.run.status == TrainingRunStatus.retained) ...[
-                          OutlinedButton.icon(
-                            onPressed: _busy ? null : _createSoul,
-                            icon: const Icon(Icons.auto_awesome_outlined),
-                            label: const Text('CREATE SOUL'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: _busy ? null : _refineSoul,
-                            icon: const Icon(Icons.tune),
-                            label: const Text('REFINE SOUL'),
+                        ),
+                        const SizedBox(height: 8),
+                        _detailLine(
+                          'Player controls',
+                          item.controlSampleCount.toString(),
+                        ),
+                        _detailLine(
+                          'Actor observations',
+                          item.observationSampleCount.toString(),
+                        ),
+                        _detailLine(
+                          'Semantic events',
+                          item.eventCount.toString(),
+                        ),
+                        _behaviorSignature(item.featureAnalysis),
+                        if (incomplete) ...[
+                          const SizedBox(height: 16),
+                          const DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Color(0x332d87c8),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              ),
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.all(12),
+                              child: Text(
+                                'This run was interrupted or its recording did '
+                                'not finish. It remains incomplete and cannot '
+                                'be used as complete training evidence.',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
                           ),
                         ],
                       ],
                     ),
-                  if (item.run.status == TrainingRunStatus.incomplete)
-                    const Text(
-                      'Incomplete runs can be inspected or discarded. '
-                      'Keeping or training from them is unavailable.',
-                      style: TextStyle(color: ArenaSkin.textMuted),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _detailActions(RunReviewItem item, bool incomplete) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xff101d2a),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: ArenaSkin.panelRim),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (item.run.status == TrainingRunStatus.pendingReview)
+                    FilledButton.icon(
+                      onPressed: _busy ? null : _keepRun,
+                      icon: const Icon(Icons.bookmark_add_outlined),
+                      label: const Text('KEEP RUN'),
                     ),
-                  const SizedBox(height: 8),
+                  if (item.run.status == TrainingRunStatus.retained) ...[
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _createSoul,
+                      icon: const Icon(Icons.auto_awesome_outlined),
+                      label: const Text('CREATE SOUL'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _refineSoul,
+                      icon: const Icon(Icons.tune),
+                      label: const Text('REFINE SOUL'),
+                    ),
+                  ],
                   if (item.run.status != TrainingRunStatus.recording)
                     OutlinedButton.icon(
                       onPressed: _busy ? null : _confirmDiscard,
                       icon: const Icon(Icons.delete_outline),
                       label: const Text('DISCARD RUN'),
                     ),
-                  if (_busy) ...[
-                    const SizedBox(height: 12),
-                    const Center(child: CircularProgressIndicator()),
-                  ],
+                  if (incomplete)
+                    const Text(
+                      'Inspection only',
+                      style: TextStyle(color: ArenaSkin.textMuted),
+                    ),
+                  if (_busy)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                 ],
               ),
             ),
@@ -719,7 +756,30 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          heading,
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'BEHAVIOR SIGNATURE',
+                  style: TextStyle(
+                    color: ArenaSkin.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed:
+                    () =>
+                        setState(() => _analysisExpanded = !_analysisExpanded),
+                icon: Icon(
+                  _analysisExpanded ? Icons.unfold_less : Icons.unfold_more,
+                ),
+                label: Text(_analysisExpanded ? 'COLLAPSE' : 'EXPAND ANALYSIS'),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Text(
             '${signature.featureVersion} · '
@@ -728,114 +788,156 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
             '${signature.eventCount} events',
             style: const TextStyle(color: ArenaSkin.textMuted),
           ),
-          const SizedBox(height: 10),
-          for (final trait in signature.traits)
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0x332f4b64),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          trait.label,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      Text(
-                        _confidenceLabel(trait.confidence),
-                        style: const TextStyle(
-                          color: ArenaSkin.accent,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${trait.sampleCount} samples · '
-                    '${trait.opportunityCount} opportunities · '
-                    '${(trait.coverage * 100).round()}% coverage',
-                    style: const TextStyle(color: ArenaSkin.textMuted),
-                  ),
-                  const SizedBox(height: 7),
-                  const Text(
-                    'OBSERVED EVIDENCE',
-                    style: TextStyle(
-                      color: ArenaSkin.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                  SelectableText(jsonEncode(trait.observedEvidence)),
-                  const SizedBox(height: 5),
-                  const Text(
-                    'INFERRED INTERPRETATION',
-                    style: TextStyle(
-                      color: ArenaSkin.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                  Text(
-                    trait.inferredInterpretation ??
-                        'No interpretation available.',
-                  ),
-                ],
-              ),
-            ),
-          const SizedBox(height: 6),
-          const Text(
-            'PRESSURE EPISODES',
-            style: TextStyle(
-              color: ArenaSkin.accent,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (signature.pressureEpisodes.isEmpty)
-            const Text(
-              'No pressure episodes were recorded. Threat response has '
-              'insufficient evidence.',
-              style: TextStyle(color: ArenaSkin.textMuted),
-            ),
-          for (final episode in signature.pressureEpisodes)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Container(
-                padding: const EdgeInsets.all(12),
+          if (_analysisExpanded) ...[
+            const SizedBox(height: 10),
+            for (final trait in signature.traits)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
                   color: const Color(0x332f4b64),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      _pressureEpisodeTitle(episode),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                child: Material(
+                  color: Colors.transparent,
+                  child: ExpansionTile(
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+                    childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            trait.label,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        Text(
+                          _confidenceLabel(trait.confidence),
+                          style: const TextStyle(
+                            color: ArenaSkin.accent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(_pressureEpisodeResponse(episode)),
-                    Text(
-                      _pressureEpisodeOutcome(episode),
+                    subtitle: Text(
+                      '${trait.sampleCount} samples · '
+                      '${trait.opportunityCount} opportunities · '
+                      '${(trait.coverage * 100).round()}% coverage',
                       style: const TextStyle(color: ArenaSkin.textMuted),
                     ),
+                    children: [
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'OBSERVED EVIDENCE',
+                          style: TextStyle(
+                            color: ArenaSkin.textMuted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: SelectableText(
+                          jsonEncode(trait.observedEvidence),
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'INFERRED INTERPRETATION',
+                          style: TextStyle(
+                            color: ArenaSkin.textMuted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          trait.inferredInterpretation ??
+                              'No interpretation available.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0x332f4b64),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: ExpansionTile(
+                  title: const Text(
+                    'PRESSURE EPISODES',
+                    style: TextStyle(
+                      color: ArenaSkin.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  subtitle: Text(
+                    signature.pressureEpisodes.isEmpty
+                        ? 'No episodes recorded'
+                        : '${signature.pressureEpisodes.length} episodes',
+                    style: const TextStyle(color: ArenaSkin.textMuted),
+                  ),
+                  childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  children: [
+                    if (signature.pressureEpisodes.isEmpty)
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'No pressure episodes were recorded. Threat response '
+                          'has insufficient evidence.',
+                          style: TextStyle(color: ArenaSkin.textMuted),
+                        ),
+                      ),
+                    for (final episode in signature.pressureEpisodes)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0x332f4b64),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                _pressureEpisodeTitle(episode),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(_pressureEpisodeResponse(episode)),
+                              Text(
+                                _pressureEpisodeOutcome(episode),
+                                style: const TextStyle(
+                                  color: ArenaSkin.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
             ),
+          ],
         ],
       ),
     );
@@ -952,6 +1054,7 @@ String _confidenceLabel(FeatureConfidence confidence) => switch (confidence) {
 String _outcomeLabel(String? outcome) => switch (outcome) {
   'bodyCollision' => 'Body collision',
   'boundary' => 'Arena boundary',
+  'timeLimit' => 'Time limit',
   null || '' => 'Outcome unavailable',
   _ => outcome,
 };
