@@ -269,6 +269,12 @@ int _countEvents(List<Object?> decodedChunks) {
   return count;
 }
 
+Map<String, Object?> _object(Object? value, String label) {
+  final result = _optionalObject(value);
+  if (result == null) throw FormatException('Expected $label object.');
+  return result;
+}
+
 List<Object?> _array(Map<String, Object?> object, String key) {
   final value = object[key];
   if (value is! List) throw StateError('Run chunk $key is not an array');
