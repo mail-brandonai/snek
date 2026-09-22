@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:snek/game/domain/simulation.dart';
-import 'package:snek/training/application/run_review_worker.dart';
+import 'package:slither/game/domain/simulation.dart';
+import 'package:slither/training/application/run_review_worker.dart';
 
 void main() {
   test('review worker replays controls for deferred tactical analysis', () {
@@ -28,9 +28,7 @@ void main() {
       'observations': const <Object?>[],
       'events': const <Object?>[],
     };
-    final payload = Uint8List.fromList(
-      utf8.encode(jsonEncode(chunk)),
-    );
+    final payload = Uint8List.fromList(utf8.encode(jsonEncode(chunk)));
 
     final result = analyzeRunReviewChunks(<String, Object?>{
       'runId': runId,
@@ -49,3 +47,4 @@ void main() {
     expect(result['observationSampleCount'], 1);
   });
 }
+
