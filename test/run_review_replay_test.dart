@@ -30,7 +30,7 @@ void main() {
     };
     final payload = Uint8List.fromList(utf8.encode(jsonEncode(chunk)));
 
-    final simulationConfig = SimulationConfig().toJson();
+    final simulationConfig = const SimulationConfig().toJson();
     simulationConfig['botCount'] = 0;
     simulationConfig['maxBotCount'] = 0;
     simulationConfig['initialPellets'] = 0;
