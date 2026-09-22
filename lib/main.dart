@@ -273,9 +273,7 @@ class _SlitherAppState extends State<SlitherApp> {
                   ),
                 ),
               if (_screen == _AppScreen.souls)
-                Positioned.fill(
-                  child: SoulLibraryScreen(onBack: _returnHome),
-                ),
+                Positioned.fill(child: SoulLibraryScreen(onBack: _returnHome)),
               if (_screen == _AppScreen.runs)
                 Positioned.fill(
                   child: run_library.RunLibraryScreen(
