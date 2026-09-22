@@ -18,6 +18,7 @@ import 'training/data/training_services.dart';
 import 'training/domain/training_models.dart';
 import 'training/presentation/run_library_screen.dart' deferred as run_library;
 import 'training/presentation/soul_library_screen.dart';
+import 'training/presentation/soul_studio_screen.dart';
 
 const _snakeColours = ArenaSkin.snakeColours;
 
@@ -32,7 +33,7 @@ class SlitherApp extends StatefulWidget {
   State<SlitherApp> createState() => _SlitherAppState();
 }
 
-enum _AppScreen { landing, pen, create, playing, runs, souls }
+enum _AppScreen { landing, pen, create, playing, runs, souls, soulStudio }
 
 class _SlitherAppState extends State<SlitherApp> {
   late final SlitherGame game;
@@ -99,6 +100,18 @@ class _SlitherAppState extends State<SlitherApp> {
     unawaited(_persistPen());
   }
 
+  Future<void> _bindSoulToSnek(String snekId, String? soulId) async {
+    setState(() {
+      _sneks = _sneks
+          .map(
+            (snek) =>
+                snek.id == snekId ? snek.withSoul(soulId) : snek,
+          )
+          .toList(growable: false);
+    });
+    await _persistPen();
+  }
+
   void _saveNewSnek(String name, int colorIndex) {
     final snek = SnekProfile(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -135,6 +148,10 @@ class _SlitherAppState extends State<SlitherApp> {
 
   void _openSoulLibrary() {
     setState(() => _screen = _AppScreen.souls);
+  }
+
+  void _openSoulStudio() {
+    setState(() => _screen = _AppScreen.soulStudio);
   }
 
   Future<void> _loadRunLibrary({String? runId}) async {
@@ -261,6 +278,7 @@ class _SlitherAppState extends State<SlitherApp> {
                     onSelect: _selectSnek,
                     onCreate: () => setState(() => _screen = _AppScreen.create),
                     onPlay: _playSelectedSnek,
+                    onOpenSoulStudio: _openSoulStudio,
                   ),
                 ),
               if (_screen == _AppScreen.create)
@@ -270,6 +288,15 @@ class _SlitherAppState extends State<SlitherApp> {
                     initialColorIndex: _selectedSnek.colorIndex,
                     onBack: () => setState(() => _screen = _AppScreen.pen),
                     onSave: _saveNewSnek,
+                  ),
+                ),
+              if (_screen == _AppScreen.soulStudio)
+                Positioned.fill(
+                  child: SoulStudioScreen(
+                    sneks: _sneks,
+                    selectedSnekId: _selectedSnekId,
+                    onBack: _returnToPen,
+                    onBind: _bindSoulToSnek,
                   ),
                 ),
               if (_screen == _AppScreen.souls)
