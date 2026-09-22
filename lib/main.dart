@@ -17,6 +17,7 @@ import 'training/application/fixed_step_run_recorder.dart';
 import 'training/data/training_services.dart';
 import 'training/domain/training_models.dart';
 import 'training/presentation/run_library_screen.dart' deferred as run_library;
+import 'training/presentation/soul_library_screen.dart';
 
 const _snakeColours = ArenaSkin.snakeColours;
 
@@ -31,7 +32,7 @@ class SlitherApp extends StatefulWidget {
   State<SlitherApp> createState() => _SlitherAppState();
 }
 
-enum _AppScreen { landing, pen, create, playing, runs }
+enum _AppScreen { landing, pen, create, playing, runs, souls }
 
 class _SlitherAppState extends State<SlitherApp> {
   late final SlitherGame game;
@@ -130,6 +131,10 @@ class _SlitherAppState extends State<SlitherApp> {
 
   void _openRunLibrary() {
     unawaited(_loadRunLibrary());
+  }
+
+  void _openSoulLibrary() {
+    setState(() => _screen = _AppScreen.souls);
   }
 
   Future<void> _loadRunLibrary({String? runId}) async {
@@ -244,6 +249,7 @@ class _SlitherAppState extends State<SlitherApp> {
                     selectedSnek: _selectedSnek,
                     onOpenPen: _openPen,
                     onOpenRuns: _openRunLibrary,
+                    onOpenSouls: _openSoulLibrary,
                   ),
                 ),
               if (_screen == _AppScreen.pen)
@@ -265,6 +271,10 @@ class _SlitherAppState extends State<SlitherApp> {
                     onBack: () => setState(() => _screen = _AppScreen.pen),
                     onSave: _saveNewSnek,
                   ),
+                ),
+              if (_screen == _AppScreen.souls)
+                Positioned.fill(
+                  child: SoulLibraryScreen(onBack: _returnHome),
                 ),
               if (_screen == _AppScreen.runs)
                 Positioned.fill(
