@@ -94,6 +94,7 @@ Map<String, Object?> analyzeRunReviewChunks(Map<String, Object?> input) {
   final replay = _tryReplayTacticalAnalysis(input, decodedChunks);
   final analysisChunks =
       replay == null ? decodedChunks : _mergeReplayData(decodedChunks, replay);
+  observationCount = _countObservations(analysisChunks);
   eventCount = _countEvents(analysisChunks);
 
   final featureAnalysis = const SoulFeatureExtractor().extractDecoded(
@@ -258,6 +259,14 @@ List<Object?> _mergeReplayData(
     result.add(replacement);
   }
   return List<Object?>.unmodifiable(result);
+}
+
+int _countObservations(List<Object?> decodedChunks) {
+  var count = 0;
+  for (final decoded in decodedChunks) {
+    count += _array(_object(decoded, 'run chunk'), 'observations').length;
+  }
+  return count;
 }
 
 int _countEvents(List<Object?> decodedChunks) {
