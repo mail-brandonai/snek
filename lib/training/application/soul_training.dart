@@ -15,6 +15,8 @@ class SoulTrainingService {
   final SoulRepository souls;
   final int Function() nowMs;
 
+  Future<List<Soul>> listSouls() => souls.listSouls();
+
   Future<Soul> createFromRun({
     required String name,
     required SoulBehaviorSignature signature,
