@@ -649,6 +649,8 @@ class _SnekCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
+                    if (snek.soulId != null)
+                      const _SoulBoundBadge(),
                     if (selected)
                       Text(
                         'SELECTED',
@@ -663,6 +665,33 @@ class _SnekCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SoulBoundBadge extends StatelessWidget {
+  const _SoulBoundBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: ArenaSkin.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: ArenaSkin.accent.withValues(alpha: 0.65)),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        child: Text(
+          'SOUL BOUND',
+          style: TextStyle(
+            color: ArenaSkin.accent,
+            fontSize: 8,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
           ),
         ),
       ),
