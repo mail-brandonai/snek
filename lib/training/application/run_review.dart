@@ -183,6 +183,7 @@ Future<Map<String, Object?>> _analyzeRunReviewInBackground(
     if (started) await worker.stop();
   }
 }
+
 Map<String, Object?> _reviewOutput(dynamic result) {
   if (result is! Map) {
     throw const FormatException('Run review worker output is not a map.');
