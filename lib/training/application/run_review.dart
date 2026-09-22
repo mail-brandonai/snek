@@ -109,6 +109,8 @@ class RunReviewService {
       'runId': run.id,
       'recordSchemaVersion': run.schemaVersion,
       'tickRateHz': run.tickRateHz,
+      'seed': run.seed,
+      'runConfig': run.config,
       'chunkPayloads': payloads,
     });
     return RunReviewItem.fromWorkerResult(run, result);
