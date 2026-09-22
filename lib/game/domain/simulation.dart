@@ -7365,4 +7365,3 @@ class GameSimulation {
     return angle;
   }
 }
-
