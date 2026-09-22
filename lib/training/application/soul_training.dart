@@ -20,6 +20,14 @@ class SoulTrainingService {
   Future<List<SoulRevision>> listRevisions(String soulId) =>
       souls.listRevisions(soulId);
 
+  Future<SoulRevision?> resolveLatestRevision(String soulId) async {
+    final soul = await souls.getSoul(soulId);
+    if (soul == null) return null;
+    final revisions = await souls.listRevisions(soul.id);
+    if (revisions.isEmpty) return null;
+    return SoulTrainer.latestRevision(revisions);
+  }
+
   Future<Soul> createFromRun({
     required String name,
     required SoulBehaviorSignature signature,

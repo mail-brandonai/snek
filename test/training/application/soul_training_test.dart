@@ -67,6 +67,64 @@ void main() {
     );
   });
 
+  test('resolves the latest revision for a bound Soul', () async {
+    final souls = _FakeSouls();
+    souls.souls['soul-1'] = Soul(
+      id: 'soul-1',
+      name: 'Bound Soul',
+      createdAtMs: 1,
+    );
+    final first = SoulTrainer.createRevision(
+      soulId: 'soul-1',
+      revisionId: 'revision-1',
+      signature: _signature('run-1', <int>[1, 1]),
+      sourceRunIds: const <String>['run-1'],
+    );
+    final latest = SoulTrainer.createRevision(
+      soulId: 'soul-1',
+      revisionId: 'revision-2',
+      signature: _signature('run-2', <int>[2, 1]),
+      sourceRunIds: const <String>['run-2'],
+    );
+    souls.revisions[first.revisionId] = first;
+    souls.revisions[latest.revisionId] = latest;
+    final service = SoulTrainingService(
+      runs: _FakeRuns(
+        TrainingRun(
+          id: 'run-1',
+          mode: 'manual',
+          seed: 1,
+          tickRateHz: 30,
+          createdAtMs: 1,
+          status: TrainingRunStatus.retained,
+          config: const <String, Object?>{},
+        ),
+      ),
+      souls: souls,
+    );
+
+    expect(await service.resolveLatestRevision('soul-1'), same(latest));
+  });
+
+  test('leaves an unbound or stale Soul reference unresolved', () async {
+    final service = SoulTrainingService(
+      runs: _FakeRuns(
+        TrainingRun(
+          id: 'run-1',
+          mode: 'manual',
+          seed: 1,
+          tickRateHz: 30,
+          createdAtMs: 1,
+          status: TrainingRunStatus.retained,
+          config: const <String, Object?>{},
+        ),
+      ),
+      souls: _FakeSouls(),
+    );
+
+    expect(await service.resolveLatestRevision('missing-soul'), isNull);
+  });
+
   test('service creates and refines immutable revisions', () async {
     final runs = _FakeRuns(
       TrainingRun(
