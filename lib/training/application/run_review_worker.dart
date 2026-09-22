@@ -237,8 +237,8 @@ List<Object?> _mergeReplayData(
   final result = <Object?>[];
   for (final decoded in decodedChunks) {
     final chunk = _object(decoded, 'run chunk');
-    final firstTick = _integer(chunk, 'firstTick');
-    final lastTick = _integer(chunk, 'lastTick');
+    final firstTick = _requiredInt(chunk, 'firstTick');
+    final lastTick = _requiredInt(chunk, 'lastTick');
     final replacement = Map<String, Object?>.from(chunk);
     replacement['observations'] = replay.observations
         .where((sample) => sample.tick >= firstTick && sample.tick <= lastTick)
