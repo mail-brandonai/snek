@@ -10,16 +10,16 @@ import '../domain/soul_feature_extractor.dart';
 
 @pragma('vm:entry-point')
 @isolateManagerCustomWorker
-void analyzeRunReviewChunks(dynamic params) {
+void analyzeRunReviewChunksWorker(dynamic params) {
   unawaited(
     IsolateManagerFunction.customFunction<Map<String, Object?>, Map<String, Object?>>(
       params,
-      onEvent: (_, message) => _analyzeRunReviewChunks(message),
+      onEvent: (_, message) => analyzeRunReviewChunks(message),
     ),
   );
 }
 
-Map<String, Object?> _analyzeRunReviewChunks(Map<String, Object?> input) {
+Map<String, Object?> analyzeRunReviewChunks(Map<String, Object?> input) {
   final runId = _requiredString(input, 'runId');
   final recordSchemaVersion = _requiredInt(input, 'recordSchemaVersion');
   final tickRateHz = _requiredInt(input, 'tickRateHz');
