@@ -32,11 +32,11 @@ class SimulationControlSample {
   final bool sprintRequested;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'tick': tick,
-        'steeringX': steeringX,
-        'steeringY': steeringY,
-        'sprintRequested': sprintRequested,
-      };
+    'tick': tick,
+    'steeringX': steeringX,
+    'steeringY': steeringY,
+    'sprintRequested': sprintRequested,
+  };
 }
 
 class SimulationActorSnapshot {
@@ -69,19 +69,19 @@ class SimulationActorSnapshot {
   final String? maneuverPhase;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'actorId': actorId,
-        'role': role,
-        'positionX': positionX,
-        'positionY': positionY,
-        'headingX': headingX,
-        'headingY': headingY,
-        'length': length,
-        'sprintRequested': sprintRequested,
-        'sprinting': sprinting,
-        'intent': intent,
-        'maneuver': maneuver,
-        'maneuverPhase': maneuverPhase,
-      };
+    'actorId': actorId,
+    'role': role,
+    'positionX': positionX,
+    'positionY': positionY,
+    'headingX': headingX,
+    'headingY': headingY,
+    'length': length,
+    'sprintRequested': sprintRequested,
+    'sprinting': sprinting,
+    'intent': intent,
+    'maneuver': maneuver,
+    'maneuverPhase': maneuverPhase,
+  };
 }
 
 class SimulationObservationSnapshot {
@@ -118,21 +118,21 @@ class SimulationObservationSnapshot {
   final List<SimulationActorSnapshot> actors;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'tick': tick,
-        'elapsedSeconds': elapsedSeconds,
-        'playerPositionX': playerPositionX,
-        'playerPositionY': playerPositionY,
-        'playerHeadingX': playerHeadingX,
-        'playerHeadingY': playerHeadingY,
-        'playerLength': playerLength,
-        'playerSprinting': playerSprinting,
-        'nearestThreatDistance': nearestThreatDistance,
-        'nearbyThreatCount': nearbyThreatCount,
-        'nearbyNaturalFoodCount': nearbyNaturalFoodCount,
-        'nearbyDroppedMassCount': nearbyDroppedMassCount,
-        'boundaryRisk': boundaryRisk,
-        'actors': actors.map((actor) => actor.toJson()).toList(growable: false),
-      };
+    'tick': tick,
+    'elapsedSeconds': elapsedSeconds,
+    'playerPositionX': playerPositionX,
+    'playerPositionY': playerPositionY,
+    'playerHeadingX': playerHeadingX,
+    'playerHeadingY': playerHeadingY,
+    'playerLength': playerLength,
+    'playerSprinting': playerSprinting,
+    'nearestThreatDistance': nearestThreatDistance,
+    'nearbyThreatCount': nearbyThreatCount,
+    'nearbyNaturalFoodCount': nearbyNaturalFoodCount,
+    'nearbyDroppedMassCount': nearbyDroppedMassCount,
+    'boundaryRisk': boundaryRisk,
+    'actors': actors.map((actor) => actor.toJson()).toList(growable: false),
+  };
 }
 
 class SimulationEventSnapshot {
@@ -155,14 +155,14 @@ class SimulationEventSnapshot {
   final Map<String, Object?>? metadata;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'tick': tick,
-        'kind': kind.name,
-        'actorId': actorId,
-        'targetId': targetId,
-        'value': value,
-        'detail': detail,
-        'metadata': metadata,
-      };
+    'tick': tick,
+    'kind': kind.name,
+    'actorId': actorId,
+    'targetId': targetId,
+    'value': value,
+    'detail': detail,
+    'metadata': metadata,
+  };
 }
 
 /// Optional capability used to keep tactical interpretation out of the
@@ -178,3 +178,4 @@ abstract interface class SimulationCaptureSink {
   void completeStep(int tick);
   void recordEvent(SimulationEventSnapshot event);
 }
+
