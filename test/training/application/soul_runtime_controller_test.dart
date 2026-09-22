@@ -10,14 +10,9 @@ void main() {
     final simulation = GameSimulation(
       config: const SimulationConfig(initialPellets: 0, botCount: 0),
     );
-    simulation.pellets.add(
-      const FoodPellet(position: Vec2(80, 0)),
-    );
+    simulation.pellets.add(const FoodPellet(position: Vec2(80, 0)));
     simulation.droppedMass.add(
-      const FoodPellet(
-        position: Vec2(0, 120),
-        kind: FoodPelletKind.sprintDrop,
-      ),
+      const FoodPellet(position: Vec2(0, 120), kind: FoodPelletKind.sprintDrop),
     );
 
     simulation.update(1 / 60, Vec2.zero);
