@@ -14,9 +14,20 @@ void analyzeRunReviewChunksWorker(dynamic params) {
   unawaited(
     IsolateManagerFunction.customFunction<
       Map<String, Object?>,
-      Map<String, Object?>
-    >(params, onEvent: (_, message) => analyzeRunReviewChunks(message)),
+      dynamic
+    >(
+      params,
+      onEvent: (_, message) =>
+          analyzeRunReviewChunks(_reviewInput(message)),
+    ),
   );
+}
+
+Map<String, Object?> _reviewInput(dynamic message) {
+  if (message is! Map) {
+    throw const FormatException('Run review worker input is not a map.');
+  }
+  return Map<String, Object?>.from(message);
 }
 
 Map<String, Object?> analyzeRunReviewChunks(Map<String, Object?> input) {
