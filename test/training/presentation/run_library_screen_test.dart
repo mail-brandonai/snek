@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slither/game/domain/simulation_capture.dart';
 import 'package:slither/training/application/run_review.dart';
 import 'package:slither/training/application/soul_training.dart';
+import 'package:slither/training/domain/soul_feature_extractor.dart';
 import 'package:slither/training/application/run_review_worker.dart';
 import 'package:slither/training/data/drift_run_store.dart';
 import 'package:slither/training/data/drift_training_repositories.dart';
@@ -210,7 +211,9 @@ void main() {
     );
   });
 
-  testWidgets('refines a selected Soul from another retained run', (tester) async {
+  testWidgets('refines a selected Soul from another retained run', (
+    tester,
+  ) async {
     await _createPendingRun(lifecycle, chunks, 'run-soul-base');
     await _createPendingRun(lifecycle, chunks, 'run-soul-refine');
     await review.keepRun('run-soul-base');
