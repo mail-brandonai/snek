@@ -1954,6 +1954,26 @@ void main() {
       expect(simulation.player.length, simulation.config.minimumSprintLength);
     });
 
+    test('time-limited training ends without defeat contamination', () {
+      final simulation = GameSimulation(
+        config: const SimulationConfig(
+          arenaRadius: 2000,
+          botCount: 0,
+          initialPellets: 0,
+          playerSpeed: 0,
+        ),
+      );
+
+      simulation.update(0.5, const Vec2(1, 0));
+      simulation.endTraining();
+
+      expect(simulation.gameOver, isTrue);
+      expect(simulation.player.alive, isFalse);
+      expect(simulation.gameOverReason, GameOverReason.timeLimit);
+      expect(simulation.finalStats, isNotNull);
+      expect(simulation.droppedMass, isEmpty);
+    });
+
     test('leaving the arena ends the player run', () {
       final simulation = GameSimulation(
         config: const SimulationConfig(
