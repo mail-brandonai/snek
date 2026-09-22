@@ -151,7 +151,7 @@ class SimulationConfig {
   });
 
   factory SimulationConfig.fromJson(Object? value) {
-    final defaults = const SimulationConfig();
+    const defaults = SimulationConfig();
     final map = _simulationConfigMap(value);
     return SimulationConfig(
       arenaRadius: _simulationConfigDouble(
