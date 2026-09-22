@@ -14,8 +14,10 @@ import 'game/domain/vec2.dart';
 import 'game/presentation/arena_skin.dart';
 import 'game/presentation/snek_pen.dart';
 import 'training/application/fixed_step_run_recorder.dart';
+import 'training/application/soul_controller.dart';
 import 'training/data/training_services.dart';
 import 'training/data/training_review_services.dart';
+import 'training/domain/controller_contract.dart';
 import 'training/domain/training_models.dart';
 import 'training/presentation/run_library_screen.dart' deferred as run_library;
 import 'training/presentation/soul_library_screen.dart';
@@ -472,6 +474,7 @@ class SlitherGame extends FlameGame {
   final ui.Path _visibleGridLightEdgePath = ui.Path();
   final ui.Path _visibleGridShadeEdgePath = ui.Path();
   SnekProfile? _activeSnek;
+  SnekController? _activeController;
   FixedStepRunRecorder? _recorder;
   int _runGeneration = 0;
   bool _recorderFinalizing = false;
@@ -490,7 +493,9 @@ class SlitherGame extends FlameGame {
   bool _isActive = false;
 
   bool get sprinting =>
-      simulation.canSprint && (_pointerSprint || _keyboardSprint);
+      _activeController == null
+          ? simulation.canSprint && (_pointerSprint || _keyboardSprint)
+          : simulation.player.sprinting || simulation.player.sprintRequested;
 
   void setPointer(Offset point) {
     final centre = Offset(size.x / 2, size.y / 2);
@@ -515,6 +520,7 @@ class SlitherGame extends FlameGame {
     _recorder = null;
     _recorderFinalizing = false;
     _activeSnek = snek;
+    _activeController = null;
     playerName = snek.name;
     simulation.playerColorIndex = snek.colorIndex;
     simulation.restart();
@@ -531,6 +537,12 @@ class SlitherGame extends FlameGame {
       }
     }
 
+    if (generation != _runGeneration) return;
+    _activeController =
+        soulRevision == null
+            ? null
+            : SoulController(weights: soulRevision.weights);
+
     final soulRevisionIds =
         soulRevision == null
             ? const <String>[]
@@ -541,7 +553,10 @@ class SlitherGame extends FlameGame {
           (actor) => <String, Object?>{
             'actorId': actor.id,
             'role': actor.kind.name,
-            'controller': actor.kind == SnakeKind.player ? 'human' : 'builtin',
+            'controller':
+                actor.kind == SnakeKind.player
+                    ? (soulRevision == null ? 'human' : 'soul')
+                    : 'builtin',
             'profileId': actor.kind == SnakeKind.player ? snek.id : null,
             'soulRevisionIds':
                 actor.kind == SnakeKind.player
@@ -594,6 +609,7 @@ class SlitherGame extends FlameGame {
   void leaveGame() {
     _runGeneration++;
     _isActive = false;
+    _activeController = null;
     _pointerSprint = false;
     _keyboardSprint = false;
     final recorder = _recorder;
@@ -638,13 +654,48 @@ class SlitherGame extends FlameGame {
   void update(double dt) {
     if (!_isActive) return;
     super.update(dt);
-    simulation.update(dt, steering, sprinting: sprinting);
+    final command =
+        _activeController?.decide(_playerObservation()) ??
+        ActorCommand(
+          steeringX: steering.x,
+          steeringY: steering.y,
+          sprinting: sprinting,
+        );
+    simulation.update(
+      dt,
+      Vec2(command.steeringX, command.steeringY),
+      sprinting: command.sprinting,
+    );
     _finalizeCompletedRun();
     _hudTimer += dt;
     if (_hudTimer >= 0.1) {
       _hudTimer = 0;
       _publishHud();
     }
+  }
+
+  ActorObservation _playerObservation() {
+    final threats = simulation.playerThreats;
+    final threat = threats.isEmpty ? null : threats.first;
+    final foodDirection = simulation.nearestPlayerFoodDirection;
+    return ActorObservation(
+      tick: simulation.simulationTick,
+      headingX: simulation.player.heading.x,
+      headingY: simulation.player.heading.y,
+      nearestThreatDistance: threat?.distance,
+      nearbyThreatCount: threats.length,
+      nearbyPelletCount:
+          simulation.nearbyPlayerNaturalFoodCount +
+          simulation.nearbyPlayerDroppedMassCount,
+      bodyLength: simulation.player.length,
+      pressured:
+          threat != null &&
+          threat.urgency >= simulation.config.threatCommitmentThreshold,
+      nearestThreatDirectionX: threat?.direction.x ?? 0,
+      nearestThreatDirectionY: threat?.direction.y ?? 0,
+      nearestPelletDirectionX: foodDirection.x,
+      nearestPelletDirectionY: foodDirection.y,
+    );
   }
 
   void _finalizeCompletedRun() {
