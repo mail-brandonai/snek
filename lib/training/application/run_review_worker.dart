@@ -92,9 +92,8 @@ Map<String, Object?> analyzeRunReviewChunks(Map<String, Object?> input) {
   }
 
   final replay = _tryReplayTacticalAnalysis(input, decodedChunks);
-  final analysisChunks = replay == null
-      ? decodedChunks
-      : _mergeReplayData(decodedChunks, replay);
+  final analysisChunks =
+      replay == null ? decodedChunks : _mergeReplayData(decodedChunks, replay);
   eventCount = _countEvents(analysisChunks);
 
   final featureAnalysis = const SoulFeatureExtractor().extractDecoded(
@@ -201,6 +200,7 @@ _ReplayResult? _tryReplayTacticalAnalysis(
       }
     }
     controls.sort((left, right) => left.tick.compareTo(right.tick));
+  if (controls.isEmpty) return null;
     final sink = _ReplayCaptureSink();
     final simulation = GameSimulation(
       config: simulationConfig,
@@ -252,10 +252,7 @@ List<Object?> _mergeReplayData(
     final replayEvents = replay.events
         .where((event) => event.tick >= firstTick && event.tick <= lastTick)
         .map((event) => event.toJson());
-    replacement['events'] = <Object?>[
-      ...storedEvents,
-      ...replayEvents,
-    ];
+    replacement['events'] = <Object?>[...storedEvents, ...replayEvents];
     result.add(replacement);
   }
   return List<Object?>.unmodifiable(result);
@@ -319,3 +316,4 @@ double? _optionalNumber(Object? value) {
 int? _integer(Object? value) => value is int ? value : null;
 
 double? _decimal(Object? value) => value is num ? value.toDouble() : null;
+
