@@ -1138,7 +1138,7 @@ class GameSimulation {
     final sink = captureSink;
     if (sink == null) return false;
     if (sink is TacticalAnalysisCaptureSink) {
-      return sink.captureTacticalAnalysis;
+      return (sink as TacticalAnalysisCaptureSink).captureTacticalAnalysis;
     }
     return true;
   }
