@@ -100,8 +100,7 @@ class SoulTrainer {
     final weights = <String, double>{
       for (final key in keys)
         key:
-            ((parent.weights[key] ?? 0) * parentCount +
-                (incoming[key] ?? 0)) /
+            ((parent.weights[key] ?? 0) * parentCount + (incoming[key] ?? 0)) /
             totalCount,
     };
     return SoulRevision(
@@ -135,9 +134,7 @@ class SoulTrainer {
     final total = raw.values.fold<double>(0, (sum, value) => sum + value);
     if (total <= 0) {
       final equal = 1 / raw.length;
-      return <String, double>{
-        for (final key in raw.keys) key: equal,
-      };
+      return <String, double>{for (final key in raw.keys) key: equal};
     }
     return _normalize(raw);
   }
@@ -145,7 +142,9 @@ class SoulTrainer {
   static Map<String, double> _normalize(Map<String, double> values) {
     final total = values.values.fold<double>(0, (sum, value) => sum + value);
     if (total <= 0 || !total.isFinite) {
-      throw const TrainingValidationException('Soul weights are not normalizable');
+      throw const TrainingValidationException(
+        'Soul weights are not normalizable',
+      );
     }
     return <String, double>{
       for (final entry in values.entries) entry.key: entry.value / total,
