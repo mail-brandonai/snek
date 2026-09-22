@@ -8,13 +8,15 @@ import '../domain/training_application.dart';
 import '../domain/training_models.dart';
 import '../domain/training_repositories.dart';
 
-class FixedStepRunRecorder implements SimulationCaptureSink {
+class FixedStepRunRecorder
+    implements SimulationCaptureSink, TacticalAnalysisCaptureSink {
   FixedStepRunRecorder({
     required this.runId,
     required this.lifecycle,
     required this.chunks,
     this.chunkTickCount = 240,
     this.maximumPendingChunks = 2,
+    this.captureTacticalAnalysis = false,
   }) {
     if (runId.trim().isEmpty ||
         chunkTickCount <= 0 ||
@@ -28,6 +30,10 @@ class FixedStepRunRecorder implements SimulationCaptureSink {
   final RunChunkRepository chunks;
   final int chunkTickCount;
   final int maximumPendingChunks;
+
+  /// Tactical events are reconstructed by the review worker after the run.
+  @override
+  final bool captureTacticalAnalysis;
 
   final List<SimulationControlSample> _controls = [];
   final List<SimulationObservationSnapshot> _observations = [];
