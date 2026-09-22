@@ -31,7 +31,7 @@ enum _RunFilter { pending, retained, incomplete }
 
 class _RunLibraryScreenState extends State<RunLibraryScreen> {
   late final Future<RunReviewService> _service;
-  late final Future<SoulTrainingService> _soulTraining;
+  Future<SoulTrainingService>? _soulTraining;
   List<TrainingRun> _runs = const <TrainingRun>[];
   String? _selectedRunId;
   TrainingRun? _selectedRun;
@@ -53,10 +53,13 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
             : Future<RunReviewService>.value(widget.service!);
     _soulTraining =
         widget.soulTraining == null
-            ? TrainingReviewServices.soulTrainingService()
+            ? null
             : Future<SoulTrainingService>.value(widget.soulTraining!);
     _refresh();
   }
+
+  Future<SoulTrainingService> get _soulTrainingService =>
+      _soulTraining ??= TrainingReviewServices.soulTrainingService();
 
   Future<void> _refresh() async {
     final generation = ++_loadGeneration;
@@ -232,7 +235,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
 
     setState(() => _busy = true);
     try {
-      final soul = await (await _soulTraining).createFromRun(
+      final soul = await (await _soulTrainingService).createFromRun(
         name: name,
         signature: signature,
       );
@@ -252,7 +255,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
 
     setState(() => _busy = true);
     try {
-      final souls = await (await _soulTraining).listSouls();
+      final souls = await (await _soulTrainingService).listSouls();
       if (!mounted) return;
       if (souls.isEmpty) {
         _showMessage('Create a Soul before refining one.');
@@ -277,7 +280,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
             ),
       );
       if (target == null || !mounted) return;
-      final revision = await (await _soulTraining).refineFromRun(
+      final revision = await (await _soulTrainingService).refineFromRun(
         soul: target,
         signature: signature,
       );
