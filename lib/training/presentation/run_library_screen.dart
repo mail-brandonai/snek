@@ -770,17 +770,13 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                 ),
               ),
               TextButton.icon(
-                onPressed: () => setState(
-                  () => _analysisExpanded = !_analysisExpanded,
-                ),
+                onPressed:
+                    () =>
+                        setState(() => _analysisExpanded = !_analysisExpanded),
                 icon: Icon(
-                  _analysisExpanded
-                      ? Icons.unfold_less
-                      : Icons.unfold_more,
+                  _analysisExpanded ? Icons.unfold_less : Icons.unfold_more,
                 ),
-                label: Text(
-                  _analysisExpanded ? 'COLLAPSE' : 'EXPAND ANALYSIS',
-                ),
+                label: Text(_analysisExpanded ? 'COLLAPSE' : 'EXPAND ANALYSIS'),
               ),
             ],
           ),
@@ -805,71 +801,71 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                   color: Colors.transparent,
                   child: ExpansionTile(
                     tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-                  childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  title: Row(
+                    childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            trait.label,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        Text(
+                          _confidenceLabel(trait.confidence),
+                          style: const TextStyle(
+                            color: ArenaSkin.accent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    subtitle: Text(
+                      '${trait.sampleCount} samples · '
+                      '${trait.opportunityCount} opportunities · '
+                      '${(trait.coverage * 100).round()}% coverage',
+                      style: const TextStyle(color: ArenaSkin.textMuted),
+                    ),
                     children: [
-                      Expanded(
+                      const Align(
+                        alignment: Alignment.centerLeft,
                         child: Text(
-                          trait.label,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          'OBSERVED EVIDENCE',
+                          style: TextStyle(
+                            color: ArenaSkin.textMuted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                          ),
                         ),
                       ),
-                      Text(
-                        _confidenceLabel(trait.confidence),
-                        style: const TextStyle(
-                          color: ArenaSkin.accent,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: SelectableText(
+                          jsonEncode(trait.observedEvidence),
                         ),
                       ),
-                    ],
-                  ),
-                  subtitle: Text(
-                    '${trait.sampleCount} samples · '
-                    '${trait.opportunityCount} opportunities · '
-                    '${(trait.coverage * 100).round()}% coverage',
-                    style: const TextStyle(color: ArenaSkin.textMuted),
-                  ),
-                  children: [
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'OBSERVED EVIDENCE',
-                        style: TextStyle(
-                          color: ArenaSkin.textMuted,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
+                      const SizedBox(height: 5),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'INFERRED INTERPRETATION',
+                          style: TextStyle(
+                            color: ArenaSkin.textMuted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                          ),
                         ),
                       ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: SelectableText(
-                        jsonEncode(trait.observedEvidence),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'INFERRED INTERPRETATION',
-                        style: TextStyle(
-                          color: ArenaSkin.textMuted,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          trait.inferredInterpretation ??
+                              'No interpretation available.',
                         ),
                       ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        trait.inferredInterpretation ??
-                            'No interpretation available.',
-                      ),
-                    ),
                     ],
                   ),
                 ),
@@ -884,59 +880,59 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                 child: ExpansionTile(
                   title: const Text(
                     'PRESSURE EPISODES',
-                  style: TextStyle(
-                    color: ArenaSkin.accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
+                    style: TextStyle(
+                      color: ArenaSkin.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    ),
                   ),
-                ),
-                subtitle: Text(
-                  signature.pressureEpisodes.isEmpty
-                      ? 'No episodes recorded'
-                      : '${signature.pressureEpisodes.length} episodes',
-                  style: const TextStyle(color: ArenaSkin.textMuted),
-                ),
-                childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                children: [
-                  if (signature.pressureEpisodes.isEmpty)
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'No pressure episodes were recorded. Threat response '
-                        'has insufficient evidence.',
-                        style: TextStyle(color: ArenaSkin.textMuted),
-                      ),
-                    ),
-                  for (final episode in signature.pressureEpisodes)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0x332f4b64),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              _pressureEpisodeTitle(episode),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(_pressureEpisodeResponse(episode)),
-                            Text(
-                              _pressureEpisodeOutcome(episode),
-                              style: const TextStyle(
-                                color: ArenaSkin.textMuted,
-                              ),
-                            ),
-                          ],
+                  subtitle: Text(
+                    signature.pressureEpisodes.isEmpty
+                        ? 'No episodes recorded'
+                        : '${signature.pressureEpisodes.length} episodes',
+                    style: const TextStyle(color: ArenaSkin.textMuted),
+                  ),
+                  childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  children: [
+                    if (signature.pressureEpisodes.isEmpty)
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'No pressure episodes were recorded. Threat response '
+                          'has insufficient evidence.',
+                          style: TextStyle(color: ArenaSkin.textMuted),
                         ),
                       ),
-                    ),
+                    for (final episode in signature.pressureEpisodes)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0x332f4b64),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                _pressureEpisodeTitle(episode),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(_pressureEpisodeResponse(episode)),
+                              Text(
+                                _pressureEpisodeOutcome(episode),
+                                style: const TextStyle(
+                                  color: ArenaSkin.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
