@@ -157,6 +157,15 @@ class DriftTrainingRepositories
     return row == null ? null : Soul.fromJson(jsonDecode(row.payload));
   }
 
+  @override
+  Future<List<Soul>> listSouls() async {
+    final rows = await _records(_soulKind);
+    final souls =
+        rows.map((row) => Soul.fromJson(jsonDecode(row.payload))).toList();
+    souls.sort((left, right) => left.createdAtMs.compareTo(right.createdAtMs));
+    return List<Soul>.unmodifiable(souls);
+  }
+
   Future<void> _insertRevision(SoulRevision revision) async {
     if (await _record(_soulKind, revision.soulId) == null) {
       throw StateError('Soul does not exist');
