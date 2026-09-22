@@ -63,10 +63,7 @@ class _SoulNameDialogState extends State<_SoulNameDialog> {
         onPressed: () => Navigator.pop(context),
         child: const Text('CANCEL'),
       ),
-      FilledButton(
-        onPressed: _submit,
-        child: const Text('CREATE SOUL'),
-      ),
+      FilledButton(onPressed: _submit, child: const Text('CREATE SOUL')),
     ],
   );
 }
@@ -278,6 +275,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
         _showMessage('Create a Soul before refining one.');
         return;
       }
+      setState(() => _busy = false);
       final target = await showDialog<Soul>(
         context: context,
         builder:
@@ -297,6 +295,7 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
             ),
       );
       if (target == null || !mounted) return;
+      setState(() => _busy = true);
       final revision = await (await _soulTrainingService).refineFromRun(
         soul: target,
         signature: signature,
