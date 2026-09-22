@@ -544,7 +544,9 @@ class SlitherGame extends FlameGame {
             'controller': actor.kind == SnakeKind.player ? 'human' : 'builtin',
             'profileId': actor.kind == SnakeKind.player ? snek.id : null,
             'soulRevisionIds':
-                actor.kind == SnakeKind.player ? soulRevisionIds : const <String>[],
+                actor.kind == SnakeKind.player
+                    ? soulRevisionIds
+                    : const <String>[],
           },
         )
         .toList(growable: false);
