@@ -1,5 +1,4 @@
 import '../application/run_review.dart';
-import '../domain/training_models.dart';
 import 'training_services.dart';
 
 class TrainingReviewServices {
