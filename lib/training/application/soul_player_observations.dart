@@ -4,10 +4,10 @@ import '../../game/domain/vec2.dart';
 
 extension SoulPlayerObservations on GameSimulation {
   int get nearbyPlayerNaturalFoodCount =>
-      _countNearbyFood(pellets, player.head);
+      _countNearbyFood(pellets, player.head, config.botSenseRadius);
 
   int get nearbyPlayerDroppedMassCount =>
-      _countNearbyFood(droppedMass, player.head);
+      _countNearbyFood(droppedMass, player.head, config.botSenseRadius);
 
   Vec2 get nearestPlayerFoodDirection {
     final origin = player.head;
@@ -36,8 +36,11 @@ extension SoulPlayerObservations on GameSimulation {
   }
 }
 
-int _countNearbyFood(List<FoodPellet> source, Vec2 origin) {
-  const radius = 320.0;
+int _countNearbyFood(
+  List<FoodPellet> source,
+  Vec2 origin,
+  double radius,
+) {
   var count = 0;
   for (final pellet in source) {
     if (origin.distanceTo(pellet.position) <= radius) count++;
