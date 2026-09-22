@@ -165,6 +165,13 @@ class SimulationEventSnapshot {
       };
 }
 
+/// Optional capability used to keep tactical interpretation out of the
+/// gameplay recorder. Live runs record inputs and replayable observations;
+/// review workers opt back in when reconstructing tactical events.
+abstract interface class TacticalAnalysisCaptureSink {
+  bool get captureTacticalAnalysis;
+}
+
 abstract interface class SimulationCaptureSink {
   void recordControl(SimulationControlSample sample);
   void recordObservation(SimulationObservationSnapshot observation);
