@@ -193,8 +193,8 @@ class _SoulCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '\${item.revisions.length} '
-                  '\${item.revisions.length == 1 ? 'REVISION' : 'REVISIONS'}',
+                  '${item.revisions.length} '
+                  '${item.revisions.length == 1 ? 'REVISION' : 'REVISIONS'}',
                   style: const TextStyle(
                     color: ArenaSkin.accent,
                     fontSize: 10,
@@ -206,7 +206,7 @@ class _SoulCard extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             Text(
-              'Created \${_formatDate(item.soul.createdAtMs)}',
+              'Created ${_formatDate(item.soul.createdAtMs)}',
               style: const TextStyle(
                 color: ArenaSkin.textMuted,
                 fontSize: 12,
@@ -235,7 +235,7 @@ class _SoulCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '\${latest.trainerVersion} · \${latest.featureVersion}',
+                '${latest.trainerVersion} · ${latest.featureVersion}',
                 style: const TextStyle(
                   color: ArenaSkin.textMuted,
                   fontSize: 12,
@@ -269,7 +269,7 @@ class _SoulCard extends StatelessWidget {
                           vertical: 7,
                         ),
                         child: Text(
-                          '\${entry.key} \${(entry.value * 100).toStringAsFixed(1)}%',
+                          '${entry.key} ${(entry.value * 100).toStringAsFixed(1)}%',
                           style: const TextStyle(fontSize: 11),
                         ),
                       ),
@@ -278,7 +278,7 @@ class _SoulCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'SOURCE RUNS  \${sourceRuns.length}',
+                'SOURCE RUNS  ${sourceRuns.length}',
                 style: const TextStyle(
                   color: ArenaSkin.textMuted,
                   fontSize: 10,
@@ -380,5 +380,5 @@ String _formatDate(int millisecondsSinceEpoch) {
     millisecondsSinceEpoch,
   ).toLocal();
   String twoDigits(int value) => value.toString().padLeft(2, '0');
-  return '\${date.year}-\${twoDigits(date.month)}-\${twoDigits(date.day)}';
+  return '${date.year}-${twoDigits(date.month)}-${twoDigits(date.day)}';
 }
