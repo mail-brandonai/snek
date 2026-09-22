@@ -223,20 +223,21 @@ class SnekPenScreen extends StatelessWidget {
                   Expanded(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final columns = (constraints.maxWidth / 238)
-                            .floor()
-                            .clamp(1, 4)
-                            .toInt();
+                        final columns =
+                            (constraints.maxWidth / 238)
+                                .floor()
+                                .clamp(1, 4)
+                                .toInt();
                         return GridView.builder(
                           padding: const EdgeInsets.only(bottom: 8),
                           itemCount: sneks.length,
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: columns,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 1.28,
-                          ),
+                                crossAxisCount: columns,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                                childAspectRatio: 1.28,
+                              ),
                           itemBuilder: (context, index) {
                             final snek = sneks[index];
                             return _SnekCard(
@@ -305,9 +306,10 @@ class _SnekCreateScreenState extends State<SnekCreateScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName);
-    _selectedColorIndex = widget.initialColorIndex
-        .clamp(0, ArenaSkin.snakeColours.length - 1)
-        .toInt();
+    _selectedColorIndex =
+        widget.initialColorIndex
+            .clamp(0, ArenaSkin.snakeColours.length - 1)
+            .toInt();
   }
 
   @override
@@ -370,10 +372,7 @@ class _SnekCreateScreenState extends State<SnekCreateScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      SnekPreview(
-                        colorIndex: _selectedColorIndex,
-                        height: 72,
-                      ),
+                      SnekPreview(colorIndex: _selectedColorIndex, height: 72),
                       const SizedBox(height: 12),
                       TextField(
                         controller: _nameController,
@@ -410,23 +409,29 @@ class _SnekCreateScreenState extends State<SnekCreateScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          for (var index = 0;
-                              index < ArenaSkin.snakeColours.length;
-                              index++)
+                          for (
+                            var index = 0;
+                            index < ArenaSkin.snakeColours.length;
+                            index++
+                          )
                             _ColorChoice(
                               color: ArenaSkin.snakeColours[index],
                               label: _snekColorNames[index],
                               selected: index == _selectedColorIndex,
-                              onTap: () =>
-                                  setState(() => _selectedColorIndex = index),
+                              onTap:
+                                  () => setState(
+                                    () => _selectedColorIndex = index,
+                                  ),
                             ),
                         ],
                       ),
                       const SizedBox(height: 20),
                       FilledButton.icon(
-                        onPressed: name.isEmpty
-                            ? null
-                            : () => widget.onSave(name, _selectedColorIndex),
+                        onPressed:
+                            name.isEmpty
+                                ? null
+                                : () =>
+                                    widget.onSave(name, _selectedColorIndex),
                         icon: const Icon(Icons.save_outlined),
                         label: const Text('SAVE TO SNEK PEN'),
                         style: _primaryButtonStyle,
@@ -444,11 +449,7 @@ class _SnekCreateScreenState extends State<SnekCreateScreen> {
 }
 
 class SnekPreview extends StatelessWidget {
-  const SnekPreview({
-    super.key,
-    required this.colorIndex,
-    this.height = 52,
-  });
+  const SnekPreview({super.key, required this.colorIndex, this.height = 52});
 
   final int colorIndex;
   final double height;
@@ -460,8 +461,10 @@ class SnekPreview extends StatelessWidget {
       width: double.infinity,
       child: CustomPaint(
         painter: _SnekPreviewPainter(
-          color: ArenaSkin.snakeColours[
-              colorIndex.clamp(0, ArenaSkin.snakeColours.length - 1).toInt()],
+          color:
+              ArenaSkin.snakeColours[colorIndex
+                  .clamp(0, ArenaSkin.snakeColours.length - 1)
+                  .toInt()],
         ),
       ),
     );
@@ -481,7 +484,8 @@ class _SnekPreviewPainter extends CustomPainter {
     for (var index = 0; index < 9; index++) {
       final progress = index / 8;
       final x = ui.lerpDouble(bodyStart, bodyEnd, progress)!;
-      final y = size.height * 0.5 +
+      final y =
+          size.height * 0.5 +
           math.sin(progress * math.pi * 2.2) * size.height * 0.12;
       _drawSphere(canvas, Offset(x, y), radius, color);
     }
@@ -510,18 +514,19 @@ class _SnekPreviewPainter extends CustomPainter {
       radius * 1.04,
       Paint()..color = const Color(0x60000000),
     );
-    final paint = Paint()
-      ..shader = ui.Gradient.radial(
-        center + Offset(-radius * 0.36, -radius * 0.42),
-        radius * 1.65,
-        <Color>[
-          Color.lerp(base, Colors.white, 0.72)!,
-          base,
-          Color.lerp(base, const Color(0xff030812), 0.56)!,
-        ],
-        const <double>[0, 0.45, 1],
-        TileMode.clamp,
-      );
+    final paint =
+        Paint()
+          ..shader = ui.Gradient.radial(
+            center + Offset(-radius * 0.36, -radius * 0.42),
+            radius * 1.65,
+            <Color>[
+              Color.lerp(base, Colors.white, 0.72)!,
+              base,
+              Color.lerp(base, const Color(0xff030812), 0.56)!,
+            ],
+            const <double>[0, 0.45, 1],
+            TileMode.clamp,
+          );
     canvas.drawCircle(center, radius, paint);
     canvas.drawCircle(
       center,
@@ -551,8 +556,10 @@ class _SnekCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = ArenaSkin.snakeColours[
-        snek.colorIndex.clamp(0, ArenaSkin.snakeColours.length - 1).toInt()];
+    final accent =
+        ArenaSkin.snakeColours[snek.colorIndex
+            .clamp(0, ArenaSkin.snakeColours.length - 1)
+            .toInt()];
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -566,15 +573,16 @@ class _SnekCard extends StatelessWidget {
               color: selected ? accent : ArenaSkin.panelRim,
               width: selected ? 2 : 1,
             ),
-            boxShadow: selected
-                ? <BoxShadow>[
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.16),
-                      blurRadius: 18,
-                      spreadRadius: 1,
-                    ),
-                  ]
-                : null,
+            boxShadow:
+                selected
+                    ? <BoxShadow>[
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.16),
+                        blurRadius: 18,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                    : null,
           ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 11),
@@ -604,10 +612,7 @@ class _SnekCard extends StatelessWidget {
                   ],
                 ),
                 Expanded(
-                  child: SnekPreview(
-                    colorIndex: snek.colorIndex,
-                    height: 52,
-                  ),
+                  child: SnekPreview(colorIndex: snek.colorIndex, height: 52),
                 ),
                 Row(
                   children: [
@@ -775,17 +780,9 @@ class _BrandMark extends StatelessWidget {
         shape: BoxShape.circle,
         color: ArenaSkin.accent.withValues(alpha: 0.12),
         border: Border.all(color: ArenaSkin.accent.withValues(alpha: 0.42)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x55ffce78),
-            blurRadius: 18,
-          ),
-        ],
+        boxShadow: const [BoxShadow(color: Color(0x55ffce78), blurRadius: 18)],
       ),
-      child: const Icon(
-        Icons.auto_awesome,
-        color: ArenaSkin.accent,
-        size: 28,
+      child: const Icon(Icons.auto_awesome, color: ArenaSkin.accent, size: 28),
       ),
     );
   }
@@ -801,19 +798,13 @@ class _MenuBackdrop extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const RepaintBoundary(
-          child: CustomPaint(painter: _HexMenuPainter()),
-        ),
+        const RepaintBoundary(child: CustomPaint(painter: _HexMenuPainter())),
         const DecoratedBox(
           decoration: BoxDecoration(
             gradient: RadialGradient(
               center: Alignment.topCenter,
               radius: 1.3,
-              colors: [
-                Color(0x99223c5a),
-                Color(0x99091421),
-                Color(0xee070d18),
-              ],
+              colors: [Color(0x99223c5a), Color(0x99091421), Color(0xee070d18)],
               stops: [0, 0.46, 1],
             ),
           ),
@@ -833,10 +824,11 @@ class _HexMenuPainter extends CustomPainter {
     const stepX = 53.0;
     const stepY = 47.0;
     final fill = Paint()..color = const Color(0xff0b1626);
-    final edge = Paint()
-      ..color = const Color(0xff1a2b41)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
+    final edge =
+        Paint()
+          ..color = const Color(0xff1a2b41)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1;
     final path = Path();
     final columns = (size.width / stepX).ceil() + 2;
     final rows = (size.height / stepY).ceil() + 2;
@@ -873,9 +865,7 @@ const _primaryButtonStyle = ButtonStyle(
     TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.8),
   ),
   shape: WidgetStatePropertyAll<RoundedRectangleBorder>(
-    RoundedRectangleBorder(
-      borderRadius: BorderRadius.all(Radius.circular(12)),
-    ),
+    RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
   ),
 );
 
