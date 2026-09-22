@@ -6,11 +6,7 @@ import '../domain/training_models.dart';
 import '../../game/presentation/arena_skin.dart';
 
 class SoulLibraryScreen extends StatefulWidget {
-  const SoulLibraryScreen({
-    super.key,
-    required this.onBack,
-    this.training,
-  });
+  const SoulLibraryScreen({super.key, required this.onBack, this.training});
 
   final VoidCallback onBack;
   final SoulTrainingService? training;
@@ -38,9 +34,8 @@ class _SoulLibraryScreenState extends State<SoulLibraryScreen> {
         return _SoulLibraryItem(
           soul: soul,
           revisions: revisions,
-          latest: revisions.isEmpty
-              ? null
-              : SoulTrainer.latestRevision(revisions),
+          latest:
+              revisions.isEmpty ? null : SoulTrainer.latestRevision(revisions),
         );
       }),
     );
@@ -118,17 +113,18 @@ class _SoulLibraryScreenState extends State<SoulLibraryScreen> {
                             onRetry: _refresh,
                           );
                         }
-                        final items = snapshot.data ?? const <_SoulLibraryItem>[];
+                        final items =
+                            snapshot.data ?? const <_SoulLibraryItem>[];
                         if (items.isEmpty) {
                           return const _SoulLibraryEmpty();
                         }
                         return ListView.separated(
                           padding: const EdgeInsets.only(bottom: 12),
                           itemCount: items.length,
-                          separatorBuilder: (_, index) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) =>
-                              _SoulCard(item: items[index]),
+                          separatorBuilder:
+                              (_, index) => const SizedBox(height: 12),
+                          itemBuilder:
+                              (context, index) => _SoulCard(item: items[index]),
                         );
                       },
                     ),
@@ -207,10 +203,7 @@ class _SoulCard extends StatelessWidget {
             const SizedBox(height: 5),
             Text(
               'Created ${_formatDate(item.soul.createdAtMs)}',
-              style: const TextStyle(
-                color: ArenaSkin.textMuted,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: ArenaSkin.textMuted, fontSize: 12),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -314,10 +307,7 @@ class _SoulLibraryLoading extends StatelessWidget {
         children: [
           CircularProgressIndicator(color: ArenaSkin.accent),
           SizedBox(height: 12),
-          Text(
-            'Loading Souls',
-            style: TextStyle(color: ArenaSkin.textMuted),
-          ),
+          Text('Loading Souls', style: TextStyle(color: ArenaSkin.textMuted)),
         ],
       ),
     );
@@ -339,10 +329,7 @@ class _SoulLibraryEmpty extends StatelessWidget {
 }
 
 class _SoulLibraryError extends StatelessWidget {
-  const _SoulLibraryError({
-    required this.message,
-    required this.onRetry,
-  });
+  const _SoulLibraryError({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -358,10 +345,7 @@ class _SoulLibraryError extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: ArenaSkin.textMuted,
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: ArenaSkin.textMuted, fontSize: 11),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
@@ -376,9 +360,8 @@ class _SoulLibraryError extends StatelessWidget {
 }
 
 String _formatDate(int millisecondsSinceEpoch) {
-  final date = DateTime.fromMillisecondsSinceEpoch(
-    millisecondsSinceEpoch,
-  ).toLocal();
+  final date =
+      DateTime.fromMillisecondsSinceEpoch(millisecondsSinceEpoch).toLocal();
   String twoDigits(int value) => value.toString().padLeft(2, '0');
   return '${date.year}-${twoDigits(date.month)}-${twoDigits(date.day)}';
 }
