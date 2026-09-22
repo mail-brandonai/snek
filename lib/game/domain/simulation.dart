@@ -154,145 +154,693 @@ class SimulationConfig {
     final defaults = const SimulationConfig();
     final map = _simulationConfigMap(value);
     return SimulationConfig(
-      arenaRadius: _simulationConfigDouble(map, 'arenaRadius', defaults.arenaRadius),
-      arenaBoundaryWarningBuffer: _simulationConfigDouble(map, 'arenaBoundaryWarningBuffer', defaults.arenaBoundaryWarningBuffer),
-      playerSpeed: _simulationConfigDouble(map, 'playerSpeed', defaults.playerSpeed),
+      arenaRadius: _simulationConfigDouble(
+        map,
+        'arenaRadius',
+        defaults.arenaRadius,
+      ),
+      arenaBoundaryWarningBuffer: _simulationConfigDouble(
+        map,
+        'arenaBoundaryWarningBuffer',
+        defaults.arenaBoundaryWarningBuffer,
+      ),
+      playerSpeed: _simulationConfigDouble(
+        map,
+        'playerSpeed',
+        defaults.playerSpeed,
+      ),
       botSpeed: _simulationConfigDouble(map, 'botSpeed', defaults.botSpeed),
-      botTurnRate: _simulationConfigDouble(map, 'botTurnRate', defaults.botTurnRate),
-      botSenseRadius: _simulationConfigDouble(map, 'botSenseRadius', defaults.botSenseRadius),
-      botBoundaryBuffer: _simulationConfigDouble(map, 'botBoundaryBuffer', defaults.botBoundaryBuffer),
-      botSpawnRadius: _simulationConfigDouble(map, 'botSpawnRadius', defaults.botSpawnRadius),
-      segmentSpacing: _simulationConfigDouble(map, 'segmentSpacing', defaults.segmentSpacing),
-      growthExpressionRate: _simulationConfigDouble(map, 'growthExpressionRate', defaults.growthExpressionRate),
-      sprintMultiplier: _simulationConfigDouble(map, 'sprintMultiplier', defaults.sprintMultiplier),
-      sprintDrainInterval: _simulationConfigDouble(map, 'sprintDrainInterval', defaults.sprintDrainInterval),
-      naturalPelletValue: _simulationConfigInt(map, 'naturalPelletValue', defaults.naturalPelletValue),
-      sprintDropValue: _simulationConfigInt(map, 'sprintDropValue', defaults.sprintDropValue),
-      defeatDropValue: _simulationConfigInt(map, 'defeatDropValue', defaults.defeatDropValue),
-      minimumSprintLength: _simulationConfigInt(map, 'minimumSprintLength', defaults.minimumSprintLength),
-      initialPellets: _simulationConfigInt(map, 'initialPellets', defaults.initialPellets),
-      pelletRefillThreshold: _simulationConfigDouble(map, 'pelletRefillThreshold', defaults.pelletRefillThreshold),
-      pelletRefillRate: _simulationConfigDouble(map, 'pelletRefillRate', defaults.pelletRefillRate),
+      botTurnRate: _simulationConfigDouble(
+        map,
+        'botTurnRate',
+        defaults.botTurnRate,
+      ),
+      botSenseRadius: _simulationConfigDouble(
+        map,
+        'botSenseRadius',
+        defaults.botSenseRadius,
+      ),
+      botBoundaryBuffer: _simulationConfigDouble(
+        map,
+        'botBoundaryBuffer',
+        defaults.botBoundaryBuffer,
+      ),
+      botSpawnRadius: _simulationConfigDouble(
+        map,
+        'botSpawnRadius',
+        defaults.botSpawnRadius,
+      ),
+      segmentSpacing: _simulationConfigDouble(
+        map,
+        'segmentSpacing',
+        defaults.segmentSpacing,
+      ),
+      growthExpressionRate: _simulationConfigDouble(
+        map,
+        'growthExpressionRate',
+        defaults.growthExpressionRate,
+      ),
+      sprintMultiplier: _simulationConfigDouble(
+        map,
+        'sprintMultiplier',
+        defaults.sprintMultiplier,
+      ),
+      sprintDrainInterval: _simulationConfigDouble(
+        map,
+        'sprintDrainInterval',
+        defaults.sprintDrainInterval,
+      ),
+      naturalPelletValue: _simulationConfigInt(
+        map,
+        'naturalPelletValue',
+        defaults.naturalPelletValue,
+      ),
+      sprintDropValue: _simulationConfigInt(
+        map,
+        'sprintDropValue',
+        defaults.sprintDropValue,
+      ),
+      defeatDropValue: _simulationConfigInt(
+        map,
+        'defeatDropValue',
+        defaults.defeatDropValue,
+      ),
+      minimumSprintLength: _simulationConfigInt(
+        map,
+        'minimumSprintLength',
+        defaults.minimumSprintLength,
+      ),
+      initialPellets: _simulationConfigInt(
+        map,
+        'initialPellets',
+        defaults.initialPellets,
+      ),
+      pelletRefillThreshold: _simulationConfigDouble(
+        map,
+        'pelletRefillThreshold',
+        defaults.pelletRefillThreshold,
+      ),
+      pelletRefillRate: _simulationConfigDouble(
+        map,
+        'pelletRefillRate',
+        defaults.pelletRefillRate,
+      ),
       botCount: _simulationConfigInt(map, 'botCount', defaults.botCount),
-      maxBotCount: _simulationConfigInt(map, 'maxBotCount', defaults.maxBotCount),
-      initialLength: _simulationConfigInt(map, 'initialLength', defaults.initialLength),
-      botRespawnDelay: _simulationConfigDouble(map, 'botRespawnDelay', defaults.botRespawnDelay),
-      botRespawnSafeDistance: _simulationConfigDouble(map, 'botRespawnSafeDistance', defaults.botRespawnSafeDistance),
-      botRespawnAttempts: _simulationConfigInt(map, 'botRespawnAttempts', defaults.botRespawnAttempts),
-      botPopulationInterval: _simulationConfigDouble(map, 'botPopulationInterval', defaults.botPopulationInterval),
-      botPressureRadius: _simulationConfigDouble(map, 'botPressureRadius', defaults.botPressureRadius),
-      botPressureWeight: _simulationConfigDouble(map, 'botPressureWeight', defaults.botPressureWeight),
-      botInterceptLeadTime: _simulationConfigDouble(map, 'botInterceptLeadTime', defaults.botInterceptLeadTime),
-      botDroppedMassWeight: _simulationConfigDouble(map, 'botDroppedMassWeight', defaults.botDroppedMassWeight),
-      botGrowthMultiplier: _simulationConfigDouble(map, 'botGrowthMultiplier', defaults.botGrowthMultiplier),
-      botRetreatLength: _simulationConfigInt(map, 'botRetreatLength', defaults.botRetreatLength),
-      botRetreatBoundaryBuffer: _simulationConfigDouble(map, 'botRetreatBoundaryBuffer', defaults.botRetreatBoundaryBuffer),
-      botRetreatWeight: _simulationConfigDouble(map, 'botRetreatWeight', defaults.botRetreatWeight),
-      botSizeSpeedPenalty: _simulationConfigDouble(map, 'botSizeSpeedPenalty', defaults.botSizeSpeedPenalty),
-      botSprintMultiplier: _simulationConfigDouble(map, 'botSprintMultiplier', defaults.botSprintMultiplier),
-      botSprintDuration: _simulationConfigDouble(map, 'botSprintDuration', defaults.botSprintDuration),
-      botSprintCooldown: _simulationConfigDouble(map, 'botSprintCooldown', defaults.botSprintCooldown),
-      botSprintMinimumLength: _simulationConfigInt(map, 'botSprintMinimumLength', defaults.botSprintMinimumLength),
-      botSprintTriggerDistance: _simulationConfigDouble(map, 'botSprintTriggerDistance', defaults.botSprintTriggerDistance),
-      botMaximumLength: _simulationConfigInt(map, 'botMaximumLength', defaults.botMaximumLength),
-      collisionPingDuration: _simulationConfigDouble(map, 'collisionPingDuration', defaults.collisionPingDuration),
-      sprintAnticipationDuration: _simulationConfigDouble(map, 'sprintAnticipationDuration', defaults.sprintAnticipationDuration),
-      sprintPulseDuration: _simulationConfigDouble(map, 'sprintPulseDuration', defaults.sprintPulseDuration),
-      telegraphEventDuration: _simulationConfigDouble(map, 'telegraphEventDuration', defaults.telegraphEventDuration),
-      telegraphEventLimit: _simulationConfigInt(map, 'telegraphEventLimit', defaults.telegraphEventLimit),
-      threatProjectionSeconds: _simulationConfigDouble(map, 'threatProjectionSeconds', defaults.threatProjectionSeconds),
-      threatRadius: _simulationConfigDouble(map, 'threatRadius', defaults.threatRadius),
-      threatCommitmentThreshold: _simulationConfigDouble(map, 'threatCommitmentThreshold', defaults.threatCommitmentThreshold),
-      botTacticDecisionMin: _simulationConfigDouble(map, 'botTacticDecisionMin', defaults.botTacticDecisionMin),
-      botTacticDecisionMax: _simulationConfigDouble(map, 'botTacticDecisionMax', defaults.botTacticDecisionMax),
-      botTacticTurnVariance: _simulationConfigDouble(map, 'botTacticTurnVariance', defaults.botTacticTurnVariance),
-      botTacticSpeedBoost: _simulationConfigDouble(map, 'botTacticSpeedBoost', defaults.botTacticSpeedBoost),
-      botTacticBrakeMultiplier: _simulationConfigDouble(map, 'botTacticBrakeMultiplier', defaults.botTacticBrakeMultiplier),
-      botTacticWeaveStrength: _simulationConfigDouble(map, 'botTacticWeaveStrength', defaults.botTacticWeaveStrength),
-      botCutoffLeadTime: _simulationConfigDouble(map, 'botCutoffLeadTime', defaults.botCutoffLeadTime),
-      botFlankDistance: _simulationConfigDouble(map, 'botFlankDistance', defaults.botFlankDistance),
-      botEncircleGapDistance: _simulationConfigDouble(map, 'botEncircleGapDistance', defaults.botEncircleGapDistance),
-      botBaitDistance: _simulationConfigDouble(map, 'botBaitDistance', defaults.botBaitDistance),
-      botEngagementRadius: _simulationConfigDouble(map, 'botEngagementRadius', defaults.botEngagementRadius),
-      botEngagementLeadTime: _simulationConfigDouble(map, 'botEngagementLeadTime', defaults.botEngagementLeadTime),
-      botEngagementWeight: _simulationConfigDouble(map, 'botEngagementWeight', defaults.botEngagementWeight),
-      botEngagementLaneDistance: _simulationConfigDouble(map, 'botEngagementLaneDistance', defaults.botEngagementLaneDistance),
-      botEngagementSafetyRadius: _simulationConfigDouble(map, 'botEngagementSafetyRadius', defaults.botEngagementSafetyRadius),
-      botCollisionLookahead: _simulationConfigDouble(map, 'botCollisionLookahead', defaults.botCollisionLookahead),
-      botCollisionSampleCount: _simulationConfigInt(map, 'botCollisionSampleCount', defaults.botCollisionSampleCount),
-      botCollisionAvoidanceRadius: _simulationConfigDouble(map, 'botCollisionAvoidanceRadius', defaults.botCollisionAvoidanceRadius),
-      botCollisionAvoidanceWeight: _simulationConfigDouble(map, 'botCollisionAvoidanceWeight', defaults.botCollisionAvoidanceWeight),
-      botPeerSeparationRadius: _simulationConfigDouble(map, 'botPeerSeparationRadius', defaults.botPeerSeparationRadius),
-      botPeerSeparationWeight: _simulationConfigDouble(map, 'botPeerSeparationWeight', defaults.botPeerSeparationWeight),
-      botDroppedMassSenseRadius: _simulationConfigDouble(map, 'botDroppedMassSenseRadius', defaults.botDroppedMassSenseRadius),
-      botDroppedMassClusterRadius: _simulationConfigDouble(map, 'botDroppedMassClusterRadius', defaults.botDroppedMassClusterRadius),
-      botDroppedMassControlWeight: _simulationConfigDouble(map, 'botDroppedMassControlWeight', defaults.botDroppedMassControlWeight),
-      botDroppedMassGuardDistance: _simulationConfigDouble(map, 'botDroppedMassGuardDistance', defaults.botDroppedMassGuardDistance),
-      botDroppedMassGuardRadius: _simulationConfigDouble(map, 'botDroppedMassGuardRadius', defaults.botDroppedMassGuardRadius),
-      botRouteAvoidanceRadius: _simulationConfigDouble(map, 'botRouteAvoidanceRadius', defaults.botRouteAvoidanceRadius),
-      botRouteAvoidanceWeight: _simulationConfigDouble(map, 'botRouteAvoidanceWeight', defaults.botRouteAvoidanceWeight),
-      botDefensiveAvoidanceRadius: _simulationConfigDouble(map, 'botDefensiveAvoidanceRadius', defaults.botDefensiveAvoidanceRadius),
-      botDefensiveAvoidanceWeight: _simulationConfigDouble(map, 'botDefensiveAvoidanceWeight', defaults.botDefensiveAvoidanceWeight),
-      botAdaptiveLeadTime: _simulationConfigDouble(map, 'botAdaptiveLeadTime', defaults.botAdaptiveLeadTime),
-      botClosedLoopWeight: _simulationConfigDouble(map, 'botClosedLoopWeight', defaults.botClosedLoopWeight),
-      botCurvedRouteLeadTime: _simulationConfigDouble(map, 'botCurvedRouteLeadTime', defaults.botCurvedRouteLeadTime),
-      botEvasionReplanDistance: _simulationConfigDouble(map, 'botEvasionReplanDistance', defaults.botEvasionReplanDistance),
-      botScreenDistance: _simulationConfigDouble(map, 'botScreenDistance', defaults.botScreenDistance),
-      botDenyDistance: _simulationConfigDouble(map, 'botDenyDistance', defaults.botDenyDistance),
-      botGeometryPressureWeight: _simulationConfigDouble(map, 'botGeometryPressureWeight', defaults.botGeometryPressureWeight),
-      botAttackAbortDistance: _simulationConfigDouble(map, 'botAttackAbortDistance', defaults.botAttackAbortDistance),
-      botAttackAbortSafety: _simulationConfigDouble(map, 'botAttackAbortSafety', defaults.botAttackAbortSafety),
-      botFormationCommitmentDuration: _simulationConfigDouble(map, 'botFormationCommitmentDuration', defaults.botFormationCommitmentDuration),
-      botFormationReplanDistance: _simulationConfigDouble(map, 'botFormationReplanDistance', defaults.botFormationReplanDistance),
-      botFormationSeparationDistance: _simulationConfigDouble(map, 'botFormationSeparationDistance', defaults.botFormationSeparationDistance),
-      botFormationPressureWeight: _simulationConfigDouble(map, 'botFormationPressureWeight', defaults.botFormationPressureWeight),
-      botPeerHardAvoidanceRadius: _simulationConfigDouble(map, 'botPeerHardAvoidanceRadius', defaults.botPeerHardAvoidanceRadius),
-      botPeerHardAvoidanceThreshold: _simulationConfigDouble(map, 'botPeerHardAvoidanceThreshold', defaults.botPeerHardAvoidanceThreshold),
-      botPeerAbortThreshold: _simulationConfigDouble(map, 'botPeerAbortThreshold', defaults.botPeerAbortThreshold),
-      botAdaptiveMaximumLength: _simulationConfigInt(map, 'botAdaptiveMaximumLength', defaults.botAdaptiveMaximumLength),
-      botAdaptiveGrowthGap: _simulationConfigDouble(map, 'botAdaptiveGrowthGap', defaults.botAdaptiveGrowthGap),
-      maxDroppedMass: _simulationConfigInt(map, 'maxDroppedMass', defaults.maxDroppedMass),
-      droppedMassLifetime: _simulationConfigDouble(map, 'droppedMassLifetime', defaults.droppedMassLifetime),
-      droppedMassMergeRadius: _simulationConfigDouble(map, 'droppedMassMergeRadius', defaults.droppedMassMergeRadius),
-      botCatchUpDelay: _simulationConfigDouble(map, 'botCatchUpDelay', defaults.botCatchUpDelay),
-      botCatchUpRate: _simulationConfigDouble(map, 'botCatchUpRate', defaults.botCatchUpRate),
-      botCatchUpTargetFraction: _simulationConfigDouble(map, 'botCatchUpTargetFraction', defaults.botCatchUpTargetFraction),
-      botTacticalDecisionInterval: _simulationConfigDouble(map, 'botTacticalDecisionInterval', defaults.botTacticalDecisionInterval),
-      botPlannerLookahead: _simulationConfigDouble(map, 'botPlannerLookahead', defaults.botPlannerLookahead),
-      botRouteReservationDistance: _simulationConfigDouble(map, 'botRouteReservationDistance', defaults.botRouteReservationDistance),
-      movementTrailTrimSlackSegments: _simulationConfigInt(map, 'movementTrailTrimSlackSegments', defaults.movementTrailTrimSlackSegments),
-      spatialBucketSize: _simulationConfigDouble(map, 'spatialBucketSize', defaults.spatialBucketSize),
-      busyPlanningLoadThreshold: _simulationConfigInt(map, 'busyPlanningLoadThreshold', defaults.busyPlanningLoadThreshold),
-      busyPlanningIntervalMultiplier: _simulationConfigDouble(map, 'busyPlanningIntervalMultiplier', defaults.busyPlanningIntervalMultiplier),
-      simulationStep: _simulationConfigDouble(map, 'simulationStep', defaults.simulationStep),
-      maxSimulationStepsPerUpdate: _simulationConfigInt(map, 'maxSimulationStepsPerUpdate', defaults.maxSimulationStepsPerUpdate),
-      bodyIndexStrideThreshold: _simulationConfigInt(map, 'bodyIndexStrideThreshold', defaults.bodyIndexStrideThreshold),
-      botManeuverStageDuration: _simulationConfigDouble(map, 'botManeuverStageDuration', defaults.botManeuverStageDuration),
-      botManeuverCommitDuration: _simulationConfigDouble(map, 'botManeuverCommitDuration', defaults.botManeuverCommitDuration),
-      botManeuverRecoveryDuration: _simulationConfigDouble(map, 'botManeuverRecoveryDuration', defaults.botManeuverRecoveryDuration),
-      botPlayerMemoryDecay: _simulationConfigDouble(map, 'botPlayerMemoryDecay', defaults.botPlayerMemoryDecay),
-      botReservationHorizon: _simulationConfigDouble(map, 'botReservationHorizon', defaults.botReservationHorizon),
-      botYieldSpeedMultiplier: _simulationConfigDouble(map, 'botYieldSpeedMultiplier', defaults.botYieldSpeedMultiplier),
-      botHunterInitialCount: _simulationConfigInt(map, 'botHunterInitialCount', defaults.botHunterInitialCount),
-      botHunterMaximumCount: _simulationConfigInt(map, 'botHunterMaximumCount', defaults.botHunterMaximumCount),
-      botHunterSecondPopulation: _simulationConfigInt(map, 'botHunterSecondPopulation', defaults.botHunterSecondPopulation),
-      botHunterReentryDistance: _simulationConfigDouble(map, 'botHunterReentryDistance', defaults.botHunterReentryDistance),
-      collisionCoreScale: _simulationConfigDouble(map, 'collisionCoreScale', defaults.collisionCoreScale),
-      collisionTailTaper: _simulationConfigDouble(map, 'collisionTailTaper', defaults.collisionTailTaper),
-      botParallelAlignmentThreshold: _simulationConfigDouble(map, 'botParallelAlignmentThreshold', defaults.botParallelAlignmentThreshold),
-      botParallelClosingThreshold: _simulationConfigDouble(map, 'botParallelClosingThreshold', defaults.botParallelClosingThreshold),
-      botOpportunitySenseRadius: _simulationConfigDouble(map, 'botOpportunitySenseRadius', defaults.botOpportunitySenseRadius),
-      botOpportunityResponderLimit: _simulationConfigInt(map, 'botOpportunityResponderLimit', defaults.botOpportunityResponderLimit),
-      botOpportunityCommitmentDuration: _simulationConfigDouble(map, 'botOpportunityCommitmentDuration', defaults.botOpportunityCommitmentDuration),
-      botEnclosureGraceDuration: _simulationConfigDouble(map, 'botEnclosureGraceDuration', defaults.botEnclosureGraceDuration),
-      botEnclosureSampleLimit: _simulationConfigInt(map, 'botEnclosureSampleLimit', defaults.botEnclosureSampleLimit),
-      botEnclosureMinimumSweep: _simulationConfigDouble(map, 'botEnclosureMinimumSweep', defaults.botEnclosureMinimumSweep),
-      botHookMinimumSweepRatio: _simulationConfigDouble(map, 'botHookMinimumSweepRatio', defaults.botHookMinimumSweepRatio),
-      botHookClosureRadiusMultiplier: _simulationConfigDouble(map, 'botHookClosureRadiusMultiplier', defaults.botHookClosureRadiusMultiplier),
-      botTacticalPrecisionSafetyRadius: _simulationConfigDouble(map, 'botTacticalPrecisionSafetyRadius', defaults.botTacticalPrecisionSafetyRadius),
-      botResourceFieldRadius: _simulationConfigDouble(map, 'botResourceFieldRadius', defaults.botResourceFieldRadius),
-      botResourceFieldMinimumValue: _simulationConfigInt(map, 'botResourceFieldMinimumValue', defaults.botResourceFieldMinimumValue),
-      botPlayerSprintRecoveryDuration: _simulationConfigDouble(map, 'botPlayerSprintRecoveryDuration', defaults.botPlayerSprintRecoveryDuration),
+      maxBotCount: _simulationConfigInt(
+        map,
+        'maxBotCount',
+        defaults.maxBotCount,
+      ),
+      initialLength: _simulationConfigInt(
+        map,
+        'initialLength',
+        defaults.initialLength,
+      ),
+      botRespawnDelay: _simulationConfigDouble(
+        map,
+        'botRespawnDelay',
+        defaults.botRespawnDelay,
+      ),
+      botRespawnSafeDistance: _simulationConfigDouble(
+        map,
+        'botRespawnSafeDistance',
+        defaults.botRespawnSafeDistance,
+      ),
+      botRespawnAttempts: _simulationConfigInt(
+        map,
+        'botRespawnAttempts',
+        defaults.botRespawnAttempts,
+      ),
+      botPopulationInterval: _simulationConfigDouble(
+        map,
+        'botPopulationInterval',
+        defaults.botPopulationInterval,
+      ),
+      botPressureRadius: _simulationConfigDouble(
+        map,
+        'botPressureRadius',
+        defaults.botPressureRadius,
+      ),
+      botPressureWeight: _simulationConfigDouble(
+        map,
+        'botPressureWeight',
+        defaults.botPressureWeight,
+      ),
+      botInterceptLeadTime: _simulationConfigDouble(
+        map,
+        'botInterceptLeadTime',
+        defaults.botInterceptLeadTime,
+      ),
+      botDroppedMassWeight: _simulationConfigDouble(
+        map,
+        'botDroppedMassWeight',
+        defaults.botDroppedMassWeight,
+      ),
+      botGrowthMultiplier: _simulationConfigDouble(
+        map,
+        'botGrowthMultiplier',
+        defaults.botGrowthMultiplier,
+      ),
+      botRetreatLength: _simulationConfigInt(
+        map,
+        'botRetreatLength',
+        defaults.botRetreatLength,
+      ),
+      botRetreatBoundaryBuffer: _simulationConfigDouble(
+        map,
+        'botRetreatBoundaryBuffer',
+        defaults.botRetreatBoundaryBuffer,
+      ),
+      botRetreatWeight: _simulationConfigDouble(
+        map,
+        'botRetreatWeight',
+        defaults.botRetreatWeight,
+      ),
+      botSizeSpeedPenalty: _simulationConfigDouble(
+        map,
+        'botSizeSpeedPenalty',
+        defaults.botSizeSpeedPenalty,
+      ),
+      botSprintMultiplier: _simulationConfigDouble(
+        map,
+        'botSprintMultiplier',
+        defaults.botSprintMultiplier,
+      ),
+      botSprintDuration: _simulationConfigDouble(
+        map,
+        'botSprintDuration',
+        defaults.botSprintDuration,
+      ),
+      botSprintCooldown: _simulationConfigDouble(
+        map,
+        'botSprintCooldown',
+        defaults.botSprintCooldown,
+      ),
+      botSprintMinimumLength: _simulationConfigInt(
+        map,
+        'botSprintMinimumLength',
+        defaults.botSprintMinimumLength,
+      ),
+      botSprintTriggerDistance: _simulationConfigDouble(
+        map,
+        'botSprintTriggerDistance',
+        defaults.botSprintTriggerDistance,
+      ),
+      botMaximumLength: _simulationConfigInt(
+        map,
+        'botMaximumLength',
+        defaults.botMaximumLength,
+      ),
+      collisionPingDuration: _simulationConfigDouble(
+        map,
+        'collisionPingDuration',
+        defaults.collisionPingDuration,
+      ),
+      sprintAnticipationDuration: _simulationConfigDouble(
+        map,
+        'sprintAnticipationDuration',
+        defaults.sprintAnticipationDuration,
+      ),
+      sprintPulseDuration: _simulationConfigDouble(
+        map,
+        'sprintPulseDuration',
+        defaults.sprintPulseDuration,
+      ),
+      telegraphEventDuration: _simulationConfigDouble(
+        map,
+        'telegraphEventDuration',
+        defaults.telegraphEventDuration,
+      ),
+      telegraphEventLimit: _simulationConfigInt(
+        map,
+        'telegraphEventLimit',
+        defaults.telegraphEventLimit,
+      ),
+      threatProjectionSeconds: _simulationConfigDouble(
+        map,
+        'threatProjectionSeconds',
+        defaults.threatProjectionSeconds,
+      ),
+      threatRadius: _simulationConfigDouble(
+        map,
+        'threatRadius',
+        defaults.threatRadius,
+      ),
+      threatCommitmentThreshold: _simulationConfigDouble(
+        map,
+        'threatCommitmentThreshold',
+        defaults.threatCommitmentThreshold,
+      ),
+      botTacticDecisionMin: _simulationConfigDouble(
+        map,
+        'botTacticDecisionMin',
+        defaults.botTacticDecisionMin,
+      ),
+      botTacticDecisionMax: _simulationConfigDouble(
+        map,
+        'botTacticDecisionMax',
+        defaults.botTacticDecisionMax,
+      ),
+      botTacticTurnVariance: _simulationConfigDouble(
+        map,
+        'botTacticTurnVariance',
+        defaults.botTacticTurnVariance,
+      ),
+      botTacticSpeedBoost: _simulationConfigDouble(
+        map,
+        'botTacticSpeedBoost',
+        defaults.botTacticSpeedBoost,
+      ),
+      botTacticBrakeMultiplier: _simulationConfigDouble(
+        map,
+        'botTacticBrakeMultiplier',
+        defaults.botTacticBrakeMultiplier,
+      ),
+      botTacticWeaveStrength: _simulationConfigDouble(
+        map,
+        'botTacticWeaveStrength',
+        defaults.botTacticWeaveStrength,
+      ),
+      botCutoffLeadTime: _simulationConfigDouble(
+        map,
+        'botCutoffLeadTime',
+        defaults.botCutoffLeadTime,
+      ),
+      botFlankDistance: _simulationConfigDouble(
+        map,
+        'botFlankDistance',
+        defaults.botFlankDistance,
+      ),
+      botEncircleGapDistance: _simulationConfigDouble(
+        map,
+        'botEncircleGapDistance',
+        defaults.botEncircleGapDistance,
+      ),
+      botBaitDistance: _simulationConfigDouble(
+        map,
+        'botBaitDistance',
+        defaults.botBaitDistance,
+      ),
+      botEngagementRadius: _simulationConfigDouble(
+        map,
+        'botEngagementRadius',
+        defaults.botEngagementRadius,
+      ),
+      botEngagementLeadTime: _simulationConfigDouble(
+        map,
+        'botEngagementLeadTime',
+        defaults.botEngagementLeadTime,
+      ),
+      botEngagementWeight: _simulationConfigDouble(
+        map,
+        'botEngagementWeight',
+        defaults.botEngagementWeight,
+      ),
+      botEngagementLaneDistance: _simulationConfigDouble(
+        map,
+        'botEngagementLaneDistance',
+        defaults.botEngagementLaneDistance,
+      ),
+      botEngagementSafetyRadius: _simulationConfigDouble(
+        map,
+        'botEngagementSafetyRadius',
+        defaults.botEngagementSafetyRadius,
+      ),
+      botCollisionLookahead: _simulationConfigDouble(
+        map,
+        'botCollisionLookahead',
+        defaults.botCollisionLookahead,
+      ),
+      botCollisionSampleCount: _simulationConfigInt(
+        map,
+        'botCollisionSampleCount',
+        defaults.botCollisionSampleCount,
+      ),
+      botCollisionAvoidanceRadius: _simulationConfigDouble(
+        map,
+        'botCollisionAvoidanceRadius',
+        defaults.botCollisionAvoidanceRadius,
+      ),
+      botCollisionAvoidanceWeight: _simulationConfigDouble(
+        map,
+        'botCollisionAvoidanceWeight',
+        defaults.botCollisionAvoidanceWeight,
+      ),
+      botPeerSeparationRadius: _simulationConfigDouble(
+        map,
+        'botPeerSeparationRadius',
+        defaults.botPeerSeparationRadius,
+      ),
+      botPeerSeparationWeight: _simulationConfigDouble(
+        map,
+        'botPeerSeparationWeight',
+        defaults.botPeerSeparationWeight,
+      ),
+      botDroppedMassSenseRadius: _simulationConfigDouble(
+        map,
+        'botDroppedMassSenseRadius',
+        defaults.botDroppedMassSenseRadius,
+      ),
+      botDroppedMassClusterRadius: _simulationConfigDouble(
+        map,
+        'botDroppedMassClusterRadius',
+        defaults.botDroppedMassClusterRadius,
+      ),
+      botDroppedMassControlWeight: _simulationConfigDouble(
+        map,
+        'botDroppedMassControlWeight',
+        defaults.botDroppedMassControlWeight,
+      ),
+      botDroppedMassGuardDistance: _simulationConfigDouble(
+        map,
+        'botDroppedMassGuardDistance',
+        defaults.botDroppedMassGuardDistance,
+      ),
+      botDroppedMassGuardRadius: _simulationConfigDouble(
+        map,
+        'botDroppedMassGuardRadius',
+        defaults.botDroppedMassGuardRadius,
+      ),
+      botRouteAvoidanceRadius: _simulationConfigDouble(
+        map,
+        'botRouteAvoidanceRadius',
+        defaults.botRouteAvoidanceRadius,
+      ),
+      botRouteAvoidanceWeight: _simulationConfigDouble(
+        map,
+        'botRouteAvoidanceWeight',
+        defaults.botRouteAvoidanceWeight,
+      ),
+      botDefensiveAvoidanceRadius: _simulationConfigDouble(
+        map,
+        'botDefensiveAvoidanceRadius',
+        defaults.botDefensiveAvoidanceRadius,
+      ),
+      botDefensiveAvoidanceWeight: _simulationConfigDouble(
+        map,
+        'botDefensiveAvoidanceWeight',
+        defaults.botDefensiveAvoidanceWeight,
+      ),
+      botAdaptiveLeadTime: _simulationConfigDouble(
+        map,
+        'botAdaptiveLeadTime',
+        defaults.botAdaptiveLeadTime,
+      ),
+      botClosedLoopWeight: _simulationConfigDouble(
+        map,
+        'botClosedLoopWeight',
+        defaults.botClosedLoopWeight,
+      ),
+      botCurvedRouteLeadTime: _simulationConfigDouble(
+        map,
+        'botCurvedRouteLeadTime',
+        defaults.botCurvedRouteLeadTime,
+      ),
+      botEvasionReplanDistance: _simulationConfigDouble(
+        map,
+        'botEvasionReplanDistance',
+        defaults.botEvasionReplanDistance,
+      ),
+      botScreenDistance: _simulationConfigDouble(
+        map,
+        'botScreenDistance',
+        defaults.botScreenDistance,
+      ),
+      botDenyDistance: _simulationConfigDouble(
+        map,
+        'botDenyDistance',
+        defaults.botDenyDistance,
+      ),
+      botGeometryPressureWeight: _simulationConfigDouble(
+        map,
+        'botGeometryPressureWeight',
+        defaults.botGeometryPressureWeight,
+      ),
+      botAttackAbortDistance: _simulationConfigDouble(
+        map,
+        'botAttackAbortDistance',
+        defaults.botAttackAbortDistance,
+      ),
+      botAttackAbortSafety: _simulationConfigDouble(
+        map,
+        'botAttackAbortSafety',
+        defaults.botAttackAbortSafety,
+      ),
+      botFormationCommitmentDuration: _simulationConfigDouble(
+        map,
+        'botFormationCommitmentDuration',
+        defaults.botFormationCommitmentDuration,
+      ),
+      botFormationReplanDistance: _simulationConfigDouble(
+        map,
+        'botFormationReplanDistance',
+        defaults.botFormationReplanDistance,
+      ),
+      botFormationSeparationDistance: _simulationConfigDouble(
+        map,
+        'botFormationSeparationDistance',
+        defaults.botFormationSeparationDistance,
+      ),
+      botFormationPressureWeight: _simulationConfigDouble(
+        map,
+        'botFormationPressureWeight',
+        defaults.botFormationPressureWeight,
+      ),
+      botPeerHardAvoidanceRadius: _simulationConfigDouble(
+        map,
+        'botPeerHardAvoidanceRadius',
+        defaults.botPeerHardAvoidanceRadius,
+      ),
+      botPeerHardAvoidanceThreshold: _simulationConfigDouble(
+        map,
+        'botPeerHardAvoidanceThreshold',
+        defaults.botPeerHardAvoidanceThreshold,
+      ),
+      botPeerAbortThreshold: _simulationConfigDouble(
+        map,
+        'botPeerAbortThreshold',
+        defaults.botPeerAbortThreshold,
+      ),
+      botAdaptiveMaximumLength: _simulationConfigInt(
+        map,
+        'botAdaptiveMaximumLength',
+        defaults.botAdaptiveMaximumLength,
+      ),
+      botAdaptiveGrowthGap: _simulationConfigDouble(
+        map,
+        'botAdaptiveGrowthGap',
+        defaults.botAdaptiveGrowthGap,
+      ),
+      maxDroppedMass: _simulationConfigInt(
+        map,
+        'maxDroppedMass',
+        defaults.maxDroppedMass,
+      ),
+      droppedMassLifetime: _simulationConfigDouble(
+        map,
+        'droppedMassLifetime',
+        defaults.droppedMassLifetime,
+      ),
+      droppedMassMergeRadius: _simulationConfigDouble(
+        map,
+        'droppedMassMergeRadius',
+        defaults.droppedMassMergeRadius,
+      ),
+      botCatchUpDelay: _simulationConfigDouble(
+        map,
+        'botCatchUpDelay',
+        defaults.botCatchUpDelay,
+      ),
+      botCatchUpRate: _simulationConfigDouble(
+        map,
+        'botCatchUpRate',
+        defaults.botCatchUpRate,
+      ),
+      botCatchUpTargetFraction: _simulationConfigDouble(
+        map,
+        'botCatchUpTargetFraction',
+        defaults.botCatchUpTargetFraction,
+      ),
+      botTacticalDecisionInterval: _simulationConfigDouble(
+        map,
+        'botTacticalDecisionInterval',
+        defaults.botTacticalDecisionInterval,
+      ),
+      botPlannerLookahead: _simulationConfigDouble(
+        map,
+        'botPlannerLookahead',
+        defaults.botPlannerLookahead,
+      ),
+      botRouteReservationDistance: _simulationConfigDouble(
+        map,
+        'botRouteReservationDistance',
+        defaults.botRouteReservationDistance,
+      ),
+      movementTrailTrimSlackSegments: _simulationConfigInt(
+        map,
+        'movementTrailTrimSlackSegments',
+        defaults.movementTrailTrimSlackSegments,
+      ),
+      spatialBucketSize: _simulationConfigDouble(
+        map,
+        'spatialBucketSize',
+        defaults.spatialBucketSize,
+      ),
+      busyPlanningLoadThreshold: _simulationConfigInt(
+        map,
+        'busyPlanningLoadThreshold',
+        defaults.busyPlanningLoadThreshold,
+      ),
+      busyPlanningIntervalMultiplier: _simulationConfigDouble(
+        map,
+        'busyPlanningIntervalMultiplier',
+        defaults.busyPlanningIntervalMultiplier,
+      ),
+      simulationStep: _simulationConfigDouble(
+        map,
+        'simulationStep',
+        defaults.simulationStep,
+      ),
+      maxSimulationStepsPerUpdate: _simulationConfigInt(
+        map,
+        'maxSimulationStepsPerUpdate',
+        defaults.maxSimulationStepsPerUpdate,
+      ),
+      bodyIndexStrideThreshold: _simulationConfigInt(
+        map,
+        'bodyIndexStrideThreshold',
+        defaults.bodyIndexStrideThreshold,
+      ),
+      botManeuverStageDuration: _simulationConfigDouble(
+        map,
+        'botManeuverStageDuration',
+        defaults.botManeuverStageDuration,
+      ),
+      botManeuverCommitDuration: _simulationConfigDouble(
+        map,
+        'botManeuverCommitDuration',
+        defaults.botManeuverCommitDuration,
+      ),
+      botManeuverRecoveryDuration: _simulationConfigDouble(
+        map,
+        'botManeuverRecoveryDuration',
+        defaults.botManeuverRecoveryDuration,
+      ),
+      botPlayerMemoryDecay: _simulationConfigDouble(
+        map,
+        'botPlayerMemoryDecay',
+        defaults.botPlayerMemoryDecay,
+      ),
+      botReservationHorizon: _simulationConfigDouble(
+        map,
+        'botReservationHorizon',
+        defaults.botReservationHorizon,
+      ),
+      botYieldSpeedMultiplier: _simulationConfigDouble(
+        map,
+        'botYieldSpeedMultiplier',
+        defaults.botYieldSpeedMultiplier,
+      ),
+      botHunterInitialCount: _simulationConfigInt(
+        map,
+        'botHunterInitialCount',
+        defaults.botHunterInitialCount,
+      ),
+      botHunterMaximumCount: _simulationConfigInt(
+        map,
+        'botHunterMaximumCount',
+        defaults.botHunterMaximumCount,
+      ),
+      botHunterSecondPopulation: _simulationConfigInt(
+        map,
+        'botHunterSecondPopulation',
+        defaults.botHunterSecondPopulation,
+      ),
+      botHunterReentryDistance: _simulationConfigDouble(
+        map,
+        'botHunterReentryDistance',
+        defaults.botHunterReentryDistance,
+      ),
+      collisionCoreScale: _simulationConfigDouble(
+        map,
+        'collisionCoreScale',
+        defaults.collisionCoreScale,
+      ),
+      collisionTailTaper: _simulationConfigDouble(
+        map,
+        'collisionTailTaper',
+        defaults.collisionTailTaper,
+      ),
+      botParallelAlignmentThreshold: _simulationConfigDouble(
+        map,
+        'botParallelAlignmentThreshold',
+        defaults.botParallelAlignmentThreshold,
+      ),
+      botParallelClosingThreshold: _simulationConfigDouble(
+        map,
+        'botParallelClosingThreshold',
+        defaults.botParallelClosingThreshold,
+      ),
+      botOpportunitySenseRadius: _simulationConfigDouble(
+        map,
+        'botOpportunitySenseRadius',
+        defaults.botOpportunitySenseRadius,
+      ),
+      botOpportunityResponderLimit: _simulationConfigInt(
+        map,
+        'botOpportunityResponderLimit',
+        defaults.botOpportunityResponderLimit,
+      ),
+      botOpportunityCommitmentDuration: _simulationConfigDouble(
+        map,
+        'botOpportunityCommitmentDuration',
+        defaults.botOpportunityCommitmentDuration,
+      ),
+      botEnclosureGraceDuration: _simulationConfigDouble(
+        map,
+        'botEnclosureGraceDuration',
+        defaults.botEnclosureGraceDuration,
+      ),
+      botEnclosureSampleLimit: _simulationConfigInt(
+        map,
+        'botEnclosureSampleLimit',
+        defaults.botEnclosureSampleLimit,
+      ),
+      botEnclosureMinimumSweep: _simulationConfigDouble(
+        map,
+        'botEnclosureMinimumSweep',
+        defaults.botEnclosureMinimumSweep,
+      ),
+      botHookMinimumSweepRatio: _simulationConfigDouble(
+        map,
+        'botHookMinimumSweepRatio',
+        defaults.botHookMinimumSweepRatio,
+      ),
+      botHookClosureRadiusMultiplier: _simulationConfigDouble(
+        map,
+        'botHookClosureRadiusMultiplier',
+        defaults.botHookClosureRadiusMultiplier,
+      ),
+      botTacticalPrecisionSafetyRadius: _simulationConfigDouble(
+        map,
+        'botTacticalPrecisionSafetyRadius',
+        defaults.botTacticalPrecisionSafetyRadius,
+      ),
+      botResourceFieldRadius: _simulationConfigDouble(
+        map,
+        'botResourceFieldRadius',
+        defaults.botResourceFieldRadius,
+      ),
+      botResourceFieldMinimumValue: _simulationConfigInt(
+        map,
+        'botResourceFieldMinimumValue',
+        defaults.botResourceFieldMinimumValue,
+      ),
+      botPlayerSprintRecoveryDuration: _simulationConfigDouble(
+        map,
+        'botPlayerSprintRecoveryDuration',
+        defaults.botPlayerSprintRecoveryDuration,
+      ),
     );
   }
 
@@ -443,146 +991,146 @@ class SimulationConfig {
   final double botPlayerSprintRecoveryDuration;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'arenaRadius': arenaRadius,
-        'arenaBoundaryWarningBuffer': arenaBoundaryWarningBuffer,
-        'playerSpeed': playerSpeed,
-        'botSpeed': botSpeed,
-        'botTurnRate': botTurnRate,
-        'botSenseRadius': botSenseRadius,
-        'botBoundaryBuffer': botBoundaryBuffer,
-        'botSpawnRadius': botSpawnRadius,
-        'segmentSpacing': segmentSpacing,
-        'growthExpressionRate': growthExpressionRate,
-        'sprintMultiplier': sprintMultiplier,
-        'sprintDrainInterval': sprintDrainInterval,
-        'naturalPelletValue': naturalPelletValue,
-        'sprintDropValue': sprintDropValue,
-        'defeatDropValue': defeatDropValue,
-        'minimumSprintLength': minimumSprintLength,
-        'initialPellets': initialPellets,
-        'pelletRefillThreshold': pelletRefillThreshold,
-        'pelletRefillRate': pelletRefillRate,
-        'botCount': botCount,
-        'maxBotCount': maxBotCount,
-        'initialLength': initialLength,
-        'botRespawnDelay': botRespawnDelay,
-        'botRespawnSafeDistance': botRespawnSafeDistance,
-        'botRespawnAttempts': botRespawnAttempts,
-        'botPopulationInterval': botPopulationInterval,
-        'botPressureRadius': botPressureRadius,
-        'botPressureWeight': botPressureWeight,
-        'botInterceptLeadTime': botInterceptLeadTime,
-        'botDroppedMassWeight': botDroppedMassWeight,
-        'botGrowthMultiplier': botGrowthMultiplier,
-        'botRetreatLength': botRetreatLength,
-        'botRetreatBoundaryBuffer': botRetreatBoundaryBuffer,
-        'botRetreatWeight': botRetreatWeight,
-        'botSizeSpeedPenalty': botSizeSpeedPenalty,
-        'botSprintMultiplier': botSprintMultiplier,
-        'botSprintDuration': botSprintDuration,
-        'botSprintCooldown': botSprintCooldown,
-        'botSprintMinimumLength': botSprintMinimumLength,
-        'botSprintTriggerDistance': botSprintTriggerDistance,
-        'botMaximumLength': botMaximumLength,
-        'collisionPingDuration': collisionPingDuration,
-        'sprintAnticipationDuration': sprintAnticipationDuration,
-        'sprintPulseDuration': sprintPulseDuration,
-        'telegraphEventDuration': telegraphEventDuration,
-        'telegraphEventLimit': telegraphEventLimit,
-        'threatProjectionSeconds': threatProjectionSeconds,
-        'threatRadius': threatRadius,
-        'threatCommitmentThreshold': threatCommitmentThreshold,
-        'botTacticDecisionMin': botTacticDecisionMin,
-        'botTacticDecisionMax': botTacticDecisionMax,
-        'botTacticTurnVariance': botTacticTurnVariance,
-        'botTacticSpeedBoost': botTacticSpeedBoost,
-        'botTacticBrakeMultiplier': botTacticBrakeMultiplier,
-        'botTacticWeaveStrength': botTacticWeaveStrength,
-        'botCutoffLeadTime': botCutoffLeadTime,
-        'botFlankDistance': botFlankDistance,
-        'botEncircleGapDistance': botEncircleGapDistance,
-        'botBaitDistance': botBaitDistance,
-        'botEngagementRadius': botEngagementRadius,
-        'botEngagementLeadTime': botEngagementLeadTime,
-        'botEngagementWeight': botEngagementWeight,
-        'botEngagementLaneDistance': botEngagementLaneDistance,
-        'botEngagementSafetyRadius': botEngagementSafetyRadius,
-        'botCollisionLookahead': botCollisionLookahead,
-        'botCollisionSampleCount': botCollisionSampleCount,
-        'botCollisionAvoidanceRadius': botCollisionAvoidanceRadius,
-        'botCollisionAvoidanceWeight': botCollisionAvoidanceWeight,
-        'botPeerSeparationRadius': botPeerSeparationRadius,
-        'botPeerSeparationWeight': botPeerSeparationWeight,
-        'botDroppedMassSenseRadius': botDroppedMassSenseRadius,
-        'botDroppedMassClusterRadius': botDroppedMassClusterRadius,
-        'botDroppedMassControlWeight': botDroppedMassControlWeight,
-        'botDroppedMassGuardDistance': botDroppedMassGuardDistance,
-        'botDroppedMassGuardRadius': botDroppedMassGuardRadius,
-        'botRouteAvoidanceRadius': botRouteAvoidanceRadius,
-        'botRouteAvoidanceWeight': botRouteAvoidanceWeight,
-        'botDefensiveAvoidanceRadius': botDefensiveAvoidanceRadius,
-        'botDefensiveAvoidanceWeight': botDefensiveAvoidanceWeight,
-        'botAdaptiveLeadTime': botAdaptiveLeadTime,
-        'botClosedLoopWeight': botClosedLoopWeight,
-        'botCurvedRouteLeadTime': botCurvedRouteLeadTime,
-        'botEvasionReplanDistance': botEvasionReplanDistance,
-        'botScreenDistance': botScreenDistance,
-        'botDenyDistance': botDenyDistance,
-        'botGeometryPressureWeight': botGeometryPressureWeight,
-        'botAttackAbortDistance': botAttackAbortDistance,
-        'botAttackAbortSafety': botAttackAbortSafety,
-        'botFormationCommitmentDuration': botFormationCommitmentDuration,
-        'botFormationReplanDistance': botFormationReplanDistance,
-        'botFormationSeparationDistance': botFormationSeparationDistance,
-        'botFormationPressureWeight': botFormationPressureWeight,
-        'botPeerHardAvoidanceRadius': botPeerHardAvoidanceRadius,
-        'botPeerHardAvoidanceThreshold': botPeerHardAvoidanceThreshold,
-        'botPeerAbortThreshold': botPeerAbortThreshold,
-        'botAdaptiveMaximumLength': botAdaptiveMaximumLength,
-        'botAdaptiveGrowthGap': botAdaptiveGrowthGap,
-        'maxDroppedMass': maxDroppedMass,
-        'droppedMassLifetime': droppedMassLifetime,
-        'droppedMassMergeRadius': droppedMassMergeRadius,
-        'botCatchUpDelay': botCatchUpDelay,
-        'botCatchUpRate': botCatchUpRate,
-        'botCatchUpTargetFraction': botCatchUpTargetFraction,
-        'botTacticalDecisionInterval': botTacticalDecisionInterval,
-        'botPlannerLookahead': botPlannerLookahead,
-        'botRouteReservationDistance': botRouteReservationDistance,
-        'movementTrailTrimSlackSegments': movementTrailTrimSlackSegments,
-        'spatialBucketSize': spatialBucketSize,
-        'busyPlanningLoadThreshold': busyPlanningLoadThreshold,
-        'busyPlanningIntervalMultiplier': busyPlanningIntervalMultiplier,
-        'simulationStep': simulationStep,
-        'maxSimulationStepsPerUpdate': maxSimulationStepsPerUpdate,
-        'bodyIndexStrideThreshold': bodyIndexStrideThreshold,
-        'botManeuverStageDuration': botManeuverStageDuration,
-        'botManeuverCommitDuration': botManeuverCommitDuration,
-        'botManeuverRecoveryDuration': botManeuverRecoveryDuration,
-        'botPlayerMemoryDecay': botPlayerMemoryDecay,
-        'botReservationHorizon': botReservationHorizon,
-        'botYieldSpeedMultiplier': botYieldSpeedMultiplier,
-        'botHunterInitialCount': botHunterInitialCount,
-        'botHunterMaximumCount': botHunterMaximumCount,
-        'botHunterSecondPopulation': botHunterSecondPopulation,
-        'botHunterReentryDistance': botHunterReentryDistance,
-        'collisionCoreScale': collisionCoreScale,
-        'collisionTailTaper': collisionTailTaper,
-        'botParallelAlignmentThreshold': botParallelAlignmentThreshold,
-        'botParallelClosingThreshold': botParallelClosingThreshold,
-        'botOpportunitySenseRadius': botOpportunitySenseRadius,
-        'botOpportunityResponderLimit': botOpportunityResponderLimit,
-        'botOpportunityCommitmentDuration': botOpportunityCommitmentDuration,
-        'botEnclosureGraceDuration': botEnclosureGraceDuration,
-        'botEnclosureSampleLimit': botEnclosureSampleLimit,
-        'botEnclosureMinimumSweep': botEnclosureMinimumSweep,
-        'botHookMinimumSweepRatio': botHookMinimumSweepRatio,
-        'botHookClosureRadiusMultiplier': botHookClosureRadiusMultiplier,
-        'botTacticalPrecisionSafetyRadius': botTacticalPrecisionSafetyRadius,
-        'botResourceFieldRadius': botResourceFieldRadius,
-        'botResourceFieldMinimumValue': botResourceFieldMinimumValue,
-        'botPlayerSprintRecoveryDuration': botPlayerSprintRecoveryDuration,
-      };
+    'arenaRadius': arenaRadius,
+    'arenaBoundaryWarningBuffer': arenaBoundaryWarningBuffer,
+    'playerSpeed': playerSpeed,
+    'botSpeed': botSpeed,
+    'botTurnRate': botTurnRate,
+    'botSenseRadius': botSenseRadius,
+    'botBoundaryBuffer': botBoundaryBuffer,
+    'botSpawnRadius': botSpawnRadius,
+    'segmentSpacing': segmentSpacing,
+    'growthExpressionRate': growthExpressionRate,
+    'sprintMultiplier': sprintMultiplier,
+    'sprintDrainInterval': sprintDrainInterval,
+    'naturalPelletValue': naturalPelletValue,
+    'sprintDropValue': sprintDropValue,
+    'defeatDropValue': defeatDropValue,
+    'minimumSprintLength': minimumSprintLength,
+    'initialPellets': initialPellets,
+    'pelletRefillThreshold': pelletRefillThreshold,
+    'pelletRefillRate': pelletRefillRate,
+    'botCount': botCount,
+    'maxBotCount': maxBotCount,
+    'initialLength': initialLength,
+    'botRespawnDelay': botRespawnDelay,
+    'botRespawnSafeDistance': botRespawnSafeDistance,
+    'botRespawnAttempts': botRespawnAttempts,
+    'botPopulationInterval': botPopulationInterval,
+    'botPressureRadius': botPressureRadius,
+    'botPressureWeight': botPressureWeight,
+    'botInterceptLeadTime': botInterceptLeadTime,
+    'botDroppedMassWeight': botDroppedMassWeight,
+    'botGrowthMultiplier': botGrowthMultiplier,
+    'botRetreatLength': botRetreatLength,
+    'botRetreatBoundaryBuffer': botRetreatBoundaryBuffer,
+    'botRetreatWeight': botRetreatWeight,
+    'botSizeSpeedPenalty': botSizeSpeedPenalty,
+    'botSprintMultiplier': botSprintMultiplier,
+    'botSprintDuration': botSprintDuration,
+    'botSprintCooldown': botSprintCooldown,
+    'botSprintMinimumLength': botSprintMinimumLength,
+    'botSprintTriggerDistance': botSprintTriggerDistance,
+    'botMaximumLength': botMaximumLength,
+    'collisionPingDuration': collisionPingDuration,
+    'sprintAnticipationDuration': sprintAnticipationDuration,
+    'sprintPulseDuration': sprintPulseDuration,
+    'telegraphEventDuration': telegraphEventDuration,
+    'telegraphEventLimit': telegraphEventLimit,
+    'threatProjectionSeconds': threatProjectionSeconds,
+    'threatRadius': threatRadius,
+    'threatCommitmentThreshold': threatCommitmentThreshold,
+    'botTacticDecisionMin': botTacticDecisionMin,
+    'botTacticDecisionMax': botTacticDecisionMax,
+    'botTacticTurnVariance': botTacticTurnVariance,
+    'botTacticSpeedBoost': botTacticSpeedBoost,
+    'botTacticBrakeMultiplier': botTacticBrakeMultiplier,
+    'botTacticWeaveStrength': botTacticWeaveStrength,
+    'botCutoffLeadTime': botCutoffLeadTime,
+    'botFlankDistance': botFlankDistance,
+    'botEncircleGapDistance': botEncircleGapDistance,
+    'botBaitDistance': botBaitDistance,
+    'botEngagementRadius': botEngagementRadius,
+    'botEngagementLeadTime': botEngagementLeadTime,
+    'botEngagementWeight': botEngagementWeight,
+    'botEngagementLaneDistance': botEngagementLaneDistance,
+    'botEngagementSafetyRadius': botEngagementSafetyRadius,
+    'botCollisionLookahead': botCollisionLookahead,
+    'botCollisionSampleCount': botCollisionSampleCount,
+    'botCollisionAvoidanceRadius': botCollisionAvoidanceRadius,
+    'botCollisionAvoidanceWeight': botCollisionAvoidanceWeight,
+    'botPeerSeparationRadius': botPeerSeparationRadius,
+    'botPeerSeparationWeight': botPeerSeparationWeight,
+    'botDroppedMassSenseRadius': botDroppedMassSenseRadius,
+    'botDroppedMassClusterRadius': botDroppedMassClusterRadius,
+    'botDroppedMassControlWeight': botDroppedMassControlWeight,
+    'botDroppedMassGuardDistance': botDroppedMassGuardDistance,
+    'botDroppedMassGuardRadius': botDroppedMassGuardRadius,
+    'botRouteAvoidanceRadius': botRouteAvoidanceRadius,
+    'botRouteAvoidanceWeight': botRouteAvoidanceWeight,
+    'botDefensiveAvoidanceRadius': botDefensiveAvoidanceRadius,
+    'botDefensiveAvoidanceWeight': botDefensiveAvoidanceWeight,
+    'botAdaptiveLeadTime': botAdaptiveLeadTime,
+    'botClosedLoopWeight': botClosedLoopWeight,
+    'botCurvedRouteLeadTime': botCurvedRouteLeadTime,
+    'botEvasionReplanDistance': botEvasionReplanDistance,
+    'botScreenDistance': botScreenDistance,
+    'botDenyDistance': botDenyDistance,
+    'botGeometryPressureWeight': botGeometryPressureWeight,
+    'botAttackAbortDistance': botAttackAbortDistance,
+    'botAttackAbortSafety': botAttackAbortSafety,
+    'botFormationCommitmentDuration': botFormationCommitmentDuration,
+    'botFormationReplanDistance': botFormationReplanDistance,
+    'botFormationSeparationDistance': botFormationSeparationDistance,
+    'botFormationPressureWeight': botFormationPressureWeight,
+    'botPeerHardAvoidanceRadius': botPeerHardAvoidanceRadius,
+    'botPeerHardAvoidanceThreshold': botPeerHardAvoidanceThreshold,
+    'botPeerAbortThreshold': botPeerAbortThreshold,
+    'botAdaptiveMaximumLength': botAdaptiveMaximumLength,
+    'botAdaptiveGrowthGap': botAdaptiveGrowthGap,
+    'maxDroppedMass': maxDroppedMass,
+    'droppedMassLifetime': droppedMassLifetime,
+    'droppedMassMergeRadius': droppedMassMergeRadius,
+    'botCatchUpDelay': botCatchUpDelay,
+    'botCatchUpRate': botCatchUpRate,
+    'botCatchUpTargetFraction': botCatchUpTargetFraction,
+    'botTacticalDecisionInterval': botTacticalDecisionInterval,
+    'botPlannerLookahead': botPlannerLookahead,
+    'botRouteReservationDistance': botRouteReservationDistance,
+    'movementTrailTrimSlackSegments': movementTrailTrimSlackSegments,
+    'spatialBucketSize': spatialBucketSize,
+    'busyPlanningLoadThreshold': busyPlanningLoadThreshold,
+    'busyPlanningIntervalMultiplier': busyPlanningIntervalMultiplier,
+    'simulationStep': simulationStep,
+    'maxSimulationStepsPerUpdate': maxSimulationStepsPerUpdate,
+    'bodyIndexStrideThreshold': bodyIndexStrideThreshold,
+    'botManeuverStageDuration': botManeuverStageDuration,
+    'botManeuverCommitDuration': botManeuverCommitDuration,
+    'botManeuverRecoveryDuration': botManeuverRecoveryDuration,
+    'botPlayerMemoryDecay': botPlayerMemoryDecay,
+    'botReservationHorizon': botReservationHorizon,
+    'botYieldSpeedMultiplier': botYieldSpeedMultiplier,
+    'botHunterInitialCount': botHunterInitialCount,
+    'botHunterMaximumCount': botHunterMaximumCount,
+    'botHunterSecondPopulation': botHunterSecondPopulation,
+    'botHunterReentryDistance': botHunterReentryDistance,
+    'collisionCoreScale': collisionCoreScale,
+    'collisionTailTaper': collisionTailTaper,
+    'botParallelAlignmentThreshold': botParallelAlignmentThreshold,
+    'botParallelClosingThreshold': botParallelClosingThreshold,
+    'botOpportunitySenseRadius': botOpportunitySenseRadius,
+    'botOpportunityResponderLimit': botOpportunityResponderLimit,
+    'botOpportunityCommitmentDuration': botOpportunityCommitmentDuration,
+    'botEnclosureGraceDuration': botEnclosureGraceDuration,
+    'botEnclosureSampleLimit': botEnclosureSampleLimit,
+    'botEnclosureMinimumSweep': botEnclosureMinimumSweep,
+    'botHookMinimumSweepRatio': botHookMinimumSweepRatio,
+    'botHookClosureRadiusMultiplier': botHookClosureRadiusMultiplier,
+    'botTacticalPrecisionSafetyRadius': botTacticalPrecisionSafetyRadius,
+    'botResourceFieldRadius': botResourceFieldRadius,
+    'botResourceFieldMinimumValue': botResourceFieldMinimumValue,
+    'botPlayerSprintRecoveryDuration': botPlayerSprintRecoveryDuration,
+  };
 }
 
 class _BotProfile {
@@ -971,11 +1519,11 @@ class _BodySample {
 
 class _MutableBodyPoint extends Vec2 {
   _MutableBodyPoint(double x, double y)
-      : _x = x,
-        _y = y,
-        _previousX = x,
-        _previousY = y,
-        super(0, 0);
+    : _x = x,
+      _y = y,
+      _previousX = x,
+      _previousY = y,
+      super(0, 0);
 
   double _x;
   double _y;
@@ -993,11 +1541,7 @@ class _MutableBodyPoint extends Vec2 {
 
   double get previousY => _previousY;
 
-  void setCoordinates(
-    double x,
-    double y, {
-    bool preservePrevious = true,
-  }) {
+  void setCoordinates(double x, double y, {bool preservePrevious = true}) {
     if (preservePrevious && _hasCoordinates) {
       _previousX = _x;
       _previousY = _y;
@@ -1029,14 +1573,11 @@ double _simulationConfigDouble(
   return value is num && value.isFinite ? value.toDouble() : fallback;
 }
 
-int _simulationConfigInt(
-  Map<String, Object?> map,
-  String key,
-  int fallback,
-) {
+int _simulationConfigInt(Map<String, Object?> map, String key, int fallback) {
   final value = map[key];
   return value is num && value.isFinite ? value.toInt() : fallback;
 }
+
 class GameSimulation {
   GameSimulation({
     this.config = const SimulationConfig(),
@@ -1147,7 +1688,8 @@ class GameSimulation {
     return _rankForLength(player.length);
   }
 
-  int get livingBotCount => snakes.where((snake) {
+  int get livingBotCount =>
+      snakes.where((snake) {
         return snake.kind == SnakeKind.bot && snake.alive;
       }).length;
 
@@ -1155,16 +1697,16 @@ class GameSimulation {
       snakes.where((snake) => snake.kind == SnakeKind.bot).length;
 
   List<LeaderboardEntry> get leaderboard {
-    final living = snakes.where((snake) => snake.alive).toList()
-      ..sort((left, right) {
-        final lengthOrder = right.length.compareTo(left.length);
-        if (lengthOrder != 0) return lengthOrder;
-        final leftPlayerOrder = left.kind == SnakeKind.player ? 1 : 0;
-        final rightPlayerOrder = right.kind == SnakeKind.player ? 1 : 0;
-        final tieOrder = rightPlayerOrder.compareTo(leftPlayerOrder);
-        if (tieOrder != 0) return tieOrder;
-        return left.id.compareTo(right.id);
-      });
+    final living =
+        snakes.where((snake) => snake.alive).toList()..sort((left, right) {
+          final lengthOrder = right.length.compareTo(left.length);
+          if (lengthOrder != 0) return lengthOrder;
+          final leftPlayerOrder = left.kind == SnakeKind.player ? 1 : 0;
+          final rightPlayerOrder = right.kind == SnakeKind.player ? 1 : 0;
+          final tieOrder = rightPlayerOrder.compareTo(leftPlayerOrder);
+          if (tieOrder != 0) return tieOrder;
+          return left.id.compareTo(right.id);
+        });
 
     return [
       for (var index = 0; index < math.min(5, living.length); index++)
@@ -1179,16 +1721,16 @@ class GameSimulation {
   }
 
   RunStats get currentRunStats => RunStats(
-        score: score,
-        length: player.length,
-        survivalSeconds: elapsed,
-        rank: playerRank,
-      );
+    score: score,
+    length: player.length,
+    survivalSeconds: elapsed,
+    rank: playerRank,
+  );
 
   List<ActorTelegraph> get telegraphs => [
-        for (final snake in snakes)
-          if (snake.alive) _telegraphFor(snake),
-      ];
+    for (final snake in snakes)
+      if (snake.alive) _telegraphFor(snake),
+  ];
 
   List<ThreatSignal> get playerThreats {
     final signals = <ThreatSignal>[];
@@ -1206,12 +1748,15 @@ class GameSimulation {
       final playerTowardActor = _alignment(player.heading, offset);
       final actorSpeed = _effectiveSpeed(actor);
       final playerSpeed = _effectiveSpeed(player);
-      final projectedActor = actor.head +
+      final projectedActor =
+          actor.head +
           actor.heading * (actorSpeed * config.threatProjectionSeconds);
-      final projectedPlayer = player.head +
+      final projectedPlayer =
+          player.head +
           player.heading * (playerSpeed * config.threatProjectionSeconds);
       final projectedDistance = projectedActor.distanceTo(projectedPlayer);
-      final projectedPath = actorTowardPlayer >= 0.2 &&
+      final projectedPath =
+          actorTowardPlayer >= 0.2 &&
           playerTowardActor >= -0.35 &&
           projectedDistance <= config.threatRadius;
       final closeApproach =
@@ -1219,12 +1764,14 @@ class GameSimulation {
       if (!projectedPath && !closeApproach && !actor.sprinting) continue;
 
       final nearestDistance = math.min(distance, projectedDistance).toDouble();
-      final proximity = (1 - nearestDistance / config.threatRadius)
-          .clamp(0.0, 1.0)
-          .toDouble();
-      final sprintBoost = actor.sprinting
-          ? 0.45
-          : actor.sprintAnticipating
+      final proximity =
+          (1 - nearestDistance / config.threatRadius)
+              .clamp(0.0, 1.0)
+              .toDouble();
+      final sprintBoost =
+          actor.sprinting
+              ? 0.45
+              : actor.sprintAnticipating
               ? 0.25
               : 0.0;
       final pathBoost = projectedPath ? 0.25 : 0.0;
@@ -1273,7 +1820,8 @@ class GameSimulation {
   int botHunterReacquisitionCount(String botId) =>
       _botHunters[botId]?.reacquisitionCount ?? 0;
 
-  int get activeHunterCount => snakes.where((snake) {
+  int get activeHunterCount =>
+      snakes.where((snake) {
         return snake.kind == SnakeKind.bot &&
             snake.alive &&
             _botHunters.containsKey(snake.id);
@@ -1301,9 +1849,12 @@ class GameSimulation {
   bool botPlanUsesTacticalPrecision(String botId) =>
       _botPlans[botId]?.tacticalPrecision ?? false;
 
-  int get activeOpportunityResponderCount => _botOpportunityRoles.entries
-      .where((entry) => entry.value != _TacticalOpportunityRole.innerSurvivor)
-      .length;
+  int get activeOpportunityResponderCount =>
+      _botOpportunityRoles.entries
+          .where(
+            (entry) => entry.value != _TacticalOpportunityRole.innerSurvivor,
+          )
+          .length;
 
   bool get playerEnclosureOpportunity => _opportunity.playerEnclosing;
 
@@ -1594,10 +2145,7 @@ class GameSimulation {
   }
 
   void abandon() {
-    _emitCaptureEvent(
-      SimulationEventKind.abandoned,
-      actorId: player.id,
-    );
+    _emitCaptureEvent(SimulationEventKind.abandoned, actorId: player.id);
   }
 
   void _emitCaptureEvent(
@@ -1610,9 +2158,10 @@ class GameSimulation {
   }) {
     captureSink?.recordEvent(
       SimulationEventSnapshot(
-        tick: _isProcessingFixedStep
-            ? _currentSimulationTick
-            : _currentSimulationTick + 1,
+        tick:
+            _isProcessingFixedStep
+                ? _currentSimulationTick
+                : _currentSimulationTick + 1,
         kind: kind,
         actorId: actorId,
         targetId: targetId,
@@ -1676,9 +2225,10 @@ class GameSimulation {
       _capturedBotRoles[actor.id] = role;
 
       final maneuver = _botManeuvers[actor.id];
-      final maneuverState = maneuver == null
-          ? 'none'
-          : '${maneuver.kind.name}:${maneuver.phase.name}';
+      final maneuverState =
+          maneuver == null
+              ? 'none'
+              : '${maneuver.kind.name}:${maneuver.phase.name}';
       final previousManeuver = _capturedBotManeuvers[actor.id];
       if (previousManeuver != null && previousManeuver != maneuverState) {
         _emitCaptureEvent(
@@ -1716,25 +2266,24 @@ class GameSimulation {
         ),
       );
     }
-    final nearbyNaturalFood = _nearbyFood(
-      player.head,
-      config.threatRadius,
-      _pelletBuckets,
-    ).length;
-    final nearbyDroppedMass = _nearbyFood(
-      player.head,
-      config.threatRadius,
-      _droppedMassBuckets,
-    ).length;
+    final nearbyNaturalFood =
+        _nearbyFood(player.head, config.threatRadius, _pelletBuckets).length;
+    final nearbyDroppedMass =
+        _nearbyFood(
+          player.head,
+          config.threatRadius,
+          _droppedMassBuckets,
+        ).length;
     final warningBuffer = config.arenaBoundaryWarningBuffer;
-    final boundaryRisk = warningBuffer <= 0
-        ? 0.0
-        : ((player.head.length -
-                    (config.arenaRadius - warningBuffer) +
-                    player.radius) /
-                warningBuffer)
-            .clamp(0.0, 1.0)
-            .toDouble();
+    final boundaryRisk =
+        warningBuffer <= 0
+            ? 0.0
+            : ((player.head.length -
+                        (config.arenaRadius - warningBuffer) +
+                        player.radius) /
+                    warningBuffer)
+                .clamp(0.0, 1.0)
+                .toDouble();
     final threatSignals =
         (_captureTacticalAnalysis
                 ? _currentCaptureThreats.values
@@ -1785,10 +2334,7 @@ class GameSimulation {
     }
     actor.sprintRequested = true;
     actor.sprintAnticipationRemaining = config.sprintAnticipationDuration;
-    _emitCaptureEvent(
-      SimulationEventKind.sprintRequested,
-      actorId: actor.id,
-    );
+    _emitCaptureEvent(SimulationEventKind.sprintRequested, actorId: actor.id);
     _recordTelegraphEvent(actor, TelegraphEventKind.sprintAnticipation);
   }
 
@@ -1847,10 +2393,11 @@ class GameSimulation {
     final currentHeading = player.heading;
     final turn = _shortestAngle(currentHeading.angle - previousHeading.angle);
     final instantaneousTurnRate = dt <= 0 ? 0.0 : turn / dt;
-    _observedPlayerTurnRate = (_observedPlayerTurnRate * 0.65 +
-            instantaneousTurnRate.clamp(-8.0, 8.0).toDouble() * 0.35)
-        .clamp(-8.0, 8.0)
-        .toDouble();
+    _observedPlayerTurnRate =
+        (_observedPlayerTurnRate * 0.65 +
+                instantaneousTurnRate.clamp(-8.0, 8.0).toDouble() * 0.35)
+            .clamp(-8.0, 8.0)
+            .toDouble();
     _playerTurnCommitmentRemaining =
         math.max(0, _playerTurnCommitmentRemaining - dt).toDouble();
     final sharpTurn = instantaneousTurnRate.abs() >= 1.2;
@@ -1865,7 +2412,8 @@ class GameSimulation {
         } else {
           _interruptBotPursuit(bot);
         }
-        final side = Vec2(-currentHeading.y, currentHeading.x) *
+        final side =
+            Vec2(-currentHeading.y, currentHeading.x) *
             (bot.id.hashCode.isEven ? 1.0 : -1.0);
         bot.heading = (bot.heading * 0.82 + side * 0.18).normalized();
       }
@@ -1920,11 +2468,7 @@ class GameSimulation {
     _indexFood(droppedMass, _droppedMassBuckets);
   }
 
-  _BodySample _claimBodySample(
-    SnakeState owner,
-    int index,
-    Vec2 position,
-  ) {
+  _BodySample _claimBodySample(SnakeState owner, int index, Vec2 position) {
     if (_bodySampleCount == _bodySamplePool.length) {
       _bodySamplePool.add(
         _BodySample(owner: owner, index: index, position: position),
@@ -2017,15 +2561,17 @@ class GameSimulation {
           (bot.sprinting || bot.sprintRequested)) {
         _interruptBotPursuit(bot);
       }
-      final speedTarget = emergencyAvoidance.length > 0
-          ? config.botYieldSpeedMultiplier
-          : plan.speedMultiplier;
+      final speedTarget =
+          emergencyAvoidance.length > 0
+              ? config.botYieldSpeedMultiplier
+              : plan.speedMultiplier;
       final speedSmoothing = (dt * 8).clamp(0.0, 1.0).toDouble();
       bot.tacticalSpeedMultiplier +=
           (speedTarget - bot.tacticalSpeedMultiplier) * speedSmoothing;
-      bot.tacticalSpeedMultiplier = bot.tacticalSpeedMultiplier
-          .clamp(config.botYieldSpeedMultiplier, 1.0)
-          .toDouble();
+      bot.tacticalSpeedMultiplier =
+          bot.tacticalSpeedMultiplier
+              .clamp(config.botYieldSpeedMultiplier, 1.0)
+              .toDouble();
       if (emergencyAvoidance.length > 0) {
         _holdBotSafety(bot, emergencyAvoidance);
         if (bot.sprinting || bot.sprintRequested) {
@@ -2085,17 +2631,15 @@ class GameSimulation {
     final hunter = _botHunters[bot.id];
     if (hunter == null) return;
     hunter.reacquisitionCount++;
-    final maneuver = _botManeuvers.putIfAbsent(
-      bot.id,
-      _BotManeuverState.new,
-    );
+    final maneuver = _botManeuvers.putIfAbsent(bot.id, _BotManeuverState.new);
     maneuver.failedApproaches++;
     maneuver.side *= -1;
     maneuver.phase = _BotManeuverPhase.stage;
-    maneuver.remaining = math
-        .min(config.botManeuverStageDuration, 0.2)
-        .clamp(0.0, double.infinity)
-        .toDouble();
+    maneuver.remaining =
+        math
+            .min(config.botManeuverStageDuration, 0.2)
+            .clamp(0.0, double.infinity)
+            .toDouble();
     maneuver.anchor = _playerRoutePoint(0.55);
     maneuver.observedPlayerHeading = player.heading;
     maneuver.observedPlayerPosition = player.head;
@@ -2124,9 +2668,10 @@ class GameSimulation {
     _playerBehavior.sprintRecoveryRemaining =
         math.max(0, _playerBehavior.sprintRecoveryRemaining - dt).toDouble();
 
-    final turnSign = _observedPlayerTurnRate.abs() < 0.35
-        ? 0.0
-        : _observedPlayerTurnRate.sign;
+    final turnSign =
+        _observedPlayerTurnRate.abs() < 0.35
+            ? 0.0
+            : _observedPlayerTurnRate.sign;
     if (turnSign != 0) {
       _playerBehavior.escapeSideBias =
           (_playerBehavior.escapeSideBias + turnSign * dt * 1.8)
@@ -2191,12 +2736,13 @@ class GameSimulation {
     if (speed <= 0 || _bodyBuckets.isEmpty) return Vec2.zero;
     final lookahead = math.min(0.28, config.botCollisionLookahead).toDouble();
     final future = bot.head + bot.heading * (speed * lookahead);
-    final radius = math
-        .max(
-          bot.radius * 2 + config.segmentSpacing,
-          config.botPeerHardAvoidanceRadius * 0.42,
-        )
-        .toDouble();
+    final radius =
+        math
+            .max(
+              bot.radius * 2 + config.segmentSpacing,
+              config.botPeerHardAvoidanceRadius * 0.42,
+            )
+            .toDouble();
     var escape = Vec2.zero;
     var maximumUrgency = 0.0;
     for (final sample in _nearbyBodySamples(future, radius)) {
@@ -2217,12 +2763,14 @@ class GameSimulation {
         separation: distance,
       );
       if (motionThreat <= 0) continue;
-      final urgency = (((radius - distance) / radius) * motionThreat)
-          .clamp(0.0, 1.0)
-          .toDouble();
+      final urgency =
+          (((radius - distance) / radius) * motionThreat)
+              .clamp(0.0, 1.0)
+              .toDouble();
       if (urgency <= maximumUrgency) continue;
       maximumUrgency = urgency;
-      final side = Vec2(-bot.heading.y, bot.heading.x) *
+      final side =
+          Vec2(-bot.heading.y, bot.heading.x) *
           (bot.id.compareTo(sample.owner.id) <= 0 ? 1.0 : -1.0);
       final away = distance == 0 ? side : offset.normalized();
       escape = (away * 0.35 + side * 0.95).normalized();
@@ -2238,9 +2786,10 @@ class GameSimulation {
       (total, snake) => total + (snake.alive ? snake.body.length : 0),
     );
     final worldLoad = bodyLoad + pellets.length + droppedMass.length;
-    final busyMultiplier = worldLoad <= config.busyPlanningLoadThreshold
-        ? 1.0
-        : config.busyPlanningIntervalMultiplier.clamp(1.0, 4.0).toDouble();
+    final busyMultiplier =
+        worldLoad <= config.busyPlanningLoadThreshold
+            ? 1.0
+            : config.busyPlanningIntervalMultiplier.clamp(1.0, 4.0).toDouble();
     return math
         .max(0.04, config.botTacticalDecisionInterval * busyMultiplier)
         .toDouble();
@@ -2255,22 +2804,24 @@ class GameSimulation {
     _botPlans.clear();
     _botRouteReservations.clear();
     _botTacticalRejections.clear();
-    final planningBots = snakes
-        .where((snake) => snake.kind == SnakeKind.bot && snake.alive)
-        .toList()
-      ..sort((left, right) {
-        final leftPriority = _botPlanningPriority(left);
-        final rightPriority = _botPlanningPriority(right);
-        final order = rightPriority.compareTo(leftPriority);
-        return order == 0 ? left.id.compareTo(right.id) : order;
-      });
+    final planningBots =
+        snakes
+            .where((snake) => snake.kind == SnakeKind.bot && snake.alive)
+            .toList()
+          ..sort((left, right) {
+            final leftPriority = _botPlanningPriority(left);
+            final rightPriority = _botPlanningPriority(right);
+            final order = rightPriority.compareTo(leftPriority);
+            return order == 0 ? left.id.compareTo(right.id) : order;
+          });
 
     for (final bot in planningBots) {
       _advanceBotTactic(bot);
       if (!bot.retreating && bot.length >= config.botRetreatLength) {
         bot.retreating = true;
       }
-      final trappedCounterplay = _botOpportunityRoles[bot.id] ==
+      final trappedCounterplay =
+          _botOpportunityRoles[bot.id] ==
           _TacticalOpportunityRole.innerSurvivor;
       if (_shouldPrioritizeRetreat(bot) && !trappedCounterplay) {
         if (_botOpportunityRoles.containsKey(bot.id) ||
@@ -2332,14 +2883,11 @@ class GameSimulation {
       final rightOfWayOwner = _botYieldingTo[bot.id];
       if (rightOfWayOwner != null) {
         if (_yieldCorridorStillBlocked(bot, rightOfWayOwner)) {
-          final escape = peerRisk.escape.length == 0
-              ? _botSafetyEscapes[bot.id] ?? _peerYieldFallback(bot)
-              : peerRisk.escape;
-          _holdBotSafety(
-            bot,
-            escape,
-            yieldingTo: rightOfWayOwner,
-          );
+          final escape =
+              peerRisk.escape.length == 0
+                  ? _botSafetyEscapes[bot.id] ?? _peerYieldFallback(bot)
+                  : peerRisk.escape;
+          _holdBotSafety(bot, escape, yieldingTo: rightOfWayOwner);
           _interruptBotPursuit(bot);
           _commitBotPlan(
             bot,
@@ -2356,9 +2904,10 @@ class GameSimulation {
       }
       final safetyHold = _botSafetyHolds[bot.id] ?? 0;
       if (safetyHold > 0) {
-        final escape = peerRisk.urgency >= 0.1
-            ? peerRisk.escape
-            : routeRisk.urgency >= 0.1
+        final escape =
+            peerRisk.urgency >= 0.1
+                ? peerRisk.escape
+                : routeRisk.urgency >= 0.1
                 ? routeRisk.escape
                 : _botSafetyEscapes[bot.id] ?? bot.heading;
         _interruptBotPursuit(bot);
@@ -2443,25 +2992,23 @@ class GameSimulation {
         _hunterHookGuardPlan(bot, state);
   }
 
-  void _holdBotSafety(
-    SnakeState bot,
-    Vec2 escape, {
-    String? yieldingTo,
-  }) {
+  void _holdBotSafety(SnakeState bot, Vec2 escape, {String? yieldingTo}) {
     _botSafetyHolds[bot.id] = 0.55;
     if (yieldingTo != null) {
       _botYieldingTo[bot.id] = yieldingTo;
     }
-    bot.tacticalSpeedMultiplier = math
-        .min(bot.tacticalSpeedMultiplier, config.botYieldSpeedMultiplier)
-        .toDouble();
+    bot.tacticalSpeedMultiplier =
+        math
+            .min(bot.tacticalSpeedMultiplier, config.botYieldSpeedMultiplier)
+            .toDouble();
     if (escape.length > 0) {
       _botSafetyEscapes[bot.id] = escape.normalized();
     }
   }
 
   Vec2 _peerYieldFallback(SnakeState bot) {
-    final side = Vec2(-bot.heading.y, bot.heading.x) *
+    final side =
+        Vec2(-bot.heading.y, bot.heading.x) *
         (bot.id.hashCode.isEven ? 1.0 : -1.0);
     return (bot.heading * 0.25 + side).normalized();
   }
@@ -2519,7 +3066,8 @@ class GameSimulation {
     if (!player.alive || plan.intent.length == 0) return false;
     const horizon = 0.72;
     const samples = 5;
-    final botSpeed = bot.speed *
+    final botSpeed =
+        bot.speed *
         plan.speedMultiplier *
         (plan.allowSprint ? config.botSprintMultiplier : 1.0);
     final collisionWindow = bot.radius + player.radius + 46;
@@ -2543,9 +3091,10 @@ class GameSimulation {
     final disposition =
         bot.disposition == BotDisposition.aggressive ? 1.4 : 1.0;
     final hunter = botIsHunter(bot.id) ? 2.5 : 1.0;
-    final opportunity = _botOpportunityRoles.containsKey(bot.id)
-        ? 2.2
-        : _playerBehavior.circularCommitment >= 0.45
+    final opportunity =
+        _botOpportunityRoles.containsKey(bot.id)
+            ? 2.2
+            : _playerBehavior.circularCommitment >= 0.45
             ? 1.12
             : 1.0;
     return sizePressure *
@@ -2565,7 +3114,8 @@ class GameSimulation {
   }) {
     final requested = intent.length == 0 ? bot.heading : intent.normalized();
     final deconflicted = _deconflictBotIntent(bot, requested);
-    final sprintViable = wantsSprint &&
+    final sprintViable =
+        wantsSprint &&
         bot.botSprintCooldownRemaining <= 0 &&
         bot.length > config.botSprintMinimumLength;
     final safety = _finalRouteSafety(
@@ -2580,9 +3130,12 @@ class GameSimulation {
     final finalMode =
         unsafe && mode != _BotPlanMode.retreat ? _BotPlanMode.evadePeer : mode;
     final allowSprint = wantsSprint && !unsafe;
-    final finalSpeedMultiplier = unsafe
-        ? config.botYieldSpeedMultiplier
-        : speedMultiplier.clamp(config.botYieldSpeedMultiplier, 1.0).toDouble();
+    final finalSpeedMultiplier =
+        unsafe
+            ? config.botYieldSpeedMultiplier
+            : speedMultiplier
+                .clamp(config.botYieldSpeedMultiplier, 1.0)
+                .toDouble();
     final plan = _BotPlan(
       intent: finalIntent,
       mode: finalMode,
@@ -2601,7 +3154,8 @@ class GameSimulation {
     );
     final finalIntent = plan.intent;
     if (finalIntent.length > 0) {
-      final projectedSpeed = math.max(1.0, bot.speed * plan.speedMultiplier) *
+      final projectedSpeed =
+          math.max(1.0, bot.speed * plan.speedMultiplier) *
           (plan.allowSprint ? config.botSprintMultiplier : 1.0);
       final duration = math.max(0.2, config.botReservationHorizon).toDouble();
       _botRouteReservations.add(
@@ -2624,7 +3178,8 @@ class GameSimulation {
     final plan = _botPlans[bot.id];
     if (plan == null) return;
     final sprinting = bot.sprinting || bot.sprintRequested || plan.allowSprint;
-    final routeSpeed = math.max(1.0, bot.speed * plan.speedMultiplier) *
+    final routeSpeed =
+        math.max(1.0, bot.speed * plan.speedMultiplier) *
         (sprinting ? config.botSprintMultiplier : 1.0);
     final horizon = math.max(0.2, config.botReservationHorizon).toDouble();
     final committedTarget = _projectBotRoutePoint(
@@ -2675,7 +3230,8 @@ class GameSimulation {
     if (intended.length == 0) return (risk: 1.0, escape: bot.heading);
     final direction = intended.normalized();
     final horizon = math.max(0.2, config.botReservationHorizon).toDouble();
-    final routeSpeed = math.max(1.0, bot.speed * speedMultiplier) *
+    final routeSpeed =
+        math.max(1.0, bot.speed * speedMultiplier) *
         (sprinting ? config.botSprintMultiplier : 1.0);
     final target = _projectBotRoutePoint(
       bot,
@@ -2759,11 +3315,12 @@ class GameSimulation {
           break;
         }
       }
-      final separation = axis.length == 0
-          ? owner == null
-              ? Vec2(-result.y, result.x)
-              : _peerYieldSide(bot, owner)
-          : axis.normalized();
+      final separation =
+          axis.length == 0
+              ? owner == null
+                  ? Vec2(-result.y, result.x)
+                  : _peerYieldSide(bot, owner)
+              : axis.normalized();
       result = (result * 0.35 + separation * 1.15).normalized();
       if (_routeCorridorsConflict(bot, result, reservation)) {
         _botYieldingTo[bot.id] = reservation.ownerId;
@@ -2780,21 +3337,19 @@ class GameSimulation {
     _BotRouteReservation reservation,
   ) {
     const samples = 6;
-    final minimum = math
+    final minimum =
+        math
             .max(config.botRouteReservationDistance, reservation.radius)
             .toDouble() *
         (reservation.sprinting ? 1.12 : 1.0);
-    final sharedHorizon = math
-        .min(config.botReservationHorizon, reservation.duration)
-        .clamp(0.01, double.infinity)
-        .toDouble();
+    final sharedHorizon =
+        math
+            .min(config.botReservationHorizon, reservation.duration)
+            .clamp(0.01, double.infinity)
+            .toDouble();
     final ownDirection = intended.normalized();
     final otherDirection = reservation.intent.normalized();
-    final ownRouteEnd = _projectBotRoutePoint(
-      bot,
-      ownDirection,
-      sharedHorizon,
-    );
+    final ownRouteEnd = _projectBotRoutePoint(bot, ownDirection, sharedHorizon);
     final otherRouteEnd = _projectTurningPoint(
       start: reservation.start,
       heading: reservation.startHeading,
@@ -2815,23 +3370,27 @@ class GameSimulation {
     final otherSpeed = reservation.speed;
     final relativeVelocity =
         ownRouteDirection * ownSpeed - otherRouteDirection * otherSpeed;
-    final closingRatio = startOffset.length == 0
-        ? 1.0
-        : ((relativeVelocity.x * startOffset.normalized().x +
-                    relativeVelocity.y * startOffset.normalized().y) /
-                math.max(1.0, ownSpeed + otherSpeed))
-            .clamp(0.0, 1.0)
-            .toDouble();
-    final parallel = _alignment(ownRouteDirection, otherRouteDirection) >=
+    final closingRatio =
+        startOffset.length == 0
+            ? 1.0
+            : ((relativeVelocity.x * startOffset.normalized().x +
+                        relativeVelocity.y * startOffset.normalized().y) /
+                    math.max(1.0, ownSpeed + otherSpeed))
+                .clamp(0.0, 1.0)
+                .toDouble();
+    final parallel =
+        _alignment(ownRouteDirection, otherRouteDirection) >=
         config.botParallelAlignmentThreshold;
     final lethalCore =
         20 * config.collisionCoreScale.clamp(0.0, 1.0).toDouble();
-    final tightParallel = _alignment(ownRouteDirection, otherRouteDirection) >=
+    final tightParallel =
+        _alignment(ownRouteDirection, otherRouteDirection) >=
         math.max(config.botParallelAlignmentThreshold, 0.96);
     if (tightParallel) {
-      final lateralSeparation = (startOffset.x * ownRouteDirection.y -
-              startOffset.y * ownRouteDirection.x)
-          .abs();
+      final lateralSeparation =
+          (startOffset.x * ownRouteDirection.y -
+                  startOffset.y * ownRouteDirection.x)
+              .abs();
       if (lateralSeparation >= lethalCore) return false;
     }
     if (parallel &&
@@ -2933,7 +3492,8 @@ class GameSimulation {
       if (owner.kind == SnakeKind.player) return _playerRoutePoint(headLead);
       final plan = _botPlans[owner.id];
       final intent = plan?.intent ?? owner.heading;
-      final projectedSpeed = owner.speed *
+      final projectedSpeed =
+          owner.speed *
           (plan?.speedMultiplier ?? owner.tacticalSpeedMultiplier) *
           ((owner.sprinting || owner.sprintRequested)
               ? config.botSprintMultiplier
@@ -2961,8 +3521,11 @@ class GameSimulation {
     void addFood(FoodPellet pellet, bool dropped) {
       final x = (pellet.position.x / bucketSize).floor();
       final y = (pellet.position.y / bucketSize).floor();
-      final bucket = _resourceFieldBuckets[_spatialKey(x, y)] ??=
-          _ResourceFieldBucket(gridX: x, gridY: y);
+      final bucket =
+          _resourceFieldBuckets[_spatialKey(x, y)] ??= _ResourceFieldBucket(
+            gridX: x,
+            gridY: y,
+          );
       final value = math.max(1, pellet.value).toInt();
       bucket.value += value;
       bucket.count++;
@@ -2992,8 +3555,11 @@ class GameSimulation {
       var localMaximum = true;
       for (var offsetX = -1; offsetX <= 1; offsetX++) {
         for (var offsetY = -1; offsetY <= 1; offsetY++) {
-          final neighbor = _resourceFieldBuckets[
-              _spatialKey(seed.gridX + offsetX, seed.gridY + offsetY)];
+          final neighbor =
+              _resourceFieldBuckets[_spatialKey(
+                seed.gridX + offsetX,
+                seed.gridY + offsetY,
+              )];
           if (neighbor == null || neighbor.count == 0) continue;
           final neighborCenter = Vec2(
             neighbor.weightedX / neighbor.value,
@@ -3013,13 +3579,11 @@ class GameSimulation {
           count < 2) {
         continue;
       }
-      final center = Vec2(
-        weightedX / value,
-        weightedY / value,
-      );
-      final radius = (42 + math.sqrt(count) * 18)
-          .clamp(42.0, config.botResourceFieldRadius)
-          .toDouble();
+      final center = Vec2(weightedX / value, weightedY / value);
+      final radius =
+          (42 + math.sqrt(count) * 18)
+              .clamp(42.0, config.botResourceFieldRadius)
+              .toDouble();
       final index = _resourceFields.length;
       if (index < _resourceFieldPool.length) {
         final field = _resourceFieldPool[index];
@@ -3064,9 +3628,10 @@ class GameSimulation {
       _opportunity.playerEnclosing = true;
       _opportunity.playerDevelopingHook = true;
       _opportunity.center = _lastEnclosureCenter;
-      _opportunity.gap = player.body.isEmpty
-          ? _lastEnclosureGap
-          : (player.body.first + player.body.last) * 0.5;
+      _opportunity.gap =
+          player.body.isEmpty
+              ? _lastEnclosureGap
+              : (player.body.first + player.body.last) * 0.5;
       _opportunity.radius = _lastEnclosureRadius;
       _opportunity.enclosureConfidence =
           (_lastEnclosureConfidence * 0.92).clamp(0.0, 1.0).toDouble();
@@ -3141,25 +3706,29 @@ class GameSimulation {
     final closureGap = body.first.distanceTo(body.last);
     final committedClosureLimit =
         math.max(120.0, averageRadius * 1.05).toDouble();
-    final hookClosureLimit = math
-        .max(
-          150.0,
-          averageRadius *
-              config.botHookClosureRadiusMultiplier.clamp(1.05, 2.4),
-        )
-        .toDouble();
-    final hookMinimumSweep = config.botEnclosureMinimumSweep *
+    final hookClosureLimit =
+        math
+            .max(
+              150.0,
+              averageRadius *
+                  config.botHookClosureRadiusMultiplier.clamp(1.05, 2.4),
+            )
+            .toDouble();
+    final hookMinimumSweep =
+        config.botEnclosureMinimumSweep *
         config.botHookMinimumSweepRatio.clamp(0.55, 1.0);
-    final sweepScore = (sweep / math.max(0.1, config.botEnclosureMinimumSweep))
-        .clamp(0.0, 1.0)
-        .toDouble();
+    final sweepScore =
+        (sweep / math.max(0.1, config.botEnclosureMinimumSweep))
+            .clamp(0.0, 1.0)
+            .toDouble();
     final closureScore =
         (1 - closureGap / hookClosureLimit).clamp(0.0, 1.0).toDouble();
     final confidence = sweepScore * 0.62 + closureScore * 0.38;
-    _playerBehavior.circularCommitment = math
-        .max(_playerBehavior.circularCommitment, confidence)
-        .clamp(0.0, 1.0)
-        .toDouble();
+    _playerBehavior.circularCommitment =
+        math
+            .max(_playerBehavior.circularCommitment, confidence)
+            .clamp(0.0, 1.0)
+            .toDouble();
     if (sweep < hookMinimumSweep ||
         closureGap > hookClosureLimit ||
         confidence < 0.5) {
@@ -3183,8 +3752,8 @@ class GameSimulation {
     _opportunity.playerEnclosing = true;
     _opportunity.playerDevelopingHook =
         sweep < config.botEnclosureMinimumSweep ||
-            closureGap > committedClosureLimit ||
-            confidence < 0.58;
+        closureGap > committedClosureLimit ||
+        confidence < 0.58;
     _opportunity.center = center;
     _opportunity.gap = (body.first + body.last) * 0.5;
     _opportunity.radius = radiusMaximum + player.radius;
@@ -3199,13 +3768,15 @@ class GameSimulation {
       final distance = player.head.distanceTo(field.center);
       if (distance > config.botOpportunitySenseRadius) continue;
       final direction = field.center - player.head;
-      final approaching = direction.length == 0 ||
+      final approaching =
+          direction.length == 0 ||
           _alignment(player.heading, direction) >= 0.08;
       final occupying = distance <= field.radius + 90;
       if (!approaching && !occupying) continue;
       final density = field.memberCount / math.max(1.0, field.radius / 40);
       final droppedBonus = field.droppedMemberCount > 0 ? 1.35 : 1.0;
-      final score = (field.value + density * 1.8) *
+      final score =
+          (field.value + density * 1.8) *
           droppedBonus /
           math.max(90.0, distance);
       if (score > bestScore) {
@@ -3242,10 +3813,11 @@ class GameSimulation {
   void _assignTacticalOpportunityRoles(List<SnakeState> active) {
     _botOpportunityRoles.clear();
     _botResourceRoles.clear();
-    final livingIds = snakes
-        .where((snake) => snake.kind == SnakeKind.bot && snake.alive)
-        .map((snake) => snake.id)
-        .toSet();
+    final livingIds =
+        snakes
+            .where((snake) => snake.kind == SnakeKind.bot && snake.alive)
+            .map((snake) => snake.id)
+            .toSet();
     final enclosedId = _opportunity.enclosedBotId;
     _botOpportunityCommitments.removeWhere(
       (id, commitment) =>
@@ -3265,12 +3837,13 @@ class GameSimulation {
       );
       for (final commitment in _botOpportunityCommitments.values) {
         if (commitment.subjectId == enclosedId) {
-          commitment.remaining = math
-              .max(
-                commitment.remaining,
-                config.botOpportunityCommitmentDuration,
-              )
-              .toDouble();
+          commitment.remaining =
+              math
+                  .max(
+                    commitment.remaining,
+                    config.botOpportunityCommitmentDuration,
+                  )
+                  .toDouble();
         }
       }
       _botOpportunityRoles.addEntries(
@@ -3280,39 +3853,54 @@ class GameSimulation {
       );
     }
     final field = _opportunity.resourceField;
-    final highValueResource = field != null &&
+    final highValueResource =
+        field != null &&
         field.value >= math.max(8, config.botResourceFieldMinimumValue * 2);
-    final recruitTacticalResponders = _opportunity.playerEnclosing ||
+    final recruitTacticalResponders =
+        _opportunity.playerEnclosing ||
         (!highValueResource &&
             (_opportunity.playerBoundaryPinned ||
                 _opportunity.playerSprintRecovering ||
                 _opportunity.playerInNarrowCorridor));
-    final candidates = active
-        .where(
-          (bot) =>
-              bot.id != enclosedId &&
-              !_botOpportunityRoles.containsKey(bot.id) &&
-              bot.head.distanceTo(_opportunity.center) <=
-                  config.botOpportunitySenseRadius,
-        )
-        .toList()
-      ..sort((left, right) {
-        final dispositionOrder = _opportunityDispositionPriority(left)
-            .compareTo(_opportunityDispositionPriority(right));
-        if (dispositionOrder != 0) return dispositionOrder;
-        final leftArrival = left.head.distanceTo(_opportunity.center) /
-            math.max(1.0, _effectiveSpeed(left));
-        final rightArrival = right.head.distanceTo(_opportunity.center) /
-            math.max(1.0, _effectiveSpeed(right));
-        final arrivalOrder = leftArrival.compareTo(rightArrival);
-        return arrivalOrder == 0 ? left.id.compareTo(right.id) : arrivalOrder;
-      });
-    final externalCommitments = _botOpportunityRoles.entries
-        .where((entry) => entry.value != _TacticalOpportunityRole.innerSurvivor)
-        .length;
-    final availableResponderSlots = recruitTacticalResponders
-        ? math.max(0, config.botOpportunityResponderLimit - externalCommitments)
-        : 0;
+    final candidates =
+        active
+            .where(
+              (bot) =>
+                  bot.id != enclosedId &&
+                  !_botOpportunityRoles.containsKey(bot.id) &&
+                  bot.head.distanceTo(_opportunity.center) <=
+                      config.botOpportunitySenseRadius,
+            )
+            .toList()
+          ..sort((left, right) {
+            final dispositionOrder = _opportunityDispositionPriority(
+              left,
+            ).compareTo(_opportunityDispositionPriority(right));
+            if (dispositionOrder != 0) return dispositionOrder;
+            final leftArrival =
+                left.head.distanceTo(_opportunity.center) /
+                math.max(1.0, _effectiveSpeed(left));
+            final rightArrival =
+                right.head.distanceTo(_opportunity.center) /
+                math.max(1.0, _effectiveSpeed(right));
+            final arrivalOrder = leftArrival.compareTo(rightArrival);
+            return arrivalOrder == 0
+                ? left.id.compareTo(right.id)
+                : arrivalOrder;
+          });
+    final externalCommitments =
+        _botOpportunityRoles.entries
+            .where(
+              (entry) => entry.value != _TacticalOpportunityRole.innerSurvivor,
+            )
+            .length;
+    final availableResponderSlots =
+        recruitTacticalResponders
+            ? math.max(
+              0,
+              config.botOpportunityResponderLimit - externalCommitments,
+            )
+            : 0;
     final responderCount =
         math.min(availableResponderSlots, candidates.length).toInt();
     for (var index = 0; index < responderCount; index++) {
@@ -3322,9 +3910,10 @@ class GameSimulation {
         final hasOuterConstrictor = _botOpportunityRoles.containsValue(
           _TacticalOpportunityRole.outerConstrictor,
         );
-        role = !hasOuterConstrictor
-            ? _TacticalOpportunityRole.outerConstrictor
-            : bot.disposition == BotDisposition.aggressive
+        role =
+            !hasOuterConstrictor
+                ? _TacticalOpportunityRole.outerConstrictor
+                : bot.disposition == BotDisposition.aggressive
                 ? _TacticalOpportunityRole.exitCutter
                 : _TacticalOpportunityRole.gapStriker;
         _botOpportunityCommitments[bot.id] = _BotOpportunityCommitment(
@@ -3333,38 +3922,44 @@ class GameSimulation {
           remaining: config.botOpportunityCommitmentDuration,
         );
       } else {
-        role = index == 0
-            ? _TacticalOpportunityRole.exitCutter
-            : _TacticalOpportunityRole.gapStriker;
+        role =
+            index == 0
+                ? _TacticalOpportunityRole.exitCutter
+                : _TacticalOpportunityRole.gapStriker;
       }
       _botOpportunityRoles[bot.id] = role;
     }
 
     if (field == null) return;
-    final resourceCandidates = active
-        .where(
-          (bot) =>
-              !_botOpportunityRoles.containsKey(bot.id) &&
-              bot.head.distanceTo(field.center) <=
-                  config.botOpportunitySenseRadius,
-        )
-        .toList()
-      ..sort((left, right) {
-        final leftArrival = left.head.distanceTo(field.center) /
-            math.max(1.0, _effectiveSpeed(left));
-        final rightArrival = right.head.distanceTo(field.center) /
-            math.max(1.0, _effectiveSpeed(right));
-        final order = leftArrival.compareTo(rightArrival);
-        return order == 0 ? left.id.compareTo(right.id) : order;
-      });
+    final resourceCandidates =
+        active
+            .where(
+              (bot) =>
+                  !_botOpportunityRoles.containsKey(bot.id) &&
+                  bot.head.distanceTo(field.center) <=
+                      config.botOpportunitySenseRadius,
+            )
+            .toList()
+          ..sort((left, right) {
+            final leftArrival =
+                left.head.distanceTo(field.center) /
+                math.max(1.0, _effectiveSpeed(left));
+            final rightArrival =
+                right.head.distanceTo(field.center) /
+                math.max(1.0, _effectiveSpeed(right));
+            final order = leftArrival.compareTo(rightArrival);
+            return order == 0 ? left.id.compareTo(right.id) : order;
+          });
     const roles = <_ResourceControlRole>[
       _ResourceControlRole.harvester,
       _ResourceControlRole.approachGuard,
       _ResourceControlRole.exitAmbusher,
     ];
-    for (var index = 0;
-        index < math.min(roles.length, resourceCandidates.length);
-        index++) {
+    for (
+      var index = 0;
+      index < math.min(roles.length, resourceCandidates.length);
+      index++
+    ) {
       _botResourceRoles[resourceCandidates[index].id] = roles[index];
     }
   }
@@ -3379,14 +3974,15 @@ class GameSimulation {
   }
 
   void _refreshBotFormation() {
-    final active = snakes
-        .where(
-          (snake) =>
-              snake.kind == SnakeKind.bot &&
-              snake.alive &&
-              !_shouldPrioritizeRetreat(snake),
-        )
-        .toList();
+    final active =
+        snakes
+            .where(
+              (snake) =>
+                  snake.kind == SnakeKind.bot &&
+                  snake.alive &&
+                  !_shouldPrioritizeRetreat(snake),
+            )
+            .toList();
     if (!player.alive) {
       _botFormationRoles.clear();
       _botHunters.clear();
@@ -3417,23 +4013,28 @@ class GameSimulation {
     }
     if (_botFormation.remaining > 0) return;
 
-    final engaged = active
-        .where(
-          (bot) =>
-              bot.head.distanceTo(player.head) <= config.botEngagementRadius,
-        )
-        .toList()
-      ..sort((left, right) {
-        final hunterOrder = (botIsHunter(left.id) ? 0 : 1)
-            .compareTo(botIsHunter(right.id) ? 0 : 1);
-        if (hunterOrder != 0) return hunterOrder;
-        final leftArrival =
-            left.head.distanceTo(anchor) / math.max(1.0, _effectiveSpeed(left));
-        final rightArrival = right.head.distanceTo(anchor) /
-            math.max(1.0, _effectiveSpeed(right));
-        final order = leftArrival.compareTo(rightArrival);
-        return order == 0 ? left.id.compareTo(right.id) : order;
-      });
+    final engaged =
+        active
+            .where(
+              (bot) =>
+                  bot.head.distanceTo(player.head) <=
+                  config.botEngagementRadius,
+            )
+            .toList()
+          ..sort((left, right) {
+            final hunterOrder = (botIsHunter(left.id) ? 0 : 1).compareTo(
+              botIsHunter(right.id) ? 0 : 1,
+            );
+            if (hunterOrder != 0) return hunterOrder;
+            final leftArrival =
+                left.head.distanceTo(anchor) /
+                math.max(1.0, _effectiveSpeed(left));
+            final rightArrival =
+                right.head.distanceTo(anchor) /
+                math.max(1.0, _effectiveSpeed(right));
+            final order = leftArrival.compareTo(rightArrival);
+            return order == 0 ? left.id.compareTo(right.id) : order;
+          });
 
     _botFormationRoles
       ..clear()
@@ -3447,24 +4048,26 @@ class GameSimulation {
     }
 
     final cluster = _bestDroppedMassCluster(engaged.first);
-    final contestedField = cluster != null &&
+    final contestedField =
+        cluster != null &&
         player.head.distanceTo(cluster.center) <=
             config.botDroppedMassGuardRadius;
-    final roles = contestedField
-        ? <_BotFormationRole>[
-            _BotFormationRole.leadCutoff,
-            _BotFormationRole.resourceGuard,
-            _BotFormationRole.leftScreen,
-            _BotFormationRole.rightScreen,
-            _BotFormationRole.reserve,
-          ]
-        : <_BotFormationRole>[
-            _BotFormationRole.leadCutoff,
-            _BotFormationRole.leftScreen,
-            _BotFormationRole.rightScreen,
-            _BotFormationRole.resourceGuard,
-            _BotFormationRole.reserve,
-          ];
+    final roles =
+        contestedField
+            ? <_BotFormationRole>[
+              _BotFormationRole.leadCutoff,
+              _BotFormationRole.resourceGuard,
+              _BotFormationRole.leftScreen,
+              _BotFormationRole.rightScreen,
+              _BotFormationRole.reserve,
+            ]
+            : <_BotFormationRole>[
+              _BotFormationRole.leadCutoff,
+              _BotFormationRole.leftScreen,
+              _BotFormationRole.rightScreen,
+              _BotFormationRole.resourceGuard,
+              _BotFormationRole.reserve,
+            ];
     for (var index = 0; index < engaged.length; index++) {
       _botFormationRoles[engaged[index].id] =
           roles[math.min(index, roles.length - 1)];
@@ -3485,19 +4088,22 @@ class GameSimulation {
       return;
     }
 
-    final candidates = active.toList()
-      ..sort((left, right) {
-        final persistenceOrder = (_botHunters.containsKey(left.id) ? 0 : 1)
-            .compareTo(_botHunters.containsKey(right.id) ? 0 : 1);
-        if (persistenceOrder != 0) return persistenceOrder;
-        final dispositionOrder = _hunterDispositionPriority(left)
-            .compareTo(_hunterDispositionPriority(right));
-        if (dispositionOrder != 0) return dispositionOrder;
-        final distanceOrder = left.head
-            .distanceTo(player.head)
-            .compareTo(right.head.distanceTo(player.head));
-        return distanceOrder == 0 ? left.id.compareTo(right.id) : distanceOrder;
-      });
+    final candidates =
+        active.toList()..sort((left, right) {
+          final persistenceOrder = (_botHunters.containsKey(left.id) ? 0 : 1)
+              .compareTo(_botHunters.containsKey(right.id) ? 0 : 1);
+          if (persistenceOrder != 0) return persistenceOrder;
+          final dispositionOrder = _hunterDispositionPriority(
+            left,
+          ).compareTo(_hunterDispositionPriority(right));
+          if (dispositionOrder != 0) return dispositionOrder;
+          final distanceOrder = left.head
+              .distanceTo(player.head)
+              .compareTo(right.head.distanceTo(player.head));
+          return distanceOrder == 0
+              ? left.id.compareTo(right.id)
+              : distanceOrder;
+        });
     final selected = <String>{
       for (var index = 0; index < desired; index++) candidates[index].id,
     };
@@ -3545,7 +4151,8 @@ class GameSimulation {
     Vec2 target;
     switch (role) {
       case _BotFormationRole.leadCutoff:
-        target = route +
+        target =
+            route +
             lateral * side * config.botFormationSeparationDistance * 0.28;
       case _BotFormationRole.leftScreen:
         target = route + lateral * config.botFormationSeparationDistance;
@@ -3558,11 +4165,13 @@ class GameSimulation {
                 config.botDroppedMassGuardRadius) {
           final approach = (cluster.center - player.head).normalized();
           final fieldLateral = Vec2(-approach.y, approach.x);
-          target = player.head +
+          target =
+              player.head +
               approach * config.botDroppedMassGuardDistance +
               fieldLateral * side * config.botFormationSeparationDistance;
         } else {
-          target = route +
+          target =
+              route +
               lateral * side * config.botFormationSeparationDistance * 1.25;
         }
       case _BotFormationRole.reserve:
@@ -3579,7 +4188,8 @@ class GameSimulation {
     );
     final previousTarget = state.expectedPlayerPosition;
     final playerTurned = _observedPlayerTurnRate.abs() >= 0.75;
-    final departedLane = previousTarget != null &&
+    final departedLane =
+        previousTarget != null &&
         _alignment(player.heading, previousTarget - player.head) < 0.2 &&
         player.head.distanceTo(previousTarget) >=
             config.botEvasionReplanDistance;
@@ -3605,15 +4215,17 @@ class GameSimulation {
     }
 
     final cluster = _bestDroppedMassCluster(bot);
-    final clusterContested = cluster != null &&
+    final clusterContested =
+        cluster != null &&
         player.alive &&
         player.head.distanceTo(cluster.center) <=
             config.botDroppedMassGuardRadius;
     if (clusterContested) {
       final claimRank = _droppedMassClaimRank(bot, cluster);
-      state.mode = claimRank == 0
-          ? _BotEngagementMode.harvest
-          : claimRank == 1
+      state.mode =
+          claimRank == 0
+              ? _BotEngagementMode.harvest
+              : claimRank == 1
               ? _BotEngagementMode.deny
               : _BotEngagementMode.screen;
       state.remaining = state.mode == _BotEngagementMode.harvest ? 0.85 : 0.65;
@@ -3621,9 +4233,10 @@ class GameSimulation {
         (botIsHunter(bot.id) ||
             bot.head.distanceTo(player.head) <= config.botEngagementRadius)) {
       final rank = _playerEngagementRank(bot);
-      state.mode = rank == 0
-          ? _BotEngagementMode.intercept
-          : rank == 1
+      state.mode =
+          rank == 0
+              ? _BotEngagementMode.intercept
+              : rank == 1
               ? _BotEngagementMode.screen
               : _BotEngagementMode.deny;
       state.remaining = state.mode == _BotEngagementMode.intercept ? 0.75 : 0.6;
@@ -3680,7 +4293,8 @@ class GameSimulation {
             player.head.distanceTo(cluster.center) <=
                 config.botDroppedMassGuardRadius) {
           final approach = (cluster.center - player.head).normalized();
-          target = player.head +
+          target =
+              player.head +
               approach * config.botDenyDistance +
               lateral * side * config.botScreenDistance * 0.45;
         } else {
@@ -3697,13 +4311,15 @@ class GameSimulation {
       case _BotEngagementMode.harvest:
         final cluster = _bestDroppedMassCluster(bot);
         if (cluster == null) return Vec2.zero;
-        target = cluster.center +
+        target =
+            cluster.center +
             lateral * side * config.botEngagementLaneDistance * 0.3;
       case _BotEngagementMode.abort:
         final risk = _playerRouteRisk(bot);
-        final escape = risk.escape.length == 0
-            ? (bot.head - player.head).normalized()
-            : risk.escape;
+        final escape =
+            risk.escape.length == 0
+                ? (bot.head - player.head).normalized()
+                : risk.escape;
         target = bot.head + escape * config.botScreenDistance * 1.8;
     }
 
@@ -3717,14 +4333,17 @@ class GameSimulation {
     double preferredOffset,
     List<double> offsets,
   ) {
-    var bestTarget = _playerRoutePoint(lead) +
+    var bestTarget =
+        _playerRoutePoint(lead) +
         Vec2(-player.heading.y, player.heading.x) * preferredOffset;
     var bestScore = double.infinity;
     for (final offset in offsets) {
-      final candidate = _playerRoutePoint(lead) +
+      final candidate =
+          _playerRoutePoint(lead) +
           Vec2(-player.heading.y, player.heading.x) * offset;
       final risk = _engagementLaneRisk(bot, candidate);
-      final preferencePenalty = (offset - preferredOffset).abs() /
+      final preferencePenalty =
+          (offset - preferredOffset).abs() /
           math.max(config.botEngagementLaneDistance, 1.0);
       final score = risk * 8 + preferencePenalty * 0.16;
       if (score < bestScore) {
@@ -3747,9 +4366,11 @@ class GameSimulation {
 
   _BotManeuverState _ensureBotManeuver(SnakeState bot) {
     final state = _botManeuvers.putIfAbsent(bot.id, _BotManeuverState.new);
-    final committed = state.phase == _BotManeuverPhase.commit ||
+    final committed =
+        state.phase == _BotManeuverPhase.commit ||
         state.phase == _BotManeuverPhase.execute;
-    final playerEscaped = committed &&
+    final playerEscaped =
+        committed &&
         (_alignment(state.observedPlayerHeading, player.heading) < 0.45 ||
             (player.head.distanceTo(state.observedPlayerPosition) >=
                     config.botEvasionReplanDistance &&
@@ -3764,27 +4385,28 @@ class GameSimulation {
       final hunter = _botHunters[bot.id];
       if (hunter == null) {
         state.phase = _BotManeuverPhase.recover;
-        state.remaining = math
-            .min(
-              state.remaining,
-              config.botManeuverRecoveryDuration,
-            )
-            .toDouble();
+        state.remaining =
+            math
+                .min(state.remaining, config.botManeuverRecoveryDuration)
+                .toDouble();
       } else {
         hunter.reacquisitionCount++;
         state.phase = _BotManeuverPhase.stage;
-        state.remaining = math
-            .min(config.botManeuverStageDuration, 0.2)
-            .clamp(0.0, double.infinity)
-            .toDouble();
+        state.remaining =
+            math
+                .min(config.botManeuverStageDuration, 0.2)
+                .clamp(0.0, double.infinity)
+                .toDouble();
         state.anchor = _playerRoutePoint(0.55);
       }
     }
 
     final stageTarget = _maneuverStageTarget(bot, state);
-    final arrivedAtStage = state.phase == _BotManeuverPhase.stage &&
+    final arrivedAtStage =
+        state.phase == _BotManeuverPhase.stage &&
         bot.head.distanceTo(stageTarget) <= 105;
-    final playerCommitted = state.phase == _BotManeuverPhase.wait &&
+    final playerCommitted =
+        state.phase == _BotManeuverPhase.wait &&
         _playerCommittedToManeuver(state);
     if (state.remaining > 0 && !arrivedAtStage && !playerCommitted) {
       return state;
@@ -3792,16 +4414,18 @@ class GameSimulation {
 
     switch (state.phase) {
       case _BotManeuverPhase.stage:
-        state.phase = state.kind == _BotManeuverKind.baitAmbush ||
-                state.kind == _BotManeuverKind.counterCut ||
-                (_botHunters[bot.id]?.style ==
-                        _BotHunterStyle.patientConstrictor &&
-                    state.kind == _BotManeuverKind.constrictor)
-            ? _BotManeuverPhase.wait
-            : _BotManeuverPhase.commit;
-        state.remaining = state.phase == _BotManeuverPhase.wait
-            ? config.botManeuverStageDuration * 0.8
-            : config.botManeuverCommitDuration;
+        state.phase =
+            state.kind == _BotManeuverKind.baitAmbush ||
+                    state.kind == _BotManeuverKind.counterCut ||
+                    (_botHunters[bot.id]?.style ==
+                            _BotHunterStyle.patientConstrictor &&
+                        state.kind == _BotManeuverKind.constrictor)
+                ? _BotManeuverPhase.wait
+                : _BotManeuverPhase.commit;
+        state.remaining =
+            state.phase == _BotManeuverPhase.wait
+                ? config.botManeuverStageDuration * 0.8
+                : config.botManeuverCommitDuration;
       case _BotManeuverPhase.wait:
         state.phase = _BotManeuverPhase.commit;
         state.remaining = config.botManeuverCommitDuration;
@@ -3824,10 +4448,7 @@ class GameSimulation {
     return state;
   }
 
-  _BotManeuverKind _selectManeuver(
-    SnakeState bot,
-    _BotManeuverState state,
-  ) {
+  _BotManeuverKind _selectManeuver(SnakeState bot, _BotManeuverState state) {
     final opportunityRole = _botOpportunityRoles[bot.id];
     if (opportunityRole != null) {
       return switch (opportunityRole) {
@@ -3868,8 +4489,8 @@ class GameSimulation {
           _BotManeuverKind.constrictor,
           _BotManeuverKind.feintReversal,
         ];
-        return portfolio[
-            (state.sequence + state.failedApproaches) % portfolio.length];
+        return portfolio[(state.sequence + state.failedApproaches) %
+            portfolio.length];
       case BotDisposition.opportunistic:
         if (_bestDroppedMassCluster(bot) != null ||
             _playerBehavior.resourceAttraction >= 0.25) {
@@ -3899,15 +4520,18 @@ class GameSimulation {
     _BotManeuverState state,
   ) {
     return switch (style) {
-      _BotHunterStyle.leadInterceptor => state.sequence.isEven
-          ? _BotManeuverKind.laneExecution
-          : _BotManeuverKind.constrictor,
-      _BotHunterStyle.lateralHarrier => state.sequence.isEven
-          ? _BotManeuverKind.feintReversal
-          : _BotManeuverKind.counterCut,
-      _BotHunterStyle.sprintBrakeTrap => state.sequence.isEven
-          ? _BotManeuverKind.feintReversal
-          : _BotManeuverKind.laneExecution,
+      _BotHunterStyle.leadInterceptor =>
+        state.sequence.isEven
+            ? _BotManeuverKind.laneExecution
+            : _BotManeuverKind.constrictor,
+      _BotHunterStyle.lateralHarrier =>
+        state.sequence.isEven
+            ? _BotManeuverKind.feintReversal
+            : _BotManeuverKind.counterCut,
+      _BotHunterStyle.sprintBrakeTrap =>
+        state.sequence.isEven
+            ? _BotManeuverKind.feintReversal
+            : _BotManeuverKind.laneExecution,
       _BotHunterStyle.patientConstrictor => _BotManeuverKind.constrictor,
     };
   }
@@ -3956,19 +4580,21 @@ class GameSimulation {
     switch (state.kind) {
       case _BotManeuverKind.laneExecution:
         final pressure = _playerPressure(bot);
-        final pressureTarget = pressure.length == 0
-            ? _playerRoutePoint(0.95)
-            : bot.head + pressure.normalized() * 260;
+        final pressureTarget =
+            pressure.length == 0
+                ? _playerRoutePoint(0.95)
+                : bot.head + pressure.normalized() * 260;
         return pressureTarget + lateral * state.side * 245;
       case _BotManeuverKind.counterCut:
         return player.head + player.heading * 105 + lateral * state.side * 205;
       case _BotManeuverKind.constrictor:
         final geometry = _geometryAttackPlan(bot);
         if (geometry.attack) return geometry.target;
-        final midpoint = player.body[math.min(
-          player.body.length - 1,
-          math.max(1, player.body.length ~/ 2),
-        )];
+        final midpoint =
+            player.body[math.min(
+              player.body.length - 1,
+              math.max(1, player.body.length ~/ 2),
+            )];
         final widen = _playerBehavior.gapCamping >= 0.22 ? 1.65 : 1.0;
         return midpoint +
             lateral * state.side * config.botEncircleGapDistance * widen;
@@ -4020,24 +4646,31 @@ class GameSimulation {
     _BotHunterStyle style,
   ) {
     final distance = bot.head.distanceTo(player.head);
-    final arrival = (distance / math.max(1.0, _effectiveSpeed(bot)) * 0.52)
-        .clamp(0.65, 2.8)
-        .toDouble();
+    final arrival =
+        (distance / math.max(1.0, _effectiveSpeed(bot)) * 0.52)
+            .clamp(0.65, 2.8)
+            .toDouble();
     final route = _playerRoutePoint(arrival);
     final lateral = Vec2(-player.heading.y, player.heading.x);
-    final approachWidth = math
-        .min(config.botHunterReentryDistance, math.max(95.0, distance * 0.2))
-        .toDouble();
+    final approachWidth =
+        math
+            .min(
+              config.botHunterReentryDistance,
+              math.max(95.0, distance * 0.2),
+            )
+            .toDouble();
     return switch (style) {
       _BotHunterStyle.leadInterceptor =>
         route + lateral * maneuver.side * approachWidth * 0.38,
       _BotHunterStyle.lateralHarrier =>
         route + lateral * maneuver.side * approachWidth,
-      _BotHunterStyle.sprintBrakeTrap => route -
-          player.heading * 70 +
-          lateral * maneuver.side * approachWidth * 0.52,
-      _BotHunterStyle.patientConstrictor => _playerRoutePoint(arrival * 0.72) +
-          lateral * maneuver.side * approachWidth * 0.82,
+      _BotHunterStyle.sprintBrakeTrap =>
+        route -
+            player.heading * 70 +
+            lateral * maneuver.side * approachWidth * 0.52,
+      _BotHunterStyle.patientConstrictor =>
+        _playerRoutePoint(arrival * 0.72) +
+            lateral * maneuver.side * approachWidth * 0.82,
     };
   }
 
@@ -4076,7 +4709,8 @@ class GameSimulation {
         }
       case _BotManeuverPhase.commit:
         speedMultiplier = 1;
-        wantsSprint = state.kind == _BotManeuverKind.laneExecution ||
+        wantsSprint =
+            state.kind == _BotManeuverKind.laneExecution ||
             state.kind == _BotManeuverKind.counterCut ||
             state.kind == _BotManeuverKind.feintReversal ||
             state.kind == _BotManeuverKind.baitAmbush;
@@ -4086,7 +4720,8 @@ class GameSimulation {
           case _BotManeuverKind.counterCut:
             target = _playerRoutePoint(0.38) - lateral * state.side * 125;
           case _BotManeuverKind.constrictor:
-            target = _playerRoutePoint(0.3) +
+            target =
+                _playerRoutePoint(0.3) +
                 lateral *
                     state.side *
                     (_playerBehavior.gapCamping >= 0.22 ? 175 : 75);
@@ -4101,11 +4736,13 @@ class GameSimulation {
           case _BotManeuverKind.feintReversal:
             target = _playerRoutePoint(0.42) - lateral * state.side * 215;
           case _BotManeuverKind.resourceDenial:
-            target = player.head +
+            target =
+                player.head +
                 (state.anchor - player.head).normalized() *
                     config.botDenyDistance;
             mode = _BotPlanMode.contest;
-            wantsSprint = _playerBehavior.resourceAttraction >= 0.2 ||
+            wantsSprint =
+                _playerBehavior.resourceAttraction >= 0.2 ||
                 bot.head.distanceTo(state.anchor) <=
                     config.botSprintTriggerDistance * 1.25;
           case _BotManeuverKind.roamingDuel:
@@ -4126,13 +4763,15 @@ class GameSimulation {
         }
         switch (state.kind) {
           case _BotManeuverKind.constrictor:
-            final midpoint = player.body[math.min(
-              player.body.length - 1,
-              math.max(1, player.body.length ~/ 2),
-            )];
+            final midpoint =
+                player.body[math.min(
+                  player.body.length - 1,
+                  math.max(1, player.body.length ~/ 2),
+                )];
             final radial = (bot.head - midpoint).normalized();
             final tangent = Vec2(-radial.y, radial.x) * state.side;
-            target = bot.head +
+            target =
+                bot.head +
                 tangent * 190 +
                 radial * (_playerBehavior.gapCamping >= 0.22 ? 120 : -55);
           case _BotManeuverKind.baitAmbush:
@@ -4161,10 +4800,11 @@ class GameSimulation {
 
     if (state.kind == _BotManeuverKind.resourceDenial) {
       mode = _BotPlanMode.contest;
-      speedMultiplier = (speedMultiplier *
-              (0.82 + math.min(0.18, _droppedMassWeight(bot) * 0.06)))
-          .clamp(config.botYieldSpeedMultiplier, 1.0)
-          .toDouble();
+      speedMultiplier =
+          (speedMultiplier *
+                  (0.82 + math.min(0.18, _droppedMassWeight(bot) * 0.06)))
+              .clamp(config.botYieldSpeedMultiplier, 1.0)
+              .toDouble();
       if (closedLoop.length > 0 &&
           (closedLoopMode == _BotEngagementMode.deny ||
               closedLoopMode == _BotEngagementMode.screen ||
@@ -4174,19 +4814,21 @@ class GameSimulation {
     } else if (state.kind == _BotManeuverKind.roamingDuel &&
         bot.head.distanceTo(player.head) > config.botEngagementRadius) {
       mode = _BotPlanMode.wander;
-      speedMultiplier = (speedMultiplier *
-              (0.72 +
-                  math.min(
-                    0.28,
-                    (_wanderWeight(bot) + _foodWeight(bot)) * 0.1,
-                  )))
-          .clamp(config.botYieldSpeedMultiplier, 1.0)
-          .toDouble();
+      speedMultiplier =
+          (speedMultiplier *
+                  (0.72 +
+                      math.min(
+                        0.28,
+                        (_wanderWeight(bot) + _foodWeight(bot)) * 0.1,
+                      )))
+              .clamp(config.botYieldSpeedMultiplier, 1.0)
+              .toDouble();
     } else if (mode == _BotPlanMode.attack) {
-      speedMultiplier = (speedMultiplier *
-              (0.84 + math.min(0.16, _pressureWeight(bot) * 0.05)))
-          .clamp(config.botYieldSpeedMultiplier, 1.0)
-          .toDouble();
+      speedMultiplier =
+          (speedMultiplier *
+                  (0.84 + math.min(0.16, _pressureWeight(bot) * 0.05)))
+              .clamp(config.botYieldSpeedMultiplier, 1.0)
+              .toDouble();
     }
     final direction = target - bot.head;
     return _BotManeuverPlan(
@@ -4211,51 +4853,59 @@ class GameSimulation {
       case _TacticalOpportunityRole.outerConstrictor:
         state.kind = _BotManeuverKind.constrictor;
         final fromCenter = bot.head - _opportunity.center;
-        final radial = fromCenter.length == 0
-            ? lateral * state.side
-            : fromCenter.normalized();
+        final radial =
+            fromCenter.length == 0
+                ? lateral * state.side
+                : fromCenter.normalized();
         final tangent = Vec2(-radial.y, radial.x) * state.side;
         final ringRadius = _opportunity.radius + bot.radius + 68;
         final ringPoint = _opportunity.center + radial * ringRadius;
         final ringError = bot.head.distanceTo(ringPoint);
-        target = ringError > 120
-            ? ringPoint + tangent * 90
-            : bot.head +
-                tangent * 210 +
-                radial * (ringRadius - fromCenter.length);
+        target =
+            ringError > 120
+                ? ringPoint + tangent * 90
+                : bot.head +
+                    tangent * 210 +
+                    radial * (ringRadius - fromCenter.length);
         wantsSprint = ringError > 260;
         speedMultiplier = ringError > 120 ? 1 : 0.78;
       case _TacticalOpportunityRole.gapStriker:
         state.kind = _BotManeuverKind.counterCut;
         target =
             _opportunity.gap + player.heading * 62 - lateral * state.side * 82;
-        wantsSprint = bot.head.distanceTo(target) <=
+        wantsSprint =
+            bot.head.distanceTo(target) <=
             config.botSprintTriggerDistance * 1.45;
         speedMultiplier = 1;
       case _TacticalOpportunityRole.exitCutter:
         state.kind = _BotManeuverKind.laneExecution;
-        final exit = _opportunity.playerEnclosing
-            ? _opportunity.gap + player.heading * 220
-            : _playerRoutePoint(0.72);
+        final exit =
+            _opportunity.playerEnclosing
+                ? _opportunity.gap + player.heading * 220
+                : _playerRoutePoint(0.72);
         target = exit + lateral * state.side * 95;
-        wantsSprint = bot.head.distanceTo(target) <=
+        wantsSprint =
+            bot.head.distanceTo(target) <=
             config.botSprintTriggerDistance * 1.7;
         speedMultiplier = 1;
       case _TacticalOpportunityRole.innerSurvivor:
         state.kind = _BotManeuverKind.counterCut;
         final pressure = _opportunity.gap - bot.head;
-        final seam = player.body.isEmpty
-            ? player.heading
-            : (player.body.first - player.body.last).normalized();
+        final seam =
+            player.body.isEmpty
+                ? player.heading
+                : (player.body.first - player.body.last).normalized();
         final seamDirection = seam.length == 0 ? player.heading : seam;
         final seamLateral = Vec2(-seamDirection.y, seamDirection.x);
         final distanceToSeam = pressure.length;
-        target = distanceToSeam > 105
-            ? _opportunity.gap +
-                seamDirection * 24 +
-                seamLateral * state.side * 38
-            : _opportunity.gap + seamLateral * state.side * 72;
-        wantsSprint = distanceToSeam > 170 &&
+        target =
+            distanceToSeam > 105
+                ? _opportunity.gap +
+                    seamDirection * 24 +
+                    seamLateral * state.side * 38
+                : _opportunity.gap + seamLateral * state.side * 72;
+        wantsSprint =
+            distanceToSeam > 170 &&
             distanceToSeam <= config.botSprintTriggerDistance * 1.6;
         speedMultiplier =
             distanceToSeam > 105 ? 1 : config.botYieldSpeedMultiplier * 1.08;
@@ -4280,9 +4930,10 @@ class GameSimulation {
       return null;
     }
     final fromCenter = bot.head - _opportunity.center;
-    final radial = fromCenter.length == 0
-        ? Vec2(-player.heading.y, player.heading.x) * state.side
-        : fromCenter.normalized();
+    final radial =
+        fromCenter.length == 0
+            ? Vec2(-player.heading.y, player.heading.x) * state.side
+            : fromCenter.normalized();
     final guardRadius = _opportunity.radius + bot.radius + 110;
     final disengageRadius =
         math.max(guardRadius, fromCenter.length + 160).toDouble();
@@ -4290,24 +4941,28 @@ class GameSimulation {
     final lateral = Vec2(-player.heading.y, player.heading.x);
     final cutoff =
         _opportunity.gap + player.heading * 165 + lateral * state.side * 125;
-    final insideClosingHook = fromCenter.length < guardRadius + 35 &&
+    final insideClosingHook =
+        fromCenter.length < guardRadius + 35 &&
         _alignment(bot.heading, _opportunity.center - bot.head) > -0.15;
     final inward = (_opportunity.center - bot.head).normalized();
     var tangent = Vec2(-inward.y, inward.x);
     if (_alignment(tangent, cutoff - bot.head) < 0) tangent = tangent * -1;
     final radialError = math.max(0.0, fromCenter.length - guardRadius);
-    final guardedCutoff = bot.head +
+    final guardedCutoff =
+        bot.head +
         tangent * 240 +
         inward * math.min(90.0, radialError).toDouble();
     final target = insideClosingHook ? outsideRing : guardedCutoff;
-    state.kind = insideClosingHook
-        ? _BotManeuverKind.feintReversal
-        : _BotManeuverKind.laneExecution;
+    state.kind =
+        insideClosingHook
+            ? _BotManeuverKind.feintReversal
+            : _BotManeuverKind.laneExecution;
     final direction = target - bot.head;
     return _BotManeuverPlan(
       intent: direction.length == 0 ? bot.heading : direction.normalized(),
       mode: _BotPlanMode.attack,
-      wantsSprint: !insideClosingHook &&
+      wantsSprint:
+          !insideClosingHook &&
           bot.head.distanceTo(target) <= config.botSprintTriggerDistance * 1.4,
       speedMultiplier: insideClosingHook ? 0.82 : 0.96,
     );
@@ -4322,9 +4977,10 @@ class GameSimulation {
     if (role == null || field == null || !player.alive) return null;
     state.kind = _BotManeuverKind.resourceDenial;
     final playerApproach = field.center - player.head;
-    final approach = playerApproach.length == 0
-        ? player.heading
-        : playerApproach.normalized();
+    final approach =
+        playerApproach.length == 0
+            ? player.heading
+            : playerApproach.normalized();
     final lateral = Vec2(-approach.y, approach.x);
     final side = state.side;
     Vec2 target;
@@ -4333,23 +4989,28 @@ class GameSimulation {
     switch (role) {
       case _ResourceControlRole.harvester:
         target = field.center + lateral * side * field.radius * 0.24;
-        wantsSprint = field.value >=
+        wantsSprint =
+            field.value >=
                 math.max(8, config.botResourceFieldMinimumValue * 2) ||
             bot.head.distanceTo(target) <=
                 config.botSprintTriggerDistance * 1.4;
         speedMultiplier = 1;
       case _ResourceControlRole.approachGuard:
-        target = player.head +
+        target =
+            player.head +
             approach * config.botDroppedMassGuardDistance +
             lateral * side * 74;
-        wantsSprint = player.head.distanceTo(field.center) <=
+        wantsSprint =
+            player.head.distanceTo(field.center) <=
             config.botDroppedMassGuardRadius * 0.8;
         speedMultiplier = 0.92;
       case _ResourceControlRole.exitAmbusher:
-        target = field.center +
+        target =
+            field.center +
             approach * (field.radius + config.botDenyDistance) +
             lateral * side * 96;
-        wantsSprint = player.head.distanceTo(field.center) <=
+        wantsSprint =
+            player.head.distanceTo(field.center) <=
             config.botDroppedMassGuardRadius * 0.62;
         speedMultiplier = 0.88;
     }
@@ -4382,10 +5043,11 @@ class GameSimulation {
     state.sign = maneuver.side;
     state.plannedPlayerHeading = player.heading;
     state.plannedPlayerPosition = player.head;
-    final phaseTurn = maneuver.phase == _BotManeuverPhase.commit ||
-            maneuver.phase == _BotManeuverPhase.execute
-        ? 1.0
-        : 0.82;
+    final phaseTurn =
+        maneuver.phase == _BotManeuverPhase.commit ||
+                maneuver.phase == _BotManeuverPhase.execute
+            ? 1.0
+            : 0.82;
     final variation = ((bot.colorIndex + maneuver.sequence) % 4) * 0.035;
     bot.tacticalTurnRateMultiplier =
         (phaseTurn - variation).clamp(0.72, 1.0).toDouble();
@@ -4415,8 +5077,8 @@ class GameSimulation {
         return nearDanger && roll < 0.65
             ? _BotTactic.disengage
             : roll < 0.55
-                ? _BotTactic.feint
-                : _BotTactic.weave;
+            ? _BotTactic.feint
+            : _BotTactic.weave;
       case BotDisposition.aggressive:
         if (roll < 0.35) return _BotTactic.cutoff;
         if (roll < 0.65) return _BotTactic.flank;
@@ -4472,32 +5134,36 @@ class GameSimulation {
 
     switch (tactic) {
       case _BotTactic.feint:
-        final oscillation = math.sin(elapsed * 7.0 + bot.colorIndex * 1.9) *
+        final oscillation =
+            math.sin(elapsed * 7.0 + bot.colorIndex * 1.9) *
             config.botTacticWeaveStrength;
         final target =
             player.head + lead + playerLateral * (oscillation + sign * 70);
         return target - bot.head;
       case _BotTactic.cutoff:
-        final target = plan.rank < 100
-            ? plan.target
-            : player.head +
-                lead +
-                playerLateral * (sign * config.botFlankDistance * 0.55);
+        final target =
+            plan.rank < 100
+                ? plan.target
+                : player.head +
+                    lead +
+                    playerLateral * (sign * config.botFlankDistance * 0.55);
         return target - bot.head;
       case _BotTactic.flank:
-        final target = plan.rank < 100
-            ? plan.target
-            : player.head +
-                player.heading *
-                    (config.botCutoffLeadTime * player.speed * 0.55) +
-                playerLateral * (sign * config.botFlankDistance);
+        final target =
+            plan.rank < 100
+                ? plan.target
+                : player.head +
+                    player.heading *
+                        (config.botCutoffLeadTime * player.speed * 0.55) +
+                    playerLateral * (sign * config.botFlankDistance);
         return target - bot.head;
       case _BotTactic.encircle:
         final index = math.min(
           player.body.length - 1,
           math.max(1, player.body.length ~/ 2),
         );
-        final gap = player.body[index] +
+        final gap =
+            player.body[index] +
             playerLateral * (sign * config.botEncircleGapDistance);
         return gap - bot.head;
       case _BotTactic.bait:
@@ -4561,27 +5227,31 @@ class GameSimulation {
     final naturalFoodDistance = _nearestNaturalFoodDistance(bot);
     final distanceLimit = config.botSprintTriggerDistance;
     var shouldSprint = maneuverRequestsSprint;
-    final playerNearCluster = droppedMassCluster != null &&
+    final playerNearCluster =
+        droppedMassCluster != null &&
         player.alive &&
         player.head.distanceTo(droppedMassCluster.center) <=
             config.botDroppedMassGuardRadius;
 
     switch (bot.disposition) {
       case BotDisposition.defensive:
-        shouldSprint = shouldSprint ||
+        shouldSprint =
+            shouldSprint ||
             bot.retreating ||
             (player.alive &&
                 playerDistance <= distanceLimit * 0.8 &&
                 bot.length <= player.length * 1.2);
       case BotDisposition.aggressive:
-        shouldSprint = shouldSprint ||
+        shouldSprint =
+            shouldSprint ||
             (player.alive &&
                 playerDistance <= distanceLimit &&
                 bot.length >= player.length * 0.75 &&
                 bot.length <= player.length * 1.6) ||
             (playerNearCluster && droppedMassDistance <= distanceLimit * 1.5);
       case BotDisposition.opportunistic:
-        shouldSprint = shouldSprint ||
+        shouldSprint =
+            shouldSprint ||
             droppedMassDistance <= distanceLimit ||
             (playerNearCluster && droppedMassDistance <= distanceLimit * 1.5);
       case BotDisposition.wanderer:
@@ -4621,12 +5291,13 @@ class GameSimulation {
     final maneuver = _botManeuvers[bot.id];
     if (maneuver != null) {
       maneuver.phase = _BotManeuverPhase.recover;
-      maneuver.remaining = math
-          .min(
-            math.max(maneuver.remaining, 0.12),
-            config.botManeuverRecoveryDuration,
-          )
-          .toDouble();
+      maneuver.remaining =
+          math
+              .min(
+                math.max(maneuver.remaining, 0.12),
+                config.botManeuverRecoveryDuration,
+              )
+              .toDouble();
     }
     bot.movementCommitment = math.min(bot.movementCommitment, 0.45).toDouble();
   }
@@ -4664,7 +5335,8 @@ class GameSimulation {
   Vec2 _retreatDirection(SnakeState bot) {
     final direction =
         bot.head.length == 0 ? bot.heading : bot.head.normalized();
-    final target = direction *
+    final target =
+        direction *
         math.max(0.0, config.arenaRadius - config.botRetreatBoundaryBuffer);
     return (target - bot.head).normalized() * config.botRetreatWeight;
   }
@@ -4752,9 +5424,10 @@ class GameSimulation {
     final threshold = config.arenaRadius - config.botBoundaryBuffer;
     if (distance <= threshold || distance == 0) return Vec2.zero;
 
-    final double urgency = ((distance - threshold) / config.botBoundaryBuffer)
-        .clamp(0.0, 1.0)
-        .toDouble();
+    final double urgency =
+        ((distance - threshold) / config.botBoundaryBuffer)
+            .clamp(0.0, 1.0)
+            .toDouble();
     return snake.head.normalized() * (-urgency * 3);
   }
 
@@ -4859,7 +5532,8 @@ class GameSimulation {
 
     final playerToCluster = cluster.center - player.head;
     final playerDistance = player.head.distanceTo(cluster.center);
-    final playerApproaching = player.alive &&
+    final playerApproaching =
+        player.alive &&
         playerDistance <= config.botDroppedMassGuardRadius &&
         _alignment(player.heading, playerToCluster) >= 0.15;
 
@@ -4871,25 +5545,28 @@ class GameSimulation {
       final approach = playerToCluster.normalized();
       final lateral = Vec2(-approach.y, approach.x);
       final side = bot.colorIndex.isEven ? 1.0 : -1.0;
-      target = player.head +
+      target =
+          player.head +
           approach * config.botDroppedMassGuardDistance +
           lateral * (side * math.min(claimRank, 2).toDouble() * 95.0);
     } else {
       final toTarget = toCluster.normalized();
       final lateral = Vec2(-toTarget.y, toTarget.x);
       final side = bot.colorIndex.isEven ? 1.0 : -1.0;
-      final lane = claimRank == 0
-          ? 0.0
-          : side *
-              math.min(claimRank, 3).toDouble() *
-              config.botDroppedMassGuardDistance;
+      final lane =
+          claimRank == 0
+              ? 0.0
+              : side *
+                  math.min(claimRank, 3).toDouble() *
+                  config.botDroppedMassGuardDistance;
       target = cluster.center + lateral * lane;
     }
 
     final distance = bot.head.distanceTo(target);
-    final proximity = (1 - distance / config.botDroppedMassSenseRadius)
-        .clamp(0.0, 1.0)
-        .toDouble();
+    final proximity =
+        (1 - distance / config.botDroppedMassSenseRadius)
+            .clamp(0.0, 1.0)
+            .toDouble();
     final clusterValue = math.min(cluster.value, 12).toDouble();
     return (target - bot.head).normalized() *
         (0.55 + proximity * 0.45) *
@@ -4910,7 +5587,8 @@ class GameSimulation {
           player.alive && playerDistance <= config.botDroppedMassGuardRadius
               ? 1.9
               : 1.0;
-      final score = (cluster.value *
+      final score =
+          (cluster.value *
               (1 + math.min(cluster.memberCount, 8) * 0.3) *
               contested) /
           math.max(140.0, distance).toDouble();
@@ -4923,25 +5601,28 @@ class GameSimulation {
   }
 
   int _droppedMassClaimRank(SnakeState bot, _DroppedMassCluster cluster) {
-    final candidates = snakes
-        .where(
-          (candidate) =>
-              candidate.kind == SnakeKind.bot &&
-              candidate.alive &&
-              !_shouldPrioritizeRetreat(candidate) &&
-              candidate.head.distanceTo(cluster.center) <=
-                  config.botDroppedMassSenseRadius,
-        )
-        .toList()
-      ..sort((left, right) {
-        final leftArrival = left.head.distanceTo(cluster.center) /
-            math.max(1.0, _effectiveSpeed(left));
-        final rightArrival = right.head.distanceTo(cluster.center) /
-            math.max(1.0, _effectiveSpeed(right));
-        final arrivalOrder = leftArrival.compareTo(rightArrival);
-        if (arrivalOrder != 0) return arrivalOrder;
-        return left.id.compareTo(right.id);
-      });
+    final candidates =
+        snakes
+            .where(
+              (candidate) =>
+                  candidate.kind == SnakeKind.bot &&
+                  candidate.alive &&
+                  !_shouldPrioritizeRetreat(candidate) &&
+                  candidate.head.distanceTo(cluster.center) <=
+                      config.botDroppedMassSenseRadius,
+            )
+            .toList()
+          ..sort((left, right) {
+            final leftArrival =
+                left.head.distanceTo(cluster.center) /
+                math.max(1.0, _effectiveSpeed(left));
+            final rightArrival =
+                right.head.distanceTo(cluster.center) /
+                math.max(1.0, _effectiveSpeed(right));
+            final arrivalOrder = leftArrival.compareTo(rightArrival);
+            if (arrivalOrder != 0) return arrivalOrder;
+            return left.id.compareTo(right.id);
+          });
     final rank = candidates.indexWhere((candidate) => candidate.id == bot.id);
     return rank < 0 ? candidates.length : rank;
   }
@@ -4960,9 +5641,10 @@ class GameSimulation {
         ((config.botEngagementRadius - distance) / config.botEngagementRadius)
             .clamp(0.0, 1.0)
             .toDouble();
-    final roleWeight = plan.rank == 0
-        ? 1.0
-        : plan.rank == 1
+    final roleWeight =
+        plan.rank == 0
+            ? 1.0
+            : plan.rank == 1
             ? 0.72
             : 0.42;
     final sizeFactor = bot.length >= player.length ? 1.25 : 0.9;
@@ -4984,19 +5666,23 @@ class GameSimulation {
     final lateral = Vec2(-player.heading.y, player.heading.x);
     final lane = config.botEngagementLaneDistance;
     final side = bot.colorIndex.isEven ? 1.0 : -1.0;
-    final leadTime = config.botEngagementLeadTime *
+    final leadTime =
+        config.botEngagementLeadTime *
         (1 + math.min(rank, 2).toDouble() * 0.18);
     final preferredOffset =
         rank == 0 ? side * lane * 0.35 : side * lane * (rank == 1 ? 1.0 : 1.35);
-    final offsets = rank == 0
-        ? <double>[preferredOffset, 0, -preferredOffset]
-        : <double>[preferredOffset, -preferredOffset, side * lane * 0.55];
-    var bestTarget = player.head +
+    final offsets =
+        rank == 0
+            ? <double>[preferredOffset, 0, -preferredOffset]
+            : <double>[preferredOffset, -preferredOffset, side * lane * 0.55];
+    var bestTarget =
+        player.head +
         player.heading * (player.speed * leadTime) +
         lateral * preferredOffset;
     var bestRisk = double.infinity;
     for (final offset in offsets) {
-      final candidate = player.head +
+      final candidate =
+          player.head +
           player.heading * (player.speed * leadTime) +
           lateral * offset;
       final risk = _engagementLaneRisk(bot, candidate);
@@ -5024,10 +5710,11 @@ class GameSimulation {
 
     final lateral = Vec2(-player.heading.y, player.heading.x);
     final side = bot.colorIndex.isEven ? 1.0 : -1.0;
-    final midpoint = player.body[math.min(
-      player.body.length - 1,
-      math.max(1, player.body.length ~/ 2),
-    )];
+    final midpoint =
+        player.body[math.min(
+          player.body.length - 1,
+          math.max(1, player.body.length ~/ 2),
+        )];
     final tail = player.body.last;
     final routeLead = _playerRoutePoint(config.botEngagementLeadTime);
     final gapDirection =
@@ -5075,7 +5762,8 @@ class GameSimulation {
       final laneSafety = (1 - laneRisk.clamp(0.0, 1.0)).toDouble();
       final preferredPenalty = index == 0 ? 0.0 : 0.06;
       final geometryReward = index >= 2 ? 0.18 : 0.0;
-      final score = laneRisk * 8 +
+      final score =
+          laneRisk * 8 +
           (1 - abortSafety) * 2.4 +
           preferredPenalty -
           geometryReward *
@@ -5122,29 +5810,25 @@ class GameSimulation {
     final lookahead = math.max(config.botAdaptiveLeadTime, 1.0).toDouble();
     final samples = math.max(2, config.botCollisionSampleCount).toInt();
     var maximumRisk = 0.0;
-    final bodyRadius = tacticalPrecision
-        ? math
-            .max(
-              config.botTacticalPrecisionSafetyRadius,
-              bot.radius + player.radius + 18,
-            )
-            .toDouble()
-        : math
-            .max(
-              config.botEngagementSafetyRadius,
-              bot.radius + player.radius + 24,
-            )
-            .toDouble();
+    final bodyRadius =
+        tacticalPrecision
+            ? math
+                .max(
+                  config.botTacticalPrecisionSafetyRadius,
+                  bot.radius + player.radius + 18,
+                )
+                .toDouble()
+            : math
+                .max(
+                  config.botEngagementSafetyRadius,
+                  bot.radius + player.radius + 24,
+                )
+                .toDouble();
 
     for (var sample = 1; sample <= samples; sample++) {
       final progress = sample / samples;
       final time = lookahead * progress;
-      final future = _projectBotRoutePoint(
-        bot,
-        direction,
-        time,
-        speed: speed,
-      );
+      final future = _projectBotRoutePoint(bot, direction, time, speed: speed);
       final routeDirection = _projectTurningDirection(
         heading: bot.heading,
         intended: direction,
@@ -5171,14 +5855,15 @@ class GameSimulation {
             actorSpeed: speed,
           );
           if (motionThreat <= 0) continue;
-          maximumRisk = math
-              .max(
-                maximumRisk,
-                (((bodyRadius - distance) / bodyRadius) * motionThreat)
-                    .clamp(0.0, 1.0)
-                    .toDouble(),
-              )
-              .toDouble();
+          maximumRisk =
+              math
+                  .max(
+                    maximumRisk,
+                    (((bodyRadius - distance) / bodyRadius) * motionThreat)
+                        .clamp(0.0, 1.0)
+                        .toDouble(),
+                  )
+                  .toDouble();
         }
       }
 
@@ -5190,7 +5875,8 @@ class GameSimulation {
       )) {
         final otherPlan = _botPlans[other.id];
         final otherIntent = otherPlan?.intent ?? other.heading;
-        final otherSpeed = other.speed *
+        final otherSpeed =
+            other.speed *
             (otherPlan?.speedMultiplier ?? other.tacticalSpeedMultiplier) *
             ((other.sprinting ||
                     other.sprintRequested ||
@@ -5224,14 +5910,15 @@ class GameSimulation {
             otherSpeed: otherSpeed,
           );
           if (motionThreat > 0) {
-            maximumRisk = math
-                .max(
-                  maximumRisk,
-                  (((peerRadius - distance) / peerRadius) * motionThreat)
-                      .clamp(0.0, 1.0)
-                      .toDouble(),
-                )
-                .toDouble();
+            maximumRisk =
+                math
+                    .max(
+                      maximumRisk,
+                      (((peerRadius - distance) / peerRadius) * motionThreat)
+                          .clamp(0.0, 1.0)
+                          .toDouble(),
+                    )
+                    .toDouble();
           }
         }
 
@@ -5258,14 +5945,15 @@ class GameSimulation {
               otherSpeed: otherSpeed,
             );
             if (bodyThreat <= 0) continue;
-            maximumRisk = math
-                .max(
-                  maximumRisk,
-                  (((peerRadius - bodyDistance) / peerRadius) * bodyThreat)
-                      .clamp(0.0, 1.0)
-                      .toDouble(),
-                )
-                .toDouble();
+            maximumRisk =
+                math
+                    .max(
+                      maximumRisk,
+                      (((peerRadius - bodyDistance) / peerRadius) * bodyThreat)
+                          .clamp(0.0, 1.0)
+                          .toDouble(),
+                    )
+                    .toDouble();
           }
         }
       }
@@ -5278,25 +5966,28 @@ class GameSimulation {
 
   int _playerEngagementRank(SnakeState bot) {
     final target = _playerRoutePoint(config.botEngagementLeadTime);
-    final candidates = snakes
-        .where(
-          (candidate) =>
-              candidate.kind == SnakeKind.bot &&
-              candidate.alive &&
-              !_shouldPrioritizeRetreat(candidate) &&
-              candidate.head.distanceTo(player.head) <=
-                  config.botEngagementRadius,
-        )
-        .toList()
-      ..sort((left, right) {
-        final leftArrival =
-            left.head.distanceTo(target) / math.max(1.0, _effectiveSpeed(left));
-        final rightArrival = right.head.distanceTo(target) /
-            math.max(1.0, _effectiveSpeed(right));
-        final arrivalOrder = leftArrival.compareTo(rightArrival);
-        if (arrivalOrder != 0) return arrivalOrder;
-        return left.id.compareTo(right.id);
-      });
+    final candidates =
+        snakes
+            .where(
+              (candidate) =>
+                  candidate.kind == SnakeKind.bot &&
+                  candidate.alive &&
+                  !_shouldPrioritizeRetreat(candidate) &&
+                  candidate.head.distanceTo(player.head) <=
+                      config.botEngagementRadius,
+            )
+            .toList()
+          ..sort((left, right) {
+            final leftArrival =
+                left.head.distanceTo(target) /
+                math.max(1.0, _effectiveSpeed(left));
+            final rightArrival =
+                right.head.distanceTo(target) /
+                math.max(1.0, _effectiveSpeed(right));
+            final arrivalOrder = leftArrival.compareTo(rightArrival);
+            if (arrivalOrder != 0) return arrivalOrder;
+            return left.id.compareTo(right.id);
+          });
     final rank = candidates.indexWhere((candidate) => candidate.id == bot.id);
     return rank < 0 ? candidates.length : rank;
   }
@@ -5308,9 +5999,13 @@ class GameSimulation {
     final samples = math.max(1, config.botCollisionSampleCount).toInt();
     if (speed <= 0 || samples <= 0) return avoidance;
 
-    final avoidanceRadius = math
-        .max(config.botCollisionAvoidanceRadius, config.botRouteAvoidanceRadius)
-        .toDouble();
+    final avoidanceRadius =
+        math
+            .max(
+              config.botCollisionAvoidanceRadius,
+              config.botRouteAvoidanceRadius,
+            )
+            .toDouble();
     for (var sample = 1; sample <= samples; sample++) {
       final progress = sample / samples;
       final time = lookahead * progress;
@@ -5349,7 +6044,8 @@ class GameSimulation {
             (avoidanceRadius - distance) / avoidanceRadius * motionThreat;
         var escape = offset.normalized();
         if (_alignment(snake.heading, projectedSegment - future) > 0.15) {
-          final side = Vec2(-snake.heading.y, snake.heading.x) *
+          final side =
+              Vec2(-snake.heading.y, snake.heading.x) *
               (snake.id.compareTo(other.id) <= 0 ? 1.0 : -1.0);
           escape = (escape * 0.35 + side * 0.9).normalized();
         }
@@ -5370,12 +6066,13 @@ class GameSimulation {
       config.botAdaptiveLeadTime,
     );
     final samples = math.max(2, config.botCollisionSampleCount).toInt();
-    final radius = math
-        .max(
-          config.botDefensiveAvoidanceRadius,
-          bot.radius + player.radius + 26,
-        )
-        .toDouble();
+    final radius =
+        math
+            .max(
+              config.botDefensiveAvoidanceRadius,
+              bot.radius + player.radius + 26,
+            )
+            .toDouble();
     var escape = Vec2.zero;
     var maximumUrgency = 0.0;
 
@@ -5409,14 +6106,18 @@ class GameSimulation {
           separation: distance,
         );
         if (motionThreat <= 0) continue;
-        final urgency =
-            (((radius - distance) / radius) * motionThreat).clamp(0.0, 1.0);
+        final urgency = (((radius - distance) / radius) * motionThreat).clamp(
+          0.0,
+          1.0,
+        );
         maximumUrgency = math.max(maximumUrgency, urgency).toDouble();
-        final away = distance == 0
-            ? Vec2(-bot.heading.y, bot.heading.x) *
-                (bot.id.compareTo(player.id) <= 0 ? 1.0 : -1.0)
-            : offset.normalized();
-        final lateral = Vec2(-bot.heading.y, bot.heading.x) *
+        final away =
+            distance == 0
+                ? Vec2(-bot.heading.y, bot.heading.x) *
+                    (bot.id.compareTo(player.id) <= 0 ? 1.0 : -1.0)
+                : offset.normalized();
+        final lateral =
+            Vec2(-bot.heading.y, bot.heading.x) *
             (bot.id.compareTo(player.id) <= 0 ? 1.0 : -1.0);
         // Side-step first, then open distance. This avoids the common failure
         // where a bot brakes toward the same player body it was pursuing.
@@ -5490,7 +6191,8 @@ class GameSimulation {
               (((peerRadius - headDistance) / peerRadius) * motionThreat)
                   .clamp(0.0, 1.0)
                   .toDouble();
-          final urgency = rawUrgency *
+          final urgency =
+              rawUrgency *
               (otherOwnsRightOfWay || rawUrgency >= 0.78 ? 1.0 : 0.42);
           if (urgency > maximumUrgency) {
             maximumUrgency = urgency;
@@ -5526,7 +6228,8 @@ class GameSimulation {
               (((bodyRadius - distance) / bodyRadius) * motionThreat)
                   .clamp(0.0, 1.0)
                   .toDouble();
-          final urgency = rawUrgency *
+          final urgency =
+              rawUrgency *
               (otherOwnsRightOfWay || rawUrgency >= 0.78 ? 1.0 : 0.42);
           if (urgency > maximumUrgency) {
             maximumUrgency = urgency;
@@ -5560,9 +6263,10 @@ class GameSimulation {
     final lowerHead = lowerId ? bot.head : other.head;
     final higherHead = lowerId ? other.head : bot.head;
     final axis = higherHead - lowerHead;
-    final basis = axis.length == 0
-        ? const Vec2(0, 1)
-        : Vec2(-axis.y, axis.x).normalized();
+    final basis =
+        axis.length == 0
+            ? const Vec2(0, 1)
+            : Vec2(-axis.y, axis.x).normalized();
     return basis * (lowerId ? 1.0 : -1.0);
   }
 
@@ -5582,7 +6286,8 @@ class GameSimulation {
         continue;
       }
 
-      final urgency = (config.botPeerSeparationRadius - distance) /
+      final urgency =
+          (config.botPeerSeparationRadius - distance) /
           config.botPeerSeparationRadius;
       separation += offset.normalized() * (urgency * urgency);
 
@@ -5600,10 +6305,12 @@ class GameSimulation {
             routeDistance >= config.botPeerSeparationRadius) {
           continue;
         }
-        final routeUrgency = (config.botPeerSeparationRadius - routeDistance) /
+        final routeUrgency =
+            (config.botPeerSeparationRadius - routeDistance) /
             config.botPeerSeparationRadius;
         var escape = routeOffset.normalized();
-        final side = Vec2(-bot.heading.y, bot.heading.x) *
+        final side =
+            Vec2(-bot.heading.y, bot.heading.x) *
             (bot.id.compareTo(other.id) <= 0 ? 1.0 : -1.0);
         escape = (escape * 0.4 + side * 0.8).normalized();
         separation += escape * (routeUrgency * routeUrgency);
@@ -5613,16 +6320,16 @@ class GameSimulation {
   }
 
   ActorTelegraph _telegraphFor(SnakeState actor) => ActorTelegraph(
-        actorId: actor.id,
-        position: actor.head,
-        heading: actor.heading,
-        length: actor.length,
-        speed: _effectiveSpeed(actor),
-        intent: actor.publicIntent,
-        sprintAnticipating: actor.sprintAnticipating,
-        sprinting: actor.sprinting,
-        movementCommitment: actor.movementCommitment,
-      );
+    actorId: actor.id,
+    position: actor.head,
+    heading: actor.heading,
+    length: actor.length,
+    speed: _effectiveSpeed(actor),
+    intent: actor.publicIntent,
+    sprintAnticipating: actor.sprintAnticipating,
+    sprinting: actor.sprinting,
+    movementCommitment: actor.movementCommitment,
+  );
 
   void _refreshPublicTelegraphs() {
     for (final actor in snakes.where((snake) => snake.alive)) {
@@ -5706,15 +6413,17 @@ class GameSimulation {
     var speed = actor.speed;
     if (actor.kind == SnakeKind.bot) {
       final excessLength = math.max(0, actor.length - actor.spawnLength);
-      final mobilityPenalty = (excessLength * config.botSizeSpeedPenalty)
-          .clamp(0.0, 0.28)
-          .toDouble();
+      final mobilityPenalty =
+          (excessLength * config.botSizeSpeedPenalty)
+              .clamp(0.0, 0.28)
+              .toDouble();
       speed *= 1 - mobilityPenalty;
     }
     if (actor.sprinting) {
-      speed *= actor.kind == SnakeKind.player
-          ? config.sprintMultiplier
-          : config.botSprintMultiplier;
+      speed *=
+          actor.kind == SnakeKind.player
+              ? config.sprintMultiplier
+              : config.botSprintMultiplier;
     }
     if (actor.kind == SnakeKind.bot) {
       speed *= actor.tacticalSpeedMultiplier;
@@ -5761,7 +6470,8 @@ class GameSimulation {
       final routeDirection = direction.normalized();
       final lateralSeparation =
           (offsetX * routeDirection.y - offsetY * routeDirection.x).abs();
-      final lethalClearance = (actor.radius + other.radius) *
+      final lethalClearance =
+          (actor.radius + other.radius) *
           config.collisionCoreScale.clamp(0.0, 1.0).toDouble();
       if (lateralSeparation >= lethalClearance) return 0;
     }
@@ -5842,9 +6552,10 @@ class GameSimulation {
     final previousBodyLength = snake.body.length;
     final fullLength = snake.fullyExpressedLength;
     final extension = snake.growthExtensionDistance;
-    final maximumDistance = fullLength <= 0
-        ? extension
-        : ((fullLength - 1) * snake.segmentSpacing + extension).toDouble();
+    final maximumDistance =
+        fullLength <= 0
+            ? extension
+            : ((fullLength - 1) * snake.segmentSpacing + extension).toDouble();
     _trimMovementTrail(
       snake,
       maximumDistance +
@@ -5855,8 +6566,10 @@ class GameSimulation {
     final trail = snake.movementTrail;
     var trailIndex = trail.length - 1;
     var travelled = 0.0;
-    final pointPool =
-        _bodyPointPools.putIfAbsent(snake.id, () => <_MutableBodyPoint>[]);
+    final pointPool = _bodyPointPools.putIfAbsent(
+      snake.id,
+      () => <_MutableBodyPoint>[],
+    );
 
     void sampleInto(
       double distance,
@@ -5888,17 +6601,14 @@ class GameSimulation {
 
       final last = trail.first;
       if (trail.length < 2) {
-        target.setCoordinates(
-          last.x,
-          last.y,
-          preservePrevious: !snapPrevious,
-        );
+        target.setCoordinates(last.x, last.y, preservePrevious: !snapPrevious);
         return;
       }
       final directionX = last.x - trail[1].x;
       final directionY = last.y - trail[1].y;
-      final directionLength =
-          math.sqrt(directionX * directionX + directionY * directionY);
+      final directionLength = math.sqrt(
+        directionX * directionX + directionY * directionY,
+      );
       final remaining = distance - travelled;
       if (directionLength == 0) {
         target.setCoordinates(
@@ -5932,14 +6642,11 @@ class GameSimulation {
         pointPool.add(_MutableBodyPoint(0, 0));
       }
       final target = pointPool[poolIndex];
-      final distance = index < fullLength
-          ? index * snake.segmentSpacing
-          : (fullLength - 1) * snake.segmentSpacing + extension;
-      sampleInto(
-        distance,
-        target,
-        snapPrevious: index >= previousBodyLength,
-      );
+      final distance =
+          index < fullLength
+              ? index * snake.segmentSpacing
+              : (fullLength - 1) * snake.segmentSpacing + extension;
+      sampleInto(distance, target, snapPrevious: index >= previousBodyLength);
       if (index < snake.body.length) {
         snake.body[index] = target;
       } else {
@@ -5968,9 +6675,10 @@ class GameSimulation {
   }
 
   void _drainSprint(SnakeState snake, double dt) {
-    final minimumLength = snake.kind == SnakeKind.bot
-        ? config.botSprintMinimumLength
-        : config.minimumSprintLength;
+    final minimumLength =
+        snake.kind == SnakeKind.bot
+            ? config.botSprintMinimumLength
+            : config.minimumSprintLength;
     snake.sprintDrainAccumulator += dt;
     while (snake.sprintDrainAccumulator + 1e-9 >= config.sprintDrainInterval) {
       snake.sprintDrainAccumulator -= config.sprintDrainInterval;
@@ -6026,25 +6734,28 @@ class GameSimulation {
       if (snake.head.distanceTo(pellet.position) <= snake.radius + 6) {
         if (!source.remove(pellet)) continue;
         _droppedMassAges.remove(pellet);
-        final requestedGrowth = snake.kind == SnakeKind.bot
-            ? (pellet.value *
-                    config.botGrowthMultiplier *
-                    _botAdaptiveGrowthMultiplier(snake))
-                .round()
-                .clamp(1, double.infinity)
-                .toInt()
-            : pellet.value;
-        final adaptiveMaximum = snake.kind == SnakeKind.bot
-            ? _botAdaptiveMaximumLength(snake)
-            : double.infinity;
-        final growth = snake.kind == SnakeKind.bot
-            ? math
-                .min(
-                  requestedGrowth,
-                  math.max(0, adaptiveMaximum - snake.length),
-                )
-                .toInt()
-            : requestedGrowth;
+        final requestedGrowth =
+            snake.kind == SnakeKind.bot
+                ? (pellet.value *
+                        config.botGrowthMultiplier *
+                        _botAdaptiveGrowthMultiplier(snake))
+                    .round()
+                    .clamp(1, double.infinity)
+                    .toInt()
+                : pellet.value;
+        final adaptiveMaximum =
+            snake.kind == SnakeKind.bot
+                ? _botAdaptiveMaximumLength(snake)
+                : double.infinity;
+        final growth =
+            snake.kind == SnakeKind.bot
+                ? math
+                    .min(
+                      requestedGrowth,
+                      math.max(0, adaptiveMaximum - snake.length),
+                    )
+                    .toInt()
+                : requestedGrowth;
         _emitCaptureEvent(
           SimulationEventKind.foodCollected,
           actorId: snake.id,
@@ -6087,15 +6798,16 @@ class GameSimulation {
     for (final bot in snakes.where(
       (snake) => snake.kind == SnakeKind.bot && snake.alive,
     )) {
-      final target = math
-          .min(
-            _botAdaptiveMaximumLength(bot),
-            math.max(
-              bot.spawnLength,
-              (player.length * config.botCatchUpTargetFraction).round(),
-            ),
-          )
-          .toInt();
+      final target =
+          math
+              .min(
+                _botAdaptiveMaximumLength(bot),
+                math.max(
+                  bot.spawnLength,
+                  (player.length * config.botCatchUpTargetFraction).round(),
+                ),
+              )
+              .toInt();
       final gap = target - bot.length;
       final credit = _botCatchUpCredits[bot.id] ?? 0;
       if (gap <= 0) {
@@ -6103,9 +6815,10 @@ class GameSimulation {
         continue;
       }
 
-      final pressure = (gap / math.max(1, config.botAdaptiveGrowthGap))
-          .clamp(0.0, 1.0)
-          .toDouble();
+      final pressure =
+          (gap / math.max(1, config.botAdaptiveGrowthGap))
+              .clamp(0.0, 1.0)
+              .toDouble();
       final nextCredit =
           credit + dt * config.botCatchUpRate * (0.55 + pressure * 0.9);
       final growth = math.min(gap, nextCredit.floor()).toInt();
@@ -6123,7 +6836,8 @@ class GameSimulation {
     final minimumTaper = config.collisionTailTaper.clamp(0.0, 1.0).toDouble();
     for (final snake in snakes.where((item) => item.alive)) {
       final headRadius = snake.radius * coreScale;
-      final searchRadius = snake.radius +
+      final searchRadius =
+          snake.radius +
           snakes.fold<double>(
             0,
             (maximum, other) => math.max(maximum, other.radius).toDouble(),
@@ -6133,31 +6847,24 @@ class GameSimulation {
         if (other.id == snake.id || !other.alive || sample.index < 2) {
           continue;
         }
-        final bodyTaper = (1 - sample.index / (other.body.length * 1.5))
-            .clamp(minimumTaper, 1.0)
-            .toDouble();
+        final bodyTaper =
+            (1 - sample.index / (other.body.length * 1.5))
+                .clamp(minimumTaper, 1.0)
+                .toDouble();
         final lethalDistance =
             headRadius + other.radius * coreScale * bodyTaper;
         if (snake.head.distanceTo(sample.position) < lethalDistance) {
           if (snake.kind == SnakeKind.bot && other.kind == SnakeKind.bot) {
             botPeerCollisionDeaths++;
           }
-          _defeat(
-            snake,
-            GameOverReason.bodyCollision,
-            targetId: other.id,
-          );
+          _defeat(snake, GameOverReason.bodyCollision, targetId: other.id);
           break;
         }
       }
     }
   }
 
-  void _defeat(
-    SnakeState snake,
-    GameOverReason reason, {
-    String? targetId,
-  }) {
+  void _defeat(SnakeState snake, GameOverReason reason, {String? targetId}) {
     if (!snake.alive) return;
     if (reason == GameOverReason.bodyCollision) {
       _emitCaptureEvent(
@@ -6312,8 +7019,11 @@ class GameSimulation {
       final bucketY = (pellet.position.y / radius).floor();
       for (var offsetX = -1; offsetX <= 1; offsetX++) {
         for (var offsetY = -1; offsetY <= 1; offsetY++) {
-          final candidates = _droppedMassMergeBuckets[
-              _spatialKey(bucketX + offsetX, bucketY + offsetY)];
+          final candidates =
+              _droppedMassMergeBuckets[_spatialKey(
+                bucketX + offsetX,
+                bucketY + offsetY,
+              )];
           if (candidates == null) continue;
           for (final candidateIndex in candidates) {
             if (candidateIndex <= index ||
@@ -6368,18 +7078,17 @@ class GameSimulation {
             weight,
       ),
       value: combinedValue,
-      kind: left.kind == FoodPelletKind.defeatDrop ||
-              right.kind == FoodPelletKind.defeatDrop
-          ? FoodPelletKind.defeatDrop
-          : FoodPelletKind.sprintDrop,
+      kind:
+          left.kind == FoodPelletKind.defeatDrop ||
+                  right.kind == FoodPelletKind.defeatDrop
+              ? FoodPelletKind.defeatDrop
+              : FoodPelletKind.sprintDrop,
       sourceColorIndex: left.sourceColorIndex ?? right.sourceColorIndex,
     );
-    final mergedAge = math
-        .max(
-          _droppedMassAges[left] ?? 0,
-          _droppedMassAges[right] ?? 0,
-        )
-        .toDouble();
+    final mergedAge =
+        math
+            .max(_droppedMassAges[left] ?? 0, _droppedMassAges[right] ?? 0)
+            .toDouble();
     _droppedMassAges.remove(left);
     _droppedMassAges.remove(right);
     _droppedMassAges[merged] = mergedAge;
@@ -6525,12 +7234,13 @@ class GameSimulation {
       segmentSpacing: config.segmentSpacing,
     );
 
-    final position = safeSpawn
-        ? _findBotSpawnPosition(bot)
-        : _randomPosition(
-            minRadius: math.min(300, config.botSpawnRadius * 0.55).toDouble(),
-            maxRadius: config.botSpawnRadius,
-          );
+    final position =
+        safeSpawn
+            ? _findBotSpawnPosition(bot)
+            : _randomPosition(
+              minRadius: math.min(300, config.botSpawnRadius * 0.55).toDouble(),
+              maxRadius: config.botSpawnRadius,
+            );
     bot.resetAt(position);
     return bot;
   }
@@ -6633,10 +7343,11 @@ class GameSimulation {
   }
 
   Vec2 _randomPosition({double minRadius = 0, double? maxRadius}) {
-    final upperRadius = math
-        .min(config.arenaRadius, maxRadius ?? config.arenaRadius)
-        .clamp(0.0, double.infinity)
-        .toDouble();
+    final upperRadius =
+        math
+            .min(config.arenaRadius, maxRadius ?? config.arenaRadius)
+            .clamp(0.0, double.infinity)
+            .toDouble();
     final lowerRadius = math.min(minRadius, upperRadius).toDouble();
     final radius =
         lowerRadius + _random.nextDouble() * (upperRadius - lowerRadius);
@@ -6654,3 +7365,4 @@ class GameSimulation {
     return angle;
   }
 }
+
