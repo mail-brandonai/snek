@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:slither/game/domain/game_state.dart';
 import 'package:slither/game/domain/simulation.dart';
+import 'package:slither/training/application/soul_player_observations.dart';
 import 'package:slither/game/domain/vec2.dart';
 
 void main() {
