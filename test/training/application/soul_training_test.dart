@@ -103,10 +103,7 @@ void main() {
       souls: souls,
     );
 
-    expect(
-      await service.resolveLatestRevision('soul-1'),
-      same(latest),
-    );
+    expect(await service.resolveLatestRevision('soul-1'), same(latest));
   });
 
   test('leaves an unbound or stale Soul reference unresolved', () async {
