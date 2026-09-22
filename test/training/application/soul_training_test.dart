@@ -80,15 +80,15 @@ void main() {
       ),
     )..add(
         TrainingRun(
-          id: 'run-2',
-          mode: 'manual',
-          seed: 2,
-          tickRateHz: 30,
-          createdAtMs: 2,
-          status: TrainingRunStatus.retained,
-          config: const <String, Object?>{},
-        ),
-      );
+        id: 'run-2',
+        mode: 'manual',
+        seed: 2,
+        tickRateHz: 30,
+        createdAtMs: 2,
+        status: TrainingRunStatus.retained,
+        config: const <String, Object?>{},
+      ),
+    );
     final souls = _FakeSouls();
     final service = SoulTrainingService(
       runs: runs,
@@ -145,7 +145,8 @@ SoulBehaviorSignature _signature(String runId, List<int> sampleCounts) {
 }
 
 class _FakeRuns implements RunRepository {
-  _FakeRuns(TrainingRun initial) : _runs = <String, TrainingRun>{initial.id: initial};
+  _FakeRuns(TrainingRun initial)
+    : _runs = <String, TrainingRun>{initial.id: initial};
 
   final Map<String, TrainingRun> _runs;
 
@@ -161,16 +162,13 @@ class _FakeRuns implements RunRepository {
   Future<TrainingRun?> getRun(String id) async => _runs[id];
 
   @override
-  Future<List<TrainingRun>> listRuns({TrainingRunStatus? status}) async =>
-      _runs.values
-          .where((run) => status == null || run.status == status)
-          .toList(growable: false);
+  Future<List<TrainingRun>> listRuns({TrainingRunStatus? status}) async => _runs
+      .values
+      .where((run) => status == null || run.status == status)
+      .toList(growable: false);
 
   @override
-  Future<void> setRunReviewStatus(
-    String id,
-    TrainingRunStatus status,
-  ) async {
+  Future<void> setRunReviewStatus(String id, TrainingRunStatus status) async {
     final run = _runs[id];
     if (run == null) return;
     _runs[id] = TrainingRun(
@@ -197,10 +195,14 @@ class _FakeSouls implements SoulRepository {
   Future<List<Soul>> listSouls() async => souls.values.toList(growable: false);
 
   @override
-  Future<List<SoulRevision>> listRevisions(String soulId) async =>
-      revisions.values
-          .where((revision) => revision.soulId == soulId)
-          .toList(growable: false);
+  Future<SoulRevision?> getRevision(String revisionId) async =>
+      revisions[revisionId];
+
+  @override
+  Future<List<SoulRevision>> listRevisions(String soulId) async => revisions
+      .values
+      .where((revision) => revision.soulId == soulId)
+      .toList(growable: false);
 
   @override
   Future<void> saveRevision(SoulRevision revision) async =>
