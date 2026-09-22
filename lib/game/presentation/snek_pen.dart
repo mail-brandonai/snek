@@ -649,8 +649,7 @@ class _SnekCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    if (snek.soulId != null)
-                      const _SoulBoundBadge(),
+                    if (snek.soulId != null) const _SoulBoundBadge(),
                     if (selected)
                       Text(
                         'SELECTED',
