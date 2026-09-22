@@ -15,6 +15,7 @@ import 'game/presentation/arena_skin.dart';
 import 'game/presentation/snek_pen.dart';
 import 'training/application/fixed_step_run_recorder.dart';
 import 'training/application/soul_controller.dart';
+import 'training/application/soul_player_observations.dart';
 import 'training/data/training_services.dart';
 import 'training/data/training_review_services.dart';
 import 'training/domain/controller_contract.dart';
