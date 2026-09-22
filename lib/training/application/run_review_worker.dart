@@ -171,7 +171,9 @@ _ReplayResult? _tryReplayTacticalAnalysis(
   if (seed == null || runConfig == null) return null;
 
   try {
-    final simulationConfig = SimulationConfig.fromJson(runConfig['simulation']);
+    final rawSimulationConfig = _optionalObject(runConfig['simulation']);
+    if (rawSimulationConfig == null) return null;
+    final simulationConfig = SimulationConfig.fromJson(rawSimulationConfig);
     final playerColorIndex = _optionalInt(runConfig['playerColorIndex']) ?? 0;
     final controls = <SimulationControlSample>[];
     for (final decoded in decodedChunks) {
@@ -316,4 +318,3 @@ double? _optionalNumber(Object? value) {
 int? _integer(Object? value) => value is int ? value : null;
 
 double? _decimal(Object? value) => value is num ? value.toDouble() : null;
-
