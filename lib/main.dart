@@ -39,6 +39,16 @@ class SlitherApp extends StatefulWidget {
 
 enum _AppScreen { landing, pen, create, playing, runs, souls, soulStudio }
 
+class _PlaySettings {
+  const _PlaySettings({
+    required this.useSoulController,
+    required this.trainingDurationSeconds,
+  });
+
+  final bool useSoulController;
+  final int? trainingDurationSeconds;
+}
+
 class _SlitherAppState extends State<SlitherApp> {
   late final SlitherGame game;
   late final FocusNode _focusNode;
@@ -150,10 +160,124 @@ class _SlitherAppState extends State<SlitherApp> {
     }
   }
 
-  void _playSelectedSnek() {
-    unawaited(game.startWithSnek(_selectedSnek));
+  Future<void> _playSelectedSnek() async {
+    final settings = await _choosePlaySettings(_selectedSnek);
+    if (!mounted || settings == null) return;
+    unawaited(
+      game.startWithSnek(
+        _selectedSnek,
+        useSoulController: settings.useSoulController,
+        trainingDurationSeconds: settings.trainingDurationSeconds,
+      ),
+    );
     setState(() => _screen = _AppScreen.playing);
     _focusNode.requestFocus();
+  }
+
+  Future<_PlaySettings?> _choosePlaySettings(SnekProfile snek) {
+    final isSoulBound = snek.soulId != null;
+    var useSoulController = isSoulBound;
+    var selectedDurationSeconds = 60;
+
+    return showDialog<_PlaySettings>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text(isSoulBound ? 'SOUL-BOUND SNEK' : 'TRAINING ROUND'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (isSoulBound) ...[
+                    const Text(
+                      'This Snek has a Soul bound to it. Choose how to '
+                      'control it for this run.',
+                    ),
+                    const SizedBox(height: 8),
+                    RadioListTile<bool>(
+                      contentPadding: EdgeInsets.zero,
+                      value: false,
+                      groupValue: useSoulController,
+                      onChanged: (value) => setDialogState(
+                        () => useSoulController = value ?? false,
+                      ),
+                      title: const Text('PLAY MANUALLY'),
+                      subtitle: const Text('Use pointer and keyboard controls'),
+                    ),
+                    RadioListTile<bool>(
+                      contentPadding: EdgeInsets.zero,
+                      value: true,
+                      groupValue: useSoulController,
+                      onChanged: (value) => setDialogState(
+                        () => useSoulController = value ?? true,
+                      ),
+                      title: const Text('AUTO-PLAY WITH SOUL'),
+                      subtitle: const Text('Let the bound Soul control the Snek'),
+                    ),
+                    const Divider(),
+                  ],
+                  const Text(
+                    'TRAINING ROUND TIME LIMIT',
+                    style: TextStyle(
+                      color: ArenaSkin.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'The run ends cleanly when the limit is reached, without '
+                    'forcing a collision or boundary defeat.',
+                    style: TextStyle(color: ArenaSkin.textMuted),
+                  ),
+                  const SizedBox(height: 4),
+                  for (final seconds in const <int>[30, 60, 120, 300])
+                    RadioListTile<int>(
+                      contentPadding: EdgeInsets.zero,
+                      value: seconds,
+                      groupValue: selectedDurationSeconds,
+                      onChanged: (value) => setDialogState(
+                        () => selectedDurationSeconds = value ?? 60,
+                      ),
+                      title: Text('${seconds}s'),
+                    ),
+                  RadioListTile<int>(
+                    contentPadding: EdgeInsets.zero,
+                    value: 0,
+                    groupValue: selectedDurationSeconds,
+                    onChanged: (value) => setDialogState(
+                      () => selectedDurationSeconds = value ?? 0,
+                    ),
+                    title: const Text('NO LIMIT'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('CANCEL'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(
+                  context,
+                  _PlaySettings(
+                    useSoulController: useSoulController,
+                    trainingDurationSeconds: selectedDurationSeconds == 0
+                        ? null
+                        : selectedDurationSeconds,
+                  ),
+                ),
+                child: const Text('ENTER ARENA'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   void _openRunLibrary() {
@@ -476,6 +600,8 @@ class SlitherGame extends FlameGame {
   final ui.Path _visibleGridShadeEdgePath = ui.Path();
   SnekProfile? _activeSnek;
   SnekController? _activeController;
+  bool _activeUseSoulController = false;
+  int? _trainingDurationSeconds;
   FixedStepRunRecorder? _recorder;
   int _runGeneration = 0;
   bool _recorderFinalizing = false;
@@ -503,7 +629,11 @@ class SlitherGame extends FlameGame {
     steering = Vec2(point.dx - centre.dx, point.dy - centre.dy);
   }
 
-  Future<void> startWithSnek(SnekProfile snek) async {
+  Future<void> startWithSnek(
+    SnekProfile snek, {
+    bool? useSoulController,
+    int? trainingDurationSeconds,
+  }) async {
     final generation = ++_runGeneration;
     final previous = _recorder;
     if (previous != null && !simulation.gameOver) simulation.abandon();
@@ -522,6 +652,8 @@ class SlitherGame extends FlameGame {
     _recorderFinalizing = false;
     _activeSnek = snek;
     _activeController = null;
+    _activeUseSoulController = useSoulController ?? snek.soulId != null;
+    _trainingDurationSeconds = trainingDurationSeconds;
     playerName = snek.name;
     simulation.playerColorIndex = snek.colorIndex;
     simulation.restart();
@@ -539,10 +671,12 @@ class SlitherGame extends FlameGame {
     }
 
     if (generation != _runGeneration) return;
+    final soulControlActive =
+        _activeUseSoulController && soulRevision != null;
     _activeController =
-        soulRevision == null
-            ? null
-            : SoulController(weights: soulRevision.weights);
+        soulControlActive
+            ? SoulController(weights: soulRevision.weights)
+            : null;
 
     final soulRevisionIds =
         soulRevision == null
@@ -556,7 +690,7 @@ class SlitherGame extends FlameGame {
             'role': actor.kind.name,
             'controller':
                 actor.kind == SnakeKind.player
-                    ? (soulRevision == null ? 'human' : 'soul')
+                    ? (soulControlActive ? 'soul' : 'human')
                     : 'builtin',
             'profileId': actor.kind == SnakeKind.player ? snek.id : null,
             'soulRevisionIds':
@@ -568,7 +702,7 @@ class SlitherGame extends FlameGame {
         .toList(growable: false);
     final run = TrainingRun(
       id: 'run-${DateTime.now().microsecondsSinceEpoch}',
-      mode: 'manual',
+      mode: soulControlActive ? 'auto' : 'manual',
       seed: simulation.seed,
       tickRateHz:
           (1 / math.max(0.001, simulation.config.simulationStep)).round(),
@@ -582,6 +716,8 @@ class SlitherGame extends FlameGame {
         'playerColorIndex': snek.colorIndex,
         'soulId': soulId,
         'soulRevisionId': soulRevision?.revisionId,
+        'controllerMode': soulControlActive ? 'soul' : 'human',
+        'trainingDurationSeconds': _trainingDurationSeconds,
         'participants': participants,
       },
     );
@@ -635,7 +771,13 @@ class SlitherGame extends FlameGame {
   }
 
   void restart() {
-    unawaited(startWithSnek(_activeSnek ?? SnekProfile.starter));
+    unawaited(
+      startWithSnek(
+        _activeSnek ?? SnekProfile.starter,
+        useSoulController: _activeUseSoulController,
+        trainingDurationSeconds: _trainingDurationSeconds,
+      ),
+    );
   }
 
   void setPointerSprint(bool active) {
@@ -667,6 +809,12 @@ class SlitherGame extends FlameGame {
       Vec2(command.steeringX, command.steeringY),
       sprinting: command.sprinting,
     );
+    final limit = _trainingDurationSeconds;
+    if (limit != null &&
+        simulation.elapsed >= limit &&
+        !simulation.gameOver) {
+      simulation.endTraining();
+    }
     _finalizeCompletedRun();
     _hudTimer += dt;
     if (_hudTimer >= 0.1) {
@@ -1275,6 +1423,8 @@ class _Hud extends StatelessWidget {
       case GameOverReason.boundary:
       case null:
         return 'OUT OF BOUNDS';
+      case GameOverReason.timeLimit:
+        return 'TRAINING COMPLETE';
     }
   }
 
