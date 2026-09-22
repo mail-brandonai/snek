@@ -79,6 +79,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Analyzing recorded behavior'), findsNothing);
+    expect(find.text('OBSERVED EVIDENCE'), findsNothing);
+    await tester.tap(find.text('EXPAND ANALYSIS'));
+    await tester.pumpAndSettle();
     expect(find.text('OBSERVED EVIDENCE'), findsNWidgets(7));
   });
 
