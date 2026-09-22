@@ -783,7 +783,6 @@ class _BrandMark extends StatelessWidget {
         boxShadow: const [BoxShadow(color: Color(0x55ffce78), blurRadius: 18)],
       ),
       child: const Icon(Icons.auto_awesome, color: ArenaSkin.accent, size: 28),
-      ),
     );
   }
 }
