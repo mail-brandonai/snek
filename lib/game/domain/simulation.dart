@@ -150,6 +150,152 @@ class SimulationConfig {
     this.botPlayerSprintRecoveryDuration = 0.9,
   });
 
+  factory SimulationConfig.fromJson(Object? value) {
+    final defaults = const SimulationConfig();
+    final map = _simulationConfigMap(value);
+    return SimulationConfig(
+      arenaRadius: _simulationConfigDouble(map, 'arenaRadius', defaults.arenaRadius),
+      arenaBoundaryWarningBuffer: _simulationConfigDouble(map, 'arenaBoundaryWarningBuffer', defaults.arenaBoundaryWarningBuffer),
+      playerSpeed: _simulationConfigDouble(map, 'playerSpeed', defaults.playerSpeed),
+      botSpeed: _simulationConfigDouble(map, 'botSpeed', defaults.botSpeed),
+      botTurnRate: _simulationConfigDouble(map, 'botTurnRate', defaults.botTurnRate),
+      botSenseRadius: _simulationConfigDouble(map, 'botSenseRadius', defaults.botSenseRadius),
+      botBoundaryBuffer: _simulationConfigDouble(map, 'botBoundaryBuffer', defaults.botBoundaryBuffer),
+      botSpawnRadius: _simulationConfigDouble(map, 'botSpawnRadius', defaults.botSpawnRadius),
+      segmentSpacing: _simulationConfigDouble(map, 'segmentSpacing', defaults.segmentSpacing),
+      growthExpressionRate: _simulationConfigDouble(map, 'growthExpressionRate', defaults.growthExpressionRate),
+      sprintMultiplier: _simulationConfigDouble(map, 'sprintMultiplier', defaults.sprintMultiplier),
+      sprintDrainInterval: _simulationConfigDouble(map, 'sprintDrainInterval', defaults.sprintDrainInterval),
+      naturalPelletValue: _simulationConfigInt(map, 'naturalPelletValue', defaults.naturalPelletValue),
+      sprintDropValue: _simulationConfigInt(map, 'sprintDropValue', defaults.sprintDropValue),
+      defeatDropValue: _simulationConfigInt(map, 'defeatDropValue', defaults.defeatDropValue),
+      minimumSprintLength: _simulationConfigInt(map, 'minimumSprintLength', defaults.minimumSprintLength),
+      initialPellets: _simulationConfigInt(map, 'initialPellets', defaults.initialPellets),
+      pelletRefillThreshold: _simulationConfigDouble(map, 'pelletRefillThreshold', defaults.pelletRefillThreshold),
+      pelletRefillRate: _simulationConfigDouble(map, 'pelletRefillRate', defaults.pelletRefillRate),
+      botCount: _simulationConfigInt(map, 'botCount', defaults.botCount),
+      maxBotCount: _simulationConfigInt(map, 'maxBotCount', defaults.maxBotCount),
+      initialLength: _simulationConfigInt(map, 'initialLength', defaults.initialLength),
+      botRespawnDelay: _simulationConfigDouble(map, 'botRespawnDelay', defaults.botRespawnDelay),
+      botRespawnSafeDistance: _simulationConfigDouble(map, 'botRespawnSafeDistance', defaults.botRespawnSafeDistance),
+      botRespawnAttempts: _simulationConfigInt(map, 'botRespawnAttempts', defaults.botRespawnAttempts),
+      botPopulationInterval: _simulationConfigDouble(map, 'botPopulationInterval', defaults.botPopulationInterval),
+      botPressureRadius: _simulationConfigDouble(map, 'botPressureRadius', defaults.botPressureRadius),
+      botPressureWeight: _simulationConfigDouble(map, 'botPressureWeight', defaults.botPressureWeight),
+      botInterceptLeadTime: _simulationConfigDouble(map, 'botInterceptLeadTime', defaults.botInterceptLeadTime),
+      botDroppedMassWeight: _simulationConfigDouble(map, 'botDroppedMassWeight', defaults.botDroppedMassWeight),
+      botGrowthMultiplier: _simulationConfigDouble(map, 'botGrowthMultiplier', defaults.botGrowthMultiplier),
+      botRetreatLength: _simulationConfigInt(map, 'botRetreatLength', defaults.botRetreatLength),
+      botRetreatBoundaryBuffer: _simulationConfigDouble(map, 'botRetreatBoundaryBuffer', defaults.botRetreatBoundaryBuffer),
+      botRetreatWeight: _simulationConfigDouble(map, 'botRetreatWeight', defaults.botRetreatWeight),
+      botSizeSpeedPenalty: _simulationConfigDouble(map, 'botSizeSpeedPenalty', defaults.botSizeSpeedPenalty),
+      botSprintMultiplier: _simulationConfigDouble(map, 'botSprintMultiplier', defaults.botSprintMultiplier),
+      botSprintDuration: _simulationConfigDouble(map, 'botSprintDuration', defaults.botSprintDuration),
+      botSprintCooldown: _simulationConfigDouble(map, 'botSprintCooldown', defaults.botSprintCooldown),
+      botSprintMinimumLength: _simulationConfigInt(map, 'botSprintMinimumLength', defaults.botSprintMinimumLength),
+      botSprintTriggerDistance: _simulationConfigDouble(map, 'botSprintTriggerDistance', defaults.botSprintTriggerDistance),
+      botMaximumLength: _simulationConfigInt(map, 'botMaximumLength', defaults.botMaximumLength),
+      collisionPingDuration: _simulationConfigDouble(map, 'collisionPingDuration', defaults.collisionPingDuration),
+      sprintAnticipationDuration: _simulationConfigDouble(map, 'sprintAnticipationDuration', defaults.sprintAnticipationDuration),
+      sprintPulseDuration: _simulationConfigDouble(map, 'sprintPulseDuration', defaults.sprintPulseDuration),
+      telegraphEventDuration: _simulationConfigDouble(map, 'telegraphEventDuration', defaults.telegraphEventDuration),
+      telegraphEventLimit: _simulationConfigInt(map, 'telegraphEventLimit', defaults.telegraphEventLimit),
+      threatProjectionSeconds: _simulationConfigDouble(map, 'threatProjectionSeconds', defaults.threatProjectionSeconds),
+      threatRadius: _simulationConfigDouble(map, 'threatRadius', defaults.threatRadius),
+      threatCommitmentThreshold: _simulationConfigDouble(map, 'threatCommitmentThreshold', defaults.threatCommitmentThreshold),
+      botTacticDecisionMin: _simulationConfigDouble(map, 'botTacticDecisionMin', defaults.botTacticDecisionMin),
+      botTacticDecisionMax: _simulationConfigDouble(map, 'botTacticDecisionMax', defaults.botTacticDecisionMax),
+      botTacticTurnVariance: _simulationConfigDouble(map, 'botTacticTurnVariance', defaults.botTacticTurnVariance),
+      botTacticSpeedBoost: _simulationConfigDouble(map, 'botTacticSpeedBoost', defaults.botTacticSpeedBoost),
+      botTacticBrakeMultiplier: _simulationConfigDouble(map, 'botTacticBrakeMultiplier', defaults.botTacticBrakeMultiplier),
+      botTacticWeaveStrength: _simulationConfigDouble(map, 'botTacticWeaveStrength', defaults.botTacticWeaveStrength),
+      botCutoffLeadTime: _simulationConfigDouble(map, 'botCutoffLeadTime', defaults.botCutoffLeadTime),
+      botFlankDistance: _simulationConfigDouble(map, 'botFlankDistance', defaults.botFlankDistance),
+      botEncircleGapDistance: _simulationConfigDouble(map, 'botEncircleGapDistance', defaults.botEncircleGapDistance),
+      botBaitDistance: _simulationConfigDouble(map, 'botBaitDistance', defaults.botBaitDistance),
+      botEngagementRadius: _simulationConfigDouble(map, 'botEngagementRadius', defaults.botEngagementRadius),
+      botEngagementLeadTime: _simulationConfigDouble(map, 'botEngagementLeadTime', defaults.botEngagementLeadTime),
+      botEngagementWeight: _simulationConfigDouble(map, 'botEngagementWeight', defaults.botEngagementWeight),
+      botEngagementLaneDistance: _simulationConfigDouble(map, 'botEngagementLaneDistance', defaults.botEngagementLaneDistance),
+      botEngagementSafetyRadius: _simulationConfigDouble(map, 'botEngagementSafetyRadius', defaults.botEngagementSafetyRadius),
+      botCollisionLookahead: _simulationConfigDouble(map, 'botCollisionLookahead', defaults.botCollisionLookahead),
+      botCollisionSampleCount: _simulationConfigInt(map, 'botCollisionSampleCount', defaults.botCollisionSampleCount),
+      botCollisionAvoidanceRadius: _simulationConfigDouble(map, 'botCollisionAvoidanceRadius', defaults.botCollisionAvoidanceRadius),
+      botCollisionAvoidanceWeight: _simulationConfigDouble(map, 'botCollisionAvoidanceWeight', defaults.botCollisionAvoidanceWeight),
+      botPeerSeparationRadius: _simulationConfigDouble(map, 'botPeerSeparationRadius', defaults.botPeerSeparationRadius),
+      botPeerSeparationWeight: _simulationConfigDouble(map, 'botPeerSeparationWeight', defaults.botPeerSeparationWeight),
+      botDroppedMassSenseRadius: _simulationConfigDouble(map, 'botDroppedMassSenseRadius', defaults.botDroppedMassSenseRadius),
+      botDroppedMassClusterRadius: _simulationConfigDouble(map, 'botDroppedMassClusterRadius', defaults.botDroppedMassClusterRadius),
+      botDroppedMassControlWeight: _simulationConfigDouble(map, 'botDroppedMassControlWeight', defaults.botDroppedMassControlWeight),
+      botDroppedMassGuardDistance: _simulationConfigDouble(map, 'botDroppedMassGuardDistance', defaults.botDroppedMassGuardDistance),
+      botDroppedMassGuardRadius: _simulationConfigDouble(map, 'botDroppedMassGuardRadius', defaults.botDroppedMassGuardRadius),
+      botRouteAvoidanceRadius: _simulationConfigDouble(map, 'botRouteAvoidanceRadius', defaults.botRouteAvoidanceRadius),
+      botRouteAvoidanceWeight: _simulationConfigDouble(map, 'botRouteAvoidanceWeight', defaults.botRouteAvoidanceWeight),
+      botDefensiveAvoidanceRadius: _simulationConfigDouble(map, 'botDefensiveAvoidanceRadius', defaults.botDefensiveAvoidanceRadius),
+      botDefensiveAvoidanceWeight: _simulationConfigDouble(map, 'botDefensiveAvoidanceWeight', defaults.botDefensiveAvoidanceWeight),
+      botAdaptiveLeadTime: _simulationConfigDouble(map, 'botAdaptiveLeadTime', defaults.botAdaptiveLeadTime),
+      botClosedLoopWeight: _simulationConfigDouble(map, 'botClosedLoopWeight', defaults.botClosedLoopWeight),
+      botCurvedRouteLeadTime: _simulationConfigDouble(map, 'botCurvedRouteLeadTime', defaults.botCurvedRouteLeadTime),
+      botEvasionReplanDistance: _simulationConfigDouble(map, 'botEvasionReplanDistance', defaults.botEvasionReplanDistance),
+      botScreenDistance: _simulationConfigDouble(map, 'botScreenDistance', defaults.botScreenDistance),
+      botDenyDistance: _simulationConfigDouble(map, 'botDenyDistance', defaults.botDenyDistance),
+      botGeometryPressureWeight: _simulationConfigDouble(map, 'botGeometryPressureWeight', defaults.botGeometryPressureWeight),
+      botAttackAbortDistance: _simulationConfigDouble(map, 'botAttackAbortDistance', defaults.botAttackAbortDistance),
+      botAttackAbortSafety: _simulationConfigDouble(map, 'botAttackAbortSafety', defaults.botAttackAbortSafety),
+      botFormationCommitmentDuration: _simulationConfigDouble(map, 'botFormationCommitmentDuration', defaults.botFormationCommitmentDuration),
+      botFormationReplanDistance: _simulationConfigDouble(map, 'botFormationReplanDistance', defaults.botFormationReplanDistance),
+      botFormationSeparationDistance: _simulationConfigDouble(map, 'botFormationSeparationDistance', defaults.botFormationSeparationDistance),
+      botFormationPressureWeight: _simulationConfigDouble(map, 'botFormationPressureWeight', defaults.botFormationPressureWeight),
+      botPeerHardAvoidanceRadius: _simulationConfigDouble(map, 'botPeerHardAvoidanceRadius', defaults.botPeerHardAvoidanceRadius),
+      botPeerHardAvoidanceThreshold: _simulationConfigDouble(map, 'botPeerHardAvoidanceThreshold', defaults.botPeerHardAvoidanceThreshold),
+      botPeerAbortThreshold: _simulationConfigDouble(map, 'botPeerAbortThreshold', defaults.botPeerAbortThreshold),
+      botAdaptiveMaximumLength: _simulationConfigInt(map, 'botAdaptiveMaximumLength', defaults.botAdaptiveMaximumLength),
+      botAdaptiveGrowthGap: _simulationConfigDouble(map, 'botAdaptiveGrowthGap', defaults.botAdaptiveGrowthGap),
+      maxDroppedMass: _simulationConfigInt(map, 'maxDroppedMass', defaults.maxDroppedMass),
+      droppedMassLifetime: _simulationConfigDouble(map, 'droppedMassLifetime', defaults.droppedMassLifetime),
+      droppedMassMergeRadius: _simulationConfigDouble(map, 'droppedMassMergeRadius', defaults.droppedMassMergeRadius),
+      botCatchUpDelay: _simulationConfigDouble(map, 'botCatchUpDelay', defaults.botCatchUpDelay),
+      botCatchUpRate: _simulationConfigDouble(map, 'botCatchUpRate', defaults.botCatchUpRate),
+      botCatchUpTargetFraction: _simulationConfigDouble(map, 'botCatchUpTargetFraction', defaults.botCatchUpTargetFraction),
+      botTacticalDecisionInterval: _simulationConfigDouble(map, 'botTacticalDecisionInterval', defaults.botTacticalDecisionInterval),
+      botPlannerLookahead: _simulationConfigDouble(map, 'botPlannerLookahead', defaults.botPlannerLookahead),
+      botRouteReservationDistance: _simulationConfigDouble(map, 'botRouteReservationDistance', defaults.botRouteReservationDistance),
+      movementTrailTrimSlackSegments: _simulationConfigInt(map, 'movementTrailTrimSlackSegments', defaults.movementTrailTrimSlackSegments),
+      spatialBucketSize: _simulationConfigDouble(map, 'spatialBucketSize', defaults.spatialBucketSize),
+      busyPlanningLoadThreshold: _simulationConfigInt(map, 'busyPlanningLoadThreshold', defaults.busyPlanningLoadThreshold),
+      busyPlanningIntervalMultiplier: _simulationConfigDouble(map, 'busyPlanningIntervalMultiplier', defaults.busyPlanningIntervalMultiplier),
+      simulationStep: _simulationConfigDouble(map, 'simulationStep', defaults.simulationStep),
+      maxSimulationStepsPerUpdate: _simulationConfigInt(map, 'maxSimulationStepsPerUpdate', defaults.maxSimulationStepsPerUpdate),
+      bodyIndexStrideThreshold: _simulationConfigInt(map, 'bodyIndexStrideThreshold', defaults.bodyIndexStrideThreshold),
+      botManeuverStageDuration: _simulationConfigDouble(map, 'botManeuverStageDuration', defaults.botManeuverStageDuration),
+      botManeuverCommitDuration: _simulationConfigDouble(map, 'botManeuverCommitDuration', defaults.botManeuverCommitDuration),
+      botManeuverRecoveryDuration: _simulationConfigDouble(map, 'botManeuverRecoveryDuration', defaults.botManeuverRecoveryDuration),
+      botPlayerMemoryDecay: _simulationConfigDouble(map, 'botPlayerMemoryDecay', defaults.botPlayerMemoryDecay),
+      botReservationHorizon: _simulationConfigDouble(map, 'botReservationHorizon', defaults.botReservationHorizon),
+      botYieldSpeedMultiplier: _simulationConfigDouble(map, 'botYieldSpeedMultiplier', defaults.botYieldSpeedMultiplier),
+      botHunterInitialCount: _simulationConfigInt(map, 'botHunterInitialCount', defaults.botHunterInitialCount),
+      botHunterMaximumCount: _simulationConfigInt(map, 'botHunterMaximumCount', defaults.botHunterMaximumCount),
+      botHunterSecondPopulation: _simulationConfigInt(map, 'botHunterSecondPopulation', defaults.botHunterSecondPopulation),
+      botHunterReentryDistance: _simulationConfigDouble(map, 'botHunterReentryDistance', defaults.botHunterReentryDistance),
+      collisionCoreScale: _simulationConfigDouble(map, 'collisionCoreScale', defaults.collisionCoreScale),
+      collisionTailTaper: _simulationConfigDouble(map, 'collisionTailTaper', defaults.collisionTailTaper),
+      botParallelAlignmentThreshold: _simulationConfigDouble(map, 'botParallelAlignmentThreshold', defaults.botParallelAlignmentThreshold),
+      botParallelClosingThreshold: _simulationConfigDouble(map, 'botParallelClosingThreshold', defaults.botParallelClosingThreshold),
+      botOpportunitySenseRadius: _simulationConfigDouble(map, 'botOpportunitySenseRadius', defaults.botOpportunitySenseRadius),
+      botOpportunityResponderLimit: _simulationConfigInt(map, 'botOpportunityResponderLimit', defaults.botOpportunityResponderLimit),
+      botOpportunityCommitmentDuration: _simulationConfigDouble(map, 'botOpportunityCommitmentDuration', defaults.botOpportunityCommitmentDuration),
+      botEnclosureGraceDuration: _simulationConfigDouble(map, 'botEnclosureGraceDuration', defaults.botEnclosureGraceDuration),
+      botEnclosureSampleLimit: _simulationConfigInt(map, 'botEnclosureSampleLimit', defaults.botEnclosureSampleLimit),
+      botEnclosureMinimumSweep: _simulationConfigDouble(map, 'botEnclosureMinimumSweep', defaults.botEnclosureMinimumSweep),
+      botHookMinimumSweepRatio: _simulationConfigDouble(map, 'botHookMinimumSweepRatio', defaults.botHookMinimumSweepRatio),
+      botHookClosureRadiusMultiplier: _simulationConfigDouble(map, 'botHookClosureRadiusMultiplier', defaults.botHookClosureRadiusMultiplier),
+      botTacticalPrecisionSafetyRadius: _simulationConfigDouble(map, 'botTacticalPrecisionSafetyRadius', defaults.botTacticalPrecisionSafetyRadius),
+      botResourceFieldRadius: _simulationConfigDouble(map, 'botResourceFieldRadius', defaults.botResourceFieldRadius),
+      botResourceFieldMinimumValue: _simulationConfigInt(map, 'botResourceFieldMinimumValue', defaults.botResourceFieldMinimumValue),
+      botPlayerSprintRecoveryDuration: _simulationConfigDouble(map, 'botPlayerSprintRecoveryDuration', defaults.botPlayerSprintRecoveryDuration),
+    );
+  }
+
   final double arenaRadius;
   final double arenaBoundaryWarningBuffer;
   final double playerSpeed;
@@ -865,6 +1011,32 @@ class _MutableBodyPoint extends Vec2 {
   }
 }
 
+Map<String, Object?> _simulationConfigMap(Object? value) {
+  if (value is! Map) return const <String, Object?>{};
+  final result = <String, Object?>{};
+  for (final entry in value.entries) {
+    if (entry.key is String) result[entry.key as String] = entry.value;
+  }
+  return result;
+}
+
+double _simulationConfigDouble(
+  Map<String, Object?> map,
+  String key,
+  double fallback,
+) {
+  final value = map[key];
+  return value is num && value.isFinite ? value.toDouble() : fallback;
+}
+
+int _simulationConfigInt(
+  Map<String, Object?> map,
+  String key,
+  int fallback,
+) {
+  final value = map[key];
+  return value is num && value.isFinite ? value.toInt() : fallback;
+}
 class GameSimulation {
   GameSimulation({
     this.config = const SimulationConfig(),
@@ -961,6 +1133,15 @@ class GameSimulation {
 
   SnakeState get player =>
       snakes.firstWhere((snake) => snake.kind == SnakeKind.player);
+
+  bool get _captureTacticalAnalysis {
+    final sink = captureSink;
+    if (sink == null) return false;
+    if (sink is TacticalAnalysisCaptureSink) {
+      return sink.captureTacticalAnalysis;
+    }
+    return true;
+  }
 
   int get playerRank {
     return _rankForLength(player.length);
@@ -1381,7 +1562,7 @@ class GameSimulation {
       _advanceBotPopulation(step);
       _maintainPelletDensity(step);
       if (captureSink != null) {
-        _recordTacticalCaptureEvents();
+        if (_captureTacticalAnalysis) _recordTacticalCaptureEvents();
         if (simulationTick % 6 == 0) _recordObservationCapture();
         captureSink?.completeStep(simulationTick);
       }
@@ -1554,8 +1735,12 @@ class GameSimulation {
                 warningBuffer)
             .clamp(0.0, 1.0)
             .toDouble();
-    final threatSignals = _currentCaptureThreats.values.toList()
-      ..sort((left, right) => right.urgency.compareTo(left.urgency));
+    final threatSignals =
+        (_captureTacticalAnalysis
+                ? _currentCaptureThreats.values
+                : (player.alive ? playerThreats : const <ThreatSignal>[]))
+            .toList()
+          ..sort((left, right) => right.urgency.compareTo(left.urgency));
     sink.recordObservation(
       SimulationObservationSnapshot(
         tick: simulationTick,
