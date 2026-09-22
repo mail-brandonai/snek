@@ -1073,6 +1073,17 @@ class GameSimulation {
     return threats.isEmpty ? null : threats.first;
   }
 
+  int get nearbyPlayerNaturalFoodCount =>
+      _nearbyFood(player.head, config.botSenseRadius, _pelletBuckets).length;
+
+  int get nearbyPlayerDroppedMassCount => _nearbyFood(
+    player.head,
+    config.botSenseRadius,
+    _droppedMassBuckets,
+  ).length;
+
+  Vec2 get nearestPlayerFoodDirection => _nearestFood(player).normalized();
+
   bool get canSprint =>
       !gameOver && player.alive && player.length > config.minimumSprintLength;
 
