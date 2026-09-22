@@ -42,6 +42,7 @@ abstract interface class RunRepository {
 abstract interface class SoulRepository {
   Future<void> saveSoul(Soul soul);
   Future<Soul?> getSoul(String id);
+  Future<List<Soul>> listSouls();
   Future<void> saveRevision(SoulRevision revision);
   Future<void> saveSoulRevision({
     required Soul soul,

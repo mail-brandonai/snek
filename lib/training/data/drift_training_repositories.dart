@@ -19,12 +19,14 @@ class DriftTrainingRepositories
   static const _penId = 'current';
 
   Future<TrainingRecord?> _record(String kind, String id) =>
-      (database.select(database.trainingRecords)
-            ..where((row) => row.kind.equals(kind) & row.id.equals(id)))
-          .getSingleOrNull();
+      (database.select(database.trainingRecords)..where(
+        (row) => row.kind.equals(kind) & row.id.equals(id),
+      )).getSingleOrNull();
 
   Future<void> _writeRecord(String kind, String id, Object? value) async {
-    await database.into(database.trainingRecords).insertOnConflictUpdate(
+    await database
+        .into(database.trainingRecords)
+        .insertOnConflictUpdate(
           TrainingRecordsCompanion.insert(
             kind: kind,
             id: id,
@@ -35,8 +37,7 @@ class DriftTrainingRepositories
 
   Future<List<TrainingRecord>> _records(String kind) =>
       (database.select(database.trainingRecords)
-            ..where((row) => row.kind.equals(kind)))
-          .get();
+        ..where((row) => row.kind.equals(kind))).get();
 
   @override
   Future<SnekPenSnapshot?> loadPen() async {
@@ -52,23 +53,25 @@ class DriftTrainingRepositories
       });
 
   TrainingRun _run(RunHeader row) => TrainingRun.fromJson({
-        'schemaVersion': row.schemaVersion,
-        'id': row.id,
-        'mode': row.mode,
-        'seed': row.seed,
-        'tickRateHz': row.tickRateHz,
-        'createdAtMs': row.createdAtMs,
-        'finalizedAtMs': row.finalizedAtMs,
-        'status': row.status,
-        'config': jsonDecode(row.configJson),
-      });
+    'schemaVersion': row.schemaVersion,
+    'id': row.id,
+    'mode': row.mode,
+    'seed': row.seed,
+    'tickRateHz': row.tickRateHz,
+    'createdAtMs': row.createdAtMs,
+    'finalizedAtMs': row.finalizedAtMs,
+    'status': row.status,
+    'config': jsonDecode(row.configJson),
+  });
 
   @override
   Future<void> createRun(TrainingRun run) async {
     if (run.status != TrainingRunStatus.recording) {
       throw const TrainingValidationException('New runs must start recording');
     }
-    await database.into(database.runHeaders).insert(
+    await database
+        .into(database.runHeaders)
+        .insert(
           RunHeadersCompanion.insert(
             id: run.id,
             status: run.status.name,
@@ -84,9 +87,9 @@ class DriftTrainingRepositories
 
   @override
   Future<TrainingRun?> getRun(String id) async {
-    final row = await (database.select(database.runHeaders)
-          ..where((item) => item.id.equals(id)))
-        .getSingleOrNull();
+    final row =
+        await (database.select(database.runHeaders)
+          ..where((item) => item.id.equals(id))).getSingleOrNull();
     return row == null ? null : _run(row);
   }
 
@@ -99,10 +102,7 @@ class DriftTrainingRepositories
   }
 
   @override
-  Future<void> setRunReviewStatus(
-    String id,
-    TrainingRunStatus status,
-  ) async {
+  Future<void> setRunReviewStatus(String id, TrainingRunStatus status) async {
     if (status != TrainingRunStatus.retained &&
         status != TrainingRunStatus.discarded) {
       throw const TrainingValidationException(
@@ -110,16 +110,16 @@ class DriftTrainingRepositories
       );
     }
     await database.transaction(() async {
-      final row = await (database.select(database.runHeaders)
-            ..where((item) => item.id.equals(id)))
-          .getSingleOrNull();
+      final row =
+          await (database.select(database.runHeaders)
+            ..where((item) => item.id.equals(id))).getSingleOrNull();
       if (row == null) throw StateError('Run does not exist');
       if (row.status != TrainingRunStatus.pendingReview.name) {
         throw StateError('Only pending runs can be reviewed');
       }
-      await (database.update(database.runHeaders)
-            ..where((item) => item.id.equals(id)))
-          .write(RunHeadersCompanion(status: Value(status.name)));
+      await (database.update(database.runHeaders)..where(
+        (item) => item.id.equals(id),
+      )).write(RunHeadersCompanion(status: Value(status.name)));
     });
   }
 
@@ -136,11 +136,9 @@ class DriftTrainingRepositories
         }
       }
       await (database.delete(database.runChunks)
-            ..where((item) => item.runId.equals(id)))
-          .go();
+        ..where((item) => item.runId.equals(id))).go();
       await (database.delete(database.runHeaders)
-            ..where((item) => item.id.equals(id)))
-          .go();
+        ..where((item) => item.id.equals(id))).go();
     });
   }
 
@@ -155,6 +153,15 @@ class DriftTrainingRepositories
   Future<Soul?> getSoul(String id) async {
     final row = await _record(_soulKind, id);
     return row == null ? null : Soul.fromJson(jsonDecode(row.payload));
+  }
+
+  @override
+  Future<List<Soul>> listSouls() async {
+    final rows = await _records(_soulKind);
+    final souls =
+        rows.map((row) => Soul.fromJson(jsonDecode(row.payload))).toList();
+    souls.sort((left, right) => left.createdAtMs.compareTo(right.createdAtMs));
+    return List<Soul>.unmodifiable(souls);
   }
 
   Future<void> _insertRevision(SoulRevision revision) async {
@@ -174,9 +181,9 @@ class DriftTrainingRepositories
       }
     }
     for (final runId in revision.sourceRunIds) {
-      final exists = await (database.select(database.runHeaders)
-            ..where((item) => item.id.equals(runId)))
-          .getSingleOrNull();
+      final exists =
+          await (database.select(database.runHeaders)
+            ..where((item) => item.id.equals(runId))).getSingleOrNull();
       if (exists == null) throw StateError('Source run does not exist: $runId');
     }
     await _writeRecord(_revisionKind, revision.revisionId, revision.toJson());
@@ -225,8 +232,7 @@ class DriftTrainingRepositories
         throw StateError('Soul with revisions cannot be deleted');
       }
       await (database.delete(database.trainingRecords)
-            ..where((row) => row.kind.equals(_soulKind) & row.id.equals(id)))
-          .go();
+        ..where((row) => row.kind.equals(_soulKind) & row.id.equals(id))).go();
     });
   }
 
@@ -272,7 +278,6 @@ class DriftTrainingRepositories
   @override
   Future<void> deleteMatch(String id) async {
     await (database.delete(database.trainingRecords)
-          ..where((row) => row.kind.equals(_matchKind) & row.id.equals(id)))
-        .go();
+      ..where((row) => row.kind.equals(_matchKind) & row.id.equals(id))).go();
   }
 }
