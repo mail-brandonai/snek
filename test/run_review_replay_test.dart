@@ -38,7 +38,7 @@ void main() {
       'tickRateHz': 60,
       'seed': 7,
       'runConfig': <String, Object?>{
-        'simulation': const SimulationConfig().toJson(),
+        'simulation': SimulationConfig().toJson(),
         'playerColorIndex': 0,
       },
       'chunkPayloads': <Uint8List>[payload],
