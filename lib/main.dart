@@ -182,110 +182,115 @@ class _SlitherAppState extends State<SlitherApp> {
 
     return showDialog<_PlaySettings>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Text(isSoulBound ? 'SOUL-BOUND SNEK' : 'TRAINING ROUND'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (isSoulBound) ...[
-                    const Text(
-                      'This Snek has a Soul bound to it. Choose how to '
-                      'control it for this run.',
-                    ),
-                    const SizedBox(height: 8),
-                    RadioGroup<bool>(
-                      groupValue: useSoulController,
-                      onChanged: (value) => setDialogState(
-                        () => useSoulController = value ?? false,
-                      ),
-                      child: const Column(
-                        children: [
-                          RadioListTile<bool>(
-                            contentPadding: EdgeInsets.zero,
-                            value: false,
-                            title: Text('PLAY MANUALLY'),
-                            subtitle: Text(
-                              'Use pointer and keyboard controls',
-                            ),
-                          ),
-                          RadioListTile<bool>(
-                            contentPadding: EdgeInsets.zero,
-                            value: true,
-                            title: Text('AUTO-PLAY WITH SOUL'),
-                            subtitle: Text(
-                              'Let the bound Soul control the Snek',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(),
-                  ],
-                  const Text(
-                    'TRAINING ROUND TIME LIMIT',
-                    style: TextStyle(
-                      color: ArenaSkin.accent,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'The run ends cleanly when the limit is reached, without '
-                    'forcing a collision or boundary defeat.',
-                    style: TextStyle(color: ArenaSkin.textMuted),
-                  ),
-                  const SizedBox(height: 4),
-                  RadioGroup<int>(
-                    groupValue: selectedDurationSeconds,
-                    onChanged: (value) => setDialogState(
-                      () => selectedDurationSeconds = value ?? 60,
-                    ),
-                    child: Column(
-                      children: [
-                        for (final seconds in const <int>[30, 60, 120, 300])
-                          RadioListTile<int>(
-                            contentPadding: EdgeInsets.zero,
-                            value: seconds,
-                            title: Text('${seconds}s'),
-                          ),
-                        const RadioListTile<int>(
-                          contentPadding: EdgeInsets.zero,
-                          value: 0,
-                          title: Text('NO LIMIT'),
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: Text(isSoulBound ? 'SOUL-BOUND SNEK' : 'TRAINING ROUND'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (isSoulBound) ...[
+                        const Text(
+                          'This Snek has a Soul bound to it. Choose how to '
+                          'control it for this run.',
                         ),
+                        const SizedBox(height: 8),
+                        RadioGroup<bool>(
+                          groupValue: useSoulController,
+                          onChanged:
+                              (value) => setDialogState(
+                                () => useSoulController = value ?? false,
+                              ),
+                          child: const Column(
+                            children: [
+                              RadioListTile<bool>(
+                                contentPadding: EdgeInsets.zero,
+                                value: false,
+                                title: Text('PLAY MANUALLY'),
+                                subtitle: Text(
+                                  'Use pointer and keyboard controls',
+                                ),
+                              ),
+                              RadioListTile<bool>(
+                                contentPadding: EdgeInsets.zero,
+                                value: true,
+                                title: Text('AUTO-PLAY WITH SOUL'),
+                                subtitle: Text(
+                                  'Let the bound Soul control the Snek',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(),
                       ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('CANCEL'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(
-                  context,
-                  _PlaySettings(
-                    useSoulController: useSoulController,
-                    trainingDurationSeconds: selectedDurationSeconds == 0
-                        ? null
-                        : selectedDurationSeconds,
+                      const Text(
+                        'TRAINING ROUND TIME LIMIT',
+                        style: TextStyle(
+                          color: ArenaSkin.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'The run ends cleanly when the limit is reached, without '
+                        'forcing a collision or boundary defeat.',
+                        style: TextStyle(color: ArenaSkin.textMuted),
+                      ),
+                      const SizedBox(height: 4),
+                      RadioGroup<int>(
+                        groupValue: selectedDurationSeconds,
+                        onChanged:
+                            (value) => setDialogState(
+                              () => selectedDurationSeconds = value ?? 60,
+                            ),
+                        child: Column(
+                          children: [
+                            for (final seconds in const <int>[30, 60, 120, 300])
+                              RadioListTile<int>(
+                                contentPadding: EdgeInsets.zero,
+                                value: seconds,
+                                title: Text('${seconds}s'),
+                              ),
+                            const RadioListTile<int>(
+                              contentPadding: EdgeInsets.zero,
+                              value: 0,
+                              title: Text('NO LIMIT'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: const Text('ENTER ARENA'),
-              ),
-            ],
-          );
-        },
-      ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('CANCEL'),
+                  ),
+                  FilledButton(
+                    onPressed:
+                        () => Navigator.pop(
+                          context,
+                          _PlaySettings(
+                            useSoulController: useSoulController,
+                            trainingDurationSeconds:
+                                selectedDurationSeconds == 0
+                                    ? null
+                                    : selectedDurationSeconds,
+                          ),
+                        ),
+                    child: const Text('ENTER ARENA'),
+                  ),
+                ],
+              );
+            },
+          ),
     );
   }
 
@@ -685,8 +690,7 @@ class SlitherGame extends FlameGame {
     }
 
     if (generation != _runGeneration) return;
-    final soulControlActive =
-        _activeUseSoulController && soulRevision != null;
+    final soulControlActive = _activeUseSoulController && soulRevision != null;
     _activeController =
         soulControlActive
             ? SoulController(weights: soulRevision.weights)
@@ -824,9 +828,7 @@ class SlitherGame extends FlameGame {
       sprinting: command.sprinting,
     );
     final limit = _trainingDurationSeconds;
-    if (limit != null &&
-        simulation.elapsed >= limit &&
-        !simulation.gameOver) {
+    if (limit != null && simulation.elapsed >= limit && !simulation.gameOver) {
       _endTraining();
     }
     _finalizeCompletedRun();
