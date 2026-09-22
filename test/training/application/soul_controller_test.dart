@@ -46,25 +46,28 @@ void main() {
       expect(command.steeringX, lessThan(0));
     });
 
-    test('sprint behavior requires opportunity and is disabled under pressure', () {
-      const controller = SoulController(
-        weights: <String, double>{'sprintBehavior': 1},
-      );
+    test(
+      'sprint behavior requires opportunity and is disabled under pressure',
+      () {
+        const controller = SoulController(
+          weights: <String, double>{'sprintBehavior': 1},
+        );
 
-      final command = controller.decide(
-        _observation(nearbyPelletCount: 1, bodyLength: 12),
-      );
-      final pressuredCommand = controller.decide(
-        _observation(
-          nearbyPelletCount: 1,
-          bodyLength: 12,
-          pressured: true,
-        ),
-      );
+        final command = controller.decide(
+          _observation(nearbyPelletCount: 1, bodyLength: 12),
+        );
+        final pressuredCommand = controller.decide(
+          _observation(
+            nearbyPelletCount: 1,
+            bodyLength: 12,
+            pressured: true,
+          ),
+        );
 
-      expect(command.sprinting, isTrue);
-      expect(pressuredCommand.sprinting, isFalse);
-    });
+        expect(command.sprinting, isTrue);
+        expect(pressuredCommand.sprinting, isFalse);
+      },
+    );
   });
 }
 
