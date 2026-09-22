@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'game/domain/game_state.dart';
 import 'game/domain/minimap.dart';
 import 'game/domain/simulation.dart';
+import 'game/domain/simulation_capture.dart';
 import 'game/domain/vec2.dart';
 import 'game/presentation/arena_skin.dart';
 import 'game/presentation/snek_pen.dart';
@@ -509,6 +510,7 @@ class GameHud {
     required this.sprinting,
     required this.gameOver,
     required this.gameOverReason,
+    required this.timeLimitReached,
     required this.finalStats,
     required this.leaderboard,
     required this.minimap,
@@ -529,6 +531,7 @@ class GameHud {
   final bool sprinting;
   final bool gameOver;
   final GameOverReason? gameOverReason;
+  final bool timeLimitReached;
   final RunStats? finalStats;
   final List<LeaderboardEntry> leaderboard;
   final List<MinimapMarker> minimap;
@@ -557,6 +560,7 @@ class SlitherGame extends FlameGame {
            sprinting: false,
            gameOver: false,
            gameOverReason: null,
+           timeLimitReached: false,
            finalStats: null,
            leaderboard: <LeaderboardEntry>[],
            minimap: <MinimapMarker>[],
@@ -610,6 +614,7 @@ class SlitherGame extends FlameGame {
   SnekController? _activeController;
   bool _activeUseSoulController = false;
   int? _trainingDurationSeconds;
+  bool _timeLimitReached = false;
   FixedStepRunRecorder? _recorder;
   int _runGeneration = 0;
   bool _recorderFinalizing = false;
@@ -662,6 +667,7 @@ class SlitherGame extends FlameGame {
     _activeController = null;
     _activeUseSoulController = useSoulController ?? snek.soulId != null;
     _trainingDurationSeconds = trainingDurationSeconds;
+    _timeLimitReached = false;
     playerName = snek.name;
     simulation.playerColorIndex = snek.colorIndex;
     simulation.restart();
@@ -821,7 +827,7 @@ class SlitherGame extends FlameGame {
     if (limit != null &&
         simulation.elapsed >= limit &&
         !simulation.gameOver) {
-      simulation.endTraining();
+      _endTraining();
     }
     _finalizeCompletedRun();
     _hudTimer += dt;
@@ -853,6 +859,37 @@ class SlitherGame extends FlameGame {
       nearestPelletDirectionX: foodDirection.x,
       nearestPelletDirectionY: foodDirection.y,
     );
+  }
+
+  void _endTraining() {
+    if (simulation.gameOver || !simulation.player.alive) return;
+    final stats = RunStats(
+      score: simulation.score,
+      length: simulation.player.length,
+      survivalSeconds: simulation.elapsed,
+      rank: simulation.playerRank,
+    );
+    _recorder?.recordEvent(
+      SimulationEventSnapshot(
+        tick: simulation.simulationTick + 1,
+        kind: SimulationEventKind.runEnded,
+        actorId: simulation.player.id,
+        value: simulation.score.toDouble(),
+        detail: 'timeLimit',
+        metadata: <String, Object?>{
+          'score': simulation.score,
+          'length': simulation.player.length,
+          'survivalSeconds': simulation.elapsed,
+          'simulationElapsedSeconds':
+              simulation.simulationTick * simulation.config.simulationStep,
+          'rank': simulation.playerRank,
+        },
+      ),
+    );
+    simulation.player.alive = false;
+    simulation.finalStats = stats;
+    simulation.gameOver = true;
+    _timeLimitReached = true;
   }
 
   void _finalizeCompletedRun() {
@@ -916,6 +953,7 @@ class SlitherGame extends FlameGame {
       sprinting: simulation.player.sprinting,
       gameOver: simulation.gameOver,
       gameOverReason: simulation.gameOverReason,
+      timeLimitReached: _timeLimitReached,
       finalStats: simulation.finalStats,
       threats: threats,
       leaderboard: simulation.leaderboard,
@@ -1425,14 +1463,13 @@ class _Hud extends StatelessWidget {
   final VoidCallback onChangeSnek;
 
   String get _gameOverTitle {
+    if (state.timeLimitReached) return 'TRAINING COMPLETE';
     switch (state.gameOverReason) {
       case GameOverReason.bodyCollision:
         return 'BODY COLLISION';
       case GameOverReason.boundary:
       case null:
         return 'OUT OF BOUNDS';
-      case GameOverReason.timeLimit:
-        return 'TRAINING COMPLETE';
     }
   }
 
