@@ -36,11 +36,7 @@ extension SoulPlayerObservations on GameSimulation {
   }
 }
 
-int _countNearbyFood(
-  List<FoodPellet> source,
-  Vec2 origin,
-  double radius,
-) {
+int _countNearbyFood(List<FoodPellet> source, Vec2 origin, double radius) {
   var count = 0;
   for (final pellet in source) {
     if (origin.distanceTo(pellet.position) <= radius) count++;
