@@ -8,13 +8,15 @@ import '../domain/training_application.dart';
 import '../domain/training_models.dart';
 import '../domain/training_repositories.dart';
 
-class FixedStepRunRecorder implements SimulationCaptureSink {
+class FixedStepRunRecorder
+    implements SimulationCaptureSink, TacticalAnalysisCaptureSink {
   FixedStepRunRecorder({
     required this.runId,
     required this.lifecycle,
     required this.chunks,
     this.chunkTickCount = 240,
     this.maximumPendingChunks = 2,
+    this.captureTacticalAnalysis = false,
   }) {
     if (runId.trim().isEmpty ||
         chunkTickCount <= 0 ||
@@ -28,6 +30,10 @@ class FixedStepRunRecorder implements SimulationCaptureSink {
   final RunChunkRepository chunks;
   final int chunkTickCount;
   final int maximumPendingChunks;
+
+  /// Tactical events are reconstructed by the review worker after the run.
+  @override
+  final bool captureTacticalAnalysis;
 
   final List<SimulationControlSample> _controls = [];
   final List<SimulationObservationSnapshot> _observations = [];
@@ -183,41 +189,45 @@ class FixedStepRunRecorder implements SimulationCaptureSink {
 
     final sequence = _nextSequence++;
     _pendingChunkWrites++;
-    _writeTail = _writeTail.then<void>((_) async {
-      if (_writeError != null) return;
-      final payload = Uint8List.fromList(
-        utf8.encode(
-          jsonEncode(<String, Object?>{
-            'format': 'snek-run-chunk',
-            'schemaVersion': currentTrainingRecordSchemaVersion,
-            'runId': runId,
-            'sequence': sequence,
-            'firstTick': firstTick,
-            'lastTick': lastTick,
-            'controls': controls
-                .map((sample) => sample.toJson())
-                .toList(growable: false),
-            'observations': observations
-                .map((sample) => sample.toJson())
-                .toList(growable: false),
-            'events':
-                events.map((event) => event.toJson()).toList(growable: false),
-          }),
-        ),
-      );
-      await chunks.appendChunk(
-        runId: runId,
-        sequence: sequence,
-        firstTick: firstTick,
-        lastTick: lastTick,
-        payload: payload,
-      );
-    }).catchError((Object error) {
-      _writeError ??= error;
-      _captureIncomplete = true;
-      _accepting = false;
-    }).whenComplete(() {
-      _pendingChunkWrites--;
-    });
+    _writeTail = _writeTail
+        .then<void>((_) async {
+          if (_writeError != null) return;
+          final payload = Uint8List.fromList(
+            utf8.encode(
+              jsonEncode(<String, Object?>{
+                'format': 'snek-run-chunk',
+                'schemaVersion': currentTrainingRecordSchemaVersion,
+                'runId': runId,
+                'sequence': sequence,
+                'firstTick': firstTick,
+                'lastTick': lastTick,
+                'controls': controls
+                    .map((sample) => sample.toJson())
+                    .toList(growable: false),
+                'observations': observations
+                    .map((sample) => sample.toJson())
+                    .toList(growable: false),
+                'events': events
+                    .map((event) => event.toJson())
+                    .toList(growable: false),
+              }),
+            ),
+          );
+          await chunks.appendChunk(
+            runId: runId,
+            sequence: sequence,
+            firstTick: firstTick,
+            lastTick: lastTick,
+            payload: payload,
+          );
+        })
+        .catchError((Object error) {
+          _writeError ??= error;
+          _captureIncomplete = true;
+          _accepting = false;
+        })
+        .whenComplete(() {
+          _pendingChunkWrites--;
+        });
   }
 }
