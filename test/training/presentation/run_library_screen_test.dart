@@ -83,6 +83,20 @@ void main() {
     await tester.ensureVisible(find.text('EXPAND ANALYSIS'));
     await tester.tap(find.text('EXPAND ANALYSIS'));
     await tester.pumpAndSettle();
+    expect(find.text('OBSERVED EVIDENCE'), findsNothing);
+    for (final label in const [
+      'Resource collection pattern',
+      'Size and agility',
+      'Movement shape',
+      'Sprint behavior',
+      'Risk and exposure',
+      'Threat response',
+      'Bot counter-strategies observed',
+    ]) {
+      await tester.ensureVisible(find.text(label));
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
     expect(find.text('OBSERVED EVIDENCE'), findsNWidgets(7));
   });
 
@@ -111,7 +125,10 @@ void main() {
       await tester.ensureVisible(find.text('EXPAND ANALYSIS'));
       await tester.tap(find.text('EXPAND ANALYSIS'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Resource collection pattern'));
       await tester.tap(find.text('Resource collection pattern'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('PRESSURE EPISODES'));
       await tester.tap(find.text('PRESSURE EPISODES'));
       await tester.pumpAndSettle();
       expect(find.text('OBSERVED EVIDENCE'), findsOneWidget);
