@@ -15,6 +15,7 @@ import 'game/presentation/arena_skin.dart';
 import 'game/presentation/snek_pen.dart';
 import 'training/application/fixed_step_run_recorder.dart';
 import 'training/data/training_services.dart';
+import 'training/data/training_review_services.dart';
 import 'training/domain/training_models.dart';
 import 'training/presentation/run_library_screen.dart' deferred as run_library;
 import 'training/presentation/soul_library_screen.dart';
@@ -54,7 +55,10 @@ class _SlitherAppState extends State<SlitherApp> {
   @override
   void initState() {
     super.initState();
-    game = SlitherGame(onRunFinalized: _openCompletedRun);
+    game = SlitherGame(
+      onRunFinalized: _openCompletedRun,
+      resolveSoulRevision: _resolveSoulRevision,
+    );
     _focusNode = FocusNode();
   }
 
@@ -93,6 +97,16 @@ class _SlitherAppState extends State<SlitherApp> {
       return;
     }
     setState(() => _screen = _AppScreen.pen);
+  }
+
+  Future<SoulRevision?> _resolveSoulRevision(String soulId) async {
+    try {
+      final training = await TrainingReviewServices.soulTrainingService();
+      return training.resolveLatestRevision(soulId);
+    } catch (error) {
+      debugPrint('Could not resolve the bound Soul: $error');
+      return null;
+    }
   }
 
   void _selectSnek(String id) {
@@ -396,6 +410,7 @@ class SlitherGame extends FlameGame {
   SlitherGame({
     SimulationConfig config = const SimulationConfig(),
     this.onRunFinalized,
+    this.resolveSoulRevision,
   }) : simulation = GameSimulation(config: config),
        hud = ValueNotifier(
          const GameHud(
@@ -421,6 +436,7 @@ class SlitherGame extends FlameGame {
        );
 
   final ValueChanged<String>? onRunFinalized;
+  final Future<SoulRevision?> Function(String soulId)? resolveSoulRevision;
   final GameSimulation simulation;
   final ValueNotifier<GameHud> hud;
   final ui.Paint _gridPaint =
@@ -505,6 +521,20 @@ class SlitherGame extends FlameGame {
     _pointerSprint = false;
     _keyboardSprint = false;
 
+    SoulRevision? soulRevision;
+    final soulId = snek.soulId;
+    if (soulId != null && resolveSoulRevision != null) {
+      try {
+        soulRevision = await resolveSoulRevision!(soulId);
+      } catch (error) {
+        debugPrint('Could not resolve the bound Soul revision: $error');
+      }
+    }
+
+    final soulRevisionIds =
+        soulRevision == null
+            ? const <String>[]
+            : <String>[soulRevision.revisionId];
     final createdAtMs = DateTime.now().millisecondsSinceEpoch;
     final participants = simulation.snakes
         .map(
@@ -513,6 +543,8 @@ class SlitherGame extends FlameGame {
             'role': actor.kind.name,
             'controller': actor.kind == SnakeKind.player ? 'human' : 'builtin',
             'profileId': actor.kind == SnakeKind.player ? snek.id : null,
+            'soulRevisionIds':
+                actor.kind == SnakeKind.player ? soulRevisionIds : const <String>[],
           },
         )
         .toList(growable: false);
@@ -530,6 +562,8 @@ class SlitherGame extends FlameGame {
         'playerProfileId': snek.id,
         'playerName': snek.name,
         'playerColorIndex': snek.colorIndex,
+        'soulId': soulId,
+        'soulRevisionId': soulRevision?.revisionId,
         'participants': participants,
       },
     );
