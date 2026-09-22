@@ -163,8 +163,8 @@ Future<Map<String, Object?>> _analyzeRunReviewInBackground(
   }
   final worker =
       IsolateManager<Map<String, Object?>, Map<String, Object?>>.createCustom(
-        analyzeRunReviewChunks,
-        workerName: 'analyzeRunReviewChunks',
+        analyzeRunReviewChunksWorker,
+        workerName: 'analyzeRunReviewChunksWorker',
         debugName: 'run-review-analysis',
       );
   var started = false;
