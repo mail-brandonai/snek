@@ -758,7 +758,17 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
         children: [
           Row(
             children: [
-              Expanded(child: heading),
+              const Expanded(
+                child: Text(
+                  'BEHAVIOR SIGNATURE',
+                  style: TextStyle(
+                    color: ArenaSkin.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ),
               TextButton.icon(
                 onPressed: () => setState(
                   () => _analysisExpanded = !_analysisExpanded,
@@ -791,8 +801,10 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                   color: const Color(0x332f4b64),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: ExpansionTile(
-                  tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Material(
+                  color: Colors.transparent,
+                  child: ExpansionTile(
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 12),
                   childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                   title: Row(
                     children: [
@@ -858,7 +870,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                             'No interpretation available.',
                       ),
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             Container(
@@ -866,9 +879,11 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                 color: const Color(0x332f4b64),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: ExpansionTile(
-                title: const Text(
-                  'PRESSURE EPISODES',
+              child: Material(
+                color: Colors.transparent,
+                child: ExpansionTile(
+                  title: const Text(
+                    'PRESSURE EPISODES',
                   style: TextStyle(
                     color: ArenaSkin.accent,
                     fontSize: 12,
@@ -922,7 +937,8 @@ class _RunLibraryScreenState extends State<RunLibraryScreen> {
                         ),
                       ),
                     ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
